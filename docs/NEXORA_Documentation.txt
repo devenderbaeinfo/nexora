@@ -1,0 +1,591 @@
+        PRODUCT & ARCHITECTURE DOCUMENTATION
+
+       NEXORA
+
+                  Next-generation enterprise operations
+  Enterprise ERP Platform -- complete technical and product reference
+
+Covers identity, architecture, security, modules, phased delivery, and governance
+
+                          Version 1.0 | Master Documentation
+    Formerly developed under the working name SutraERP · September 2026
+                                   NEXORA -- Product & Architecture Documentation
+
+1. About This Document
+
+This is the master reference for NEXORA -- what it is, why it is built the way it is, and how it will be delivered.
+It documents the product identity and design system, the full technical architecture, security and compliance
+posture, the complete module surface, and the phase-by-phase development plan, in one place.
+
+This is documentation, not a pitch: every section states what has been decided, what is deferred and why, and
+what remains open. Our organization is both the author of this platform and its first production user -- Phase 1 of
+the roadmap in Section 14 replaces our own dependency on our existing Zoho ERP environment, while the
+architecture underneath is built to extend into a commercial multi-tenant product.
+
+2. Product Identity
+
+2.1 Name & Meaning
+
+Element             Definition
+Product name
+                    NEXORA
+Meaning
+                    NEXORA combines "nexus" -- a hub where connections converge -- with a forward-looking
+Tagline             suffix evoking a new horizon. It names what the platform actually is: a converging hub for
+Category            every enterprise process, built for the next generation of enterprise operations.
+
+Market position     Next-generation enterprise operations
+
+                    Configurable Process-to-Ledger ERP Platform
+
+                    Between heavyweight enterprise suites (SAP, Oracle, Dynamics 365, Workday) and
+                    lightweight SMB tools (Zoho, Odoo) -- for organizations that have outgrown basic business
+                    tools but do not need SAP-level cost and complexity.
+
+2.2 Design System -- Color Palette
+
+The palette below is applied consistently across the product interface and every piece of NEXORA
+documentation, including this one: headings in Nexora Navy, accents in Aurora Gold, approvals and success
+states in Signal Teal, and alerts in Alert Coral.
+
+                     Page 2 of 18
+                                                                                                                     NEXORA -- Product & Architecture Documentation
+
+                                                 Figure 1 -- NEXORA color system with usage notes
+
+2.3 Interface Reference
+
+An illustrative rendering of the employee dashboard, showing the palette applied to real interface elements: KPI
+cards, an approval queue, and a ledger snapshot.
+
+                                    Figure 2 -- Illustrative dashboard view in the NEXORA visual language
+                                                                  Page 3 of 18
+                                                   NEXORA -- Product & Architecture Documentation
+
+3. Product Vision & Philosophy
+
+Vision: a modern, modular, configurable ERP platform that connects people, processes, finance, projects, and
+customers through one secure source of truth -- where an organization activates only the modules it needs, and
+nothing more.
+
+  · One source of truth -- no duplicate departmental databases.
+  · Integration first -- every module can communicate with every other module by design, not by later
+
+     patchwork.
+  · Configuration over customization -- workflows, approvals, roles, policies, and tax rules are configured by an
+
+     administrator, not coded by an engineer.
+  · API-first -- every capability is reachable through an API, not locked behind a screen.
+  · Security by design -- built into the architecture from the first commit, not added before a compliance audit.
+  · Mobile and web from day one -- employees, managers, finance, and administrators, on whichever device
+
+     they are using.
+  · Product first -- every internal requirement is tested against one question: is this organization-specific, or
+
+     should it become a configurable platform capability?
+
+4. Unique Value Proposition
+
+Claims like "affordable ERP", "AI-powered ERP", or "modular ERP" are used by nearly every competitor and
+defend nothing. NEXORA's differentiation is architectural.
+
+Differentiator                       What It Means
+Configurable process-to-ledger
+engine                               Any business action -- expense, leave, purchase, invoice -- moves through the same
+Configuration-first, not code-first  policy  validation  approval  transaction  ledger  audit pipeline. A new
+                                     request type is added without rebuilding the engine.
+Internal-first validation
+                                     An administrator changes an approval rule (e.g. "expenses over Rs.50,000 require
+Process intelligence                 Director sign-off") through a workflow builder -- no developer, no deployment.
+Open integration architecture
+                                     Real employees, real transactions, real accounting, before any external customer sees
+                                     the product -- producing a proven reference implementation rather than a theoretical
+                                     one.
+
+                                     The platform does not only record "approved" -- over time it can identify why an
+                                     approval took four days and where the bottleneck sits.
+
+                                     REST APIs, webhooks, events, and an SDK from the first release -- no vendor lock-in
+                                     for organizations that adopt it.
+
+Explicitly Not Claimed
+
+  · Not positioned as "cheapest ERP", "most powerful ERP", "SAP replacement", or "AI-first ERP" -- these are
+     weak, overused, or indefensible claims that invite an easy rebuttal.
+
+                                     Page 4 of 18
+                                                                                             NEXORA -- Product & Architecture Documentation
+Figure 3 -- Competitive positioning: deliberately between enterprise complexity and SMB tooling
+
+                                               Page 5 of 18
+                                                                           NEXORA -- Product & Architecture Documentation
+
+5. Competitive Capability Reference
+
+A candid comparison of Phase 1 capability against the current ERP landscape. This is a reference for internal
+decision-making, not a marketing claim -- NEXORA is not expected to match enterprise suites feature-for-feature
+at this stage.
+
+Capability               NEXORA (current)           Enterprise Suites      Workday  Zoho / Odoo
+                                                    (SAP/Oracle/Dynamics)
+Employee master          Yes                        Yes                    Yes      Yes
+Leave & attendance       Yes                        Yes                    Yes      Yes
+Expenses                 Yes                        Yes                    Yes      Yes
+Accounting / GL          Partial (Phase 3)          Yes                    Yes      Yes
+Project costing          Yes                        Yes                    Partial  Yes
+Full project management  Planned (Phase 4)          Yes                    Partial  Yes
+Procurement              Planned (Phase 5)          Yes                    Partial  Yes
+Inventory                Planned (Phase 6)          Yes                    Limited  Yes
+Payroll                  Planned (Phase 11)         Strong                 Strong   Partial
+Sales / CRM              Planned (Phase 7)          Yes                    Partial  Yes
+Multi-tenant SaaS        Architected, not yet live  Yes                    Yes      Yes
+Approval engine          Strong                     Strong                 Strong   Strong
+Immutable ledger design  Strong                     Strong                 Strong   Partial
+
+                                                    Page 6 of 18
+                                                                    NEXORA -- Product & Architecture Documentation
+
+6. Technology Stack
+
+Layer               Technology                                      Rationale
+Web frontend
+Mobile frontend     React + TypeScript                              Enterprise ERP workflows require dense data grids,
+Backend                                                             bulk operations, and keyboard-driven navigation --
+                    Flutter + Dart                                  better served by React than a single cross-platform
+Architecture style                                                  toolkit for desktop/web.
+                    .NET (current LTS) -- ASP.NET Core, Entity
+Database            Framework Core, C#                              One codebase for iOS and Android, suited to the
+Cache                                                               simplified, touch-first workflows mobile users need:
+Messaging           Modular monolith, initially                     approvals, leave, expense capture, notifications.
+File storage
+Identity & access   PostgreSQL                                      Strong typing, a mature security ecosystem, and a large
+DevOps                                                              enterprise hiring pool. The current supported LTS is
+Observability       Redis                                           targeted at build time rather than a fixed version frozen
+Analytics           Background workers initially; RabbitMQ or       in advance.
+                    Azure Service Bus once volume justifies it
+                    Object storage (Azure Blob / S3-compatible)     Clear module boundaries (Finance, HR, Projects) inside
+                                                                    one deployable unit; independent services are extracted
+                    OAuth 2.0 + OpenID Connect, MFA, SSO,           later only where scale justifies the added operational
+                    RBAC + policy-based (ABAC) authorization        complexity.
+                    Git, CI/CD, Docker, infrastructure as code,
+                    automated testing, staging  UAT                 Relational integrity, transactions, JSON support, and no
+                    production                                      per-seat licensing -- the schema is designed around
+                    Structured logs, metrics, distributed tracing,  Tenant  Company  Business Unit  Department
+                    alerting, audit logging                         from the first migration.
+                    PostgreSQL reporting layer initially, evolving
+                    to a data warehouse/lakehouse at scale          Sessions, distributed caching, rate limiting.
+
+                                                                    A message broker is introduced when integration
+                                                                    patterns actually require it, not by default.
+
+                                                                    The database stores metadata only; large files never live
+                                                                    directly inside PostgreSQL.
+
+                                                                    Role alone is insufficient for authorization; department,
+                                                                    reporting line, project, and company scope are all
+                                                                    considered.
+
+                                                                    Every release passes a security scan before it reaches
+                                                                    production.
+
+                                                                    Distinct from the audit trail -- this is how the
+                                                                    operations team learns the system is degrading before
+                                                                    employees notice.
+
+                                                                    Dashboards never query transactional tables directly.
+
+                     Page 7 of 18
+                                                                                                                     NEXORA -- Product & Architecture Documentation
+
+7. System Architecture
+
+Every request -- from a React or Flutter client down to the database -- passes through the security boundary and
+the platform's core services before reaching any business module.
+
+                                        Figure 4 -- End-to-end request path through the security boundary
+
+7.1 Platform Layers
+
+The platform organizes into three layers on top of a common core: Platform Services (identity, workflow, audit),
+Business Modules (Finance, HR, Projects/SCM), and an Intelligence Layer (BI, KPIs, AI) that reads from all of
+them.
+
+                                                                  Page 8 of 18
+                                                                                                                     NEXORA -- Product & Architecture Documentation
+                                                          Figure 5 -- NEXORA platform layers
+
+7.2 Security Chain
+
+Every request is authenticated and authorized through the same chain regardless of which module it touches. Role
+alone never determines access -- tenant, department, and data scope apply on every request.
+
+                                               Figure 6 -- Identity through to audit, applied uniformly
+                                                                  Page 9 of 18
+                                                                                                                     NEXORA -- Product & Architecture Documentation
+
+7.3 Organizational Data Model
+
+Every table in the schema is designed against this hierarchy from the first migration, even while only one
+organization uses the platform. Retrofitting tenant isolation after the fact is one of the most expensive mistakes an
+ERP team can make -- so the hierarchy exists in the data model well before multi-tenant rollout is commercially
+needed.
+
+                                         Figure 7 -- Organizational hierarchy embedded in every record
+
+7.4 Multi-Tenancy Approach
+
+Multi-tenancy implementation -- tenant sign-up, billing, plan tiers -- can wait until external customers are ready
+to onboard. Multi-tenancy architecture cannot wait; it is designed into the schema from Phase 1.
+
+  · Tenant-specific configuration, roles, workflows, branding, localization, and module activation are all
+     modeled from the start.
+
+  · A single platform codebase serves every tenant; isolation is enforced at the data layer, not by separate
+     deployments per customer.
+
+8. Platform Core Services
+
+Six reusable engines sit beneath every business module. None of them is specific to Leave or Expense or any
+single module -- building them once here is what prevents the same logic being re-implemented five times across
+the platform.
+
+Engine                  Figure 8 -- The six core services shared by every business module
+Workflow Engine
+Approval Engine       Responsibility
+Notification Engine
+Document Engine       Defines the sequence a business object moves through (submitted  validated  approved
+Audit Engine           posted), reusable across Leave, Expense, Purchase, Invoice, and future object types.
+Configuration Engine
+                      Resolves who must approve a given request based on role, amount, department, or project
+                      -- configurable per rule, not hard-coded per module.
+
+                      Email, in-app, and push notifications today; SMS integration planned. Handles reminders
+                      and escalations when an approval sits idle.
+
+                      Attaches and stores receipts, contracts, employee documents, and compliance documents
+                      against any record in the platform.
+
+                      Records who did what, when, where, and what changed, for every sensitive operation --
+                      logins, permission changes, master-data edits, approvals, financial transactions,
+                      configuration changes.
+
+                      Lets an administrator define departments, leave types, approval rules, expense policies,
+                      roles, and custom fields without a code change or deployment.
+
+                      Page 10 of 18
+                                   NEXORA -- Product & Architecture Documentation
+
+Page 11 of 18
+                                           NEXORA -- Product & Architecture Documentation
+
+9. Security & Compliance
+
+Category                    Controls
+Authentication
+Authorization               MFA, SSO, OAuth2/OIDC, session management, refresh-token security, account lockout
+Audit                       policies.
+Infrastructure
+Data protection             RBAC combined with policy-based (ABAC) rules; resource-level and department-level
+Backup & disaster recovery  data access; approval-authority limits per role.
+Compliance
+                            Login and logout, failed authentication attempts, permission changes, master-data changes,
+                            approval changes, financial transactions, and configuration changes are all logged.
+
+                            Secrets management, key management, intrusion detection, vulnerability scanning,
+                            dependency scanning.
+
+                            Encryption in transit (TLS) and at rest, PII protection, data retention policy, data export and
+                            deletion rules.
+
+                            Defined Recovery Point Objective and Recovery Time Objective targets, encrypted
+                            backups, scheduled restore testing, and a documented failover strategy -- not simply "daily
+                            backup."
+
+                            India-first statutory support (Provident Fund, ESIC, Professional Tax, TDS) is designed as
+                            a configurable localization layer rather than logic hard-coded into the core.
+
+10. Integration Architecture
+
+An ERP rarely operates in isolation. The integration layer exists from Phase 1, even though most external
+integrations themselves are built later.
+
+  · REST APIs, versioned from the first release, so breaking changes never silently affect an existing integration.
+  · Webhooks and asynchronous events for systems that need to react to NEXORA activity without polling.
+  · Idempotency and retry handling built into the integration layer, so a duplicated request never creates a
+
+     duplicated transaction.
+  · API keys and OAuth-based access for external systems, with full integration logging.
+  · Planned downstream integrations: payroll providers, banking, email, SSO providers, CRM, tax systems,
+
+     payment gateways, document storage, and BI tools.
+
+11. Reporting & Analytics Architecture
+
+Dashboards are never allowed to run heavy queries directly against transactional tables -- a dedicated reporting
+layer exists specifically to keep operational performance and reporting performance independent of each other.
+
+  · HR reporting: headcount, attrition, leave utilization, attendance, overtime.
+  · Finance reporting: cash flow, expense trends, budget variance, aging, reimbursement status.
+  · Project reporting: budget vs. actual, cost by employee, billable utilization, project profitability.
+  · Management reporting: a company-wide dashboard combining financial and operational KPIs across
+
+     departments.
+
+                            Page 12 of 18
+                                           NEXORA -- Product & Architecture Documentation
+
+12. Full Module Reference
+
+The complete functional surface NEXORA is designed to eventually cover, grouped by domain. Phase 1 (Section
+14) implements only a slice of this deliberately -- the remainder is architected for, not built prematurely.
+
+Module Group                Covers
+A -- Platform Core
+                            Identity & access, organization/tenant management, workflow & approval engine,
+B -- People / HCM           notifications, documents, audit & compliance.
+
+C -- Finance                Employee master, attendance, leave, timesheets, expenses (Phase 1); recruitment, payroll,
+D -- Expense Management     performance, benefits (future).
+E -- Project Management
+                            General ledger, chart of accounts, fiscal periods, AP/AR, banking, budgeting, fixed assets,
+F -- Procurement            tax.
+G -- Inventory & Warehouse
+H -- Sales & CRM            Claims, receipts, policy validation, approvals, reimbursement, accounting integration.
+I -- Supply Chain
+J -- Manufacturing          Project/task/milestone planning plus project financials -- time, expense, resource cost,
+K -- Asset & Facility       revenue, profitability.
+Management
+L -- Analytics & BI         Requisition  approval  RFQ  purchase order  goods receipt  invoice  3-way
+M -- AI                     match  payment.
+
+                            Products, warehouses, stock movement, transfers, batches, serials, reorder levels.
+
+                            Leads, opportunities, quotations, sales orders, delivery, invoicing, payment.
+
+                            Demand planning, supplier management, logistics, forecasting, replenishment.
+
+                            BOM, work orders, MRP, quality, maintenance -- optional, gated behind market
+                            validation.
+
+                            Asset register, assignment, maintenance, depreciation, disposal.
+
+                            Operational and management dashboards, forecasting, anomaly detection.
+
+                            Document/receipt extraction, expense classification, forecasting, and eventually agentic
+                            workflows -- applied to solve real ERP problems, not added for its own sake.
+
+                            Page 13 of 18
+                                                                                                                     NEXORA -- Product & Architecture Documentation
+
+13. Phase-Wise Development Plan
+
+Fifteen phases, grouped into four delivery stages. Phases 0-4 build the platform core and validate it internally;
+Phases 5-9 expand into broader business operations; Phases 10-12 harden the platform for enterprise use; Phases
+13-14 turn it into a commercial SaaS product.
+
+                    Figure 9 -- The fifteen phases grouped into four delivery stages
+
+Phase               Goal                             Key Scope                                                   Deliverable / Gate
+0 -- Discovery &    Understand our needs and the                                                                 Architecture and product
+Blueprint           future product's needs together  Zoho capability inventory, process mapping, competitor      strategy approved
+                                                     benchmarking, security & compliance requirements
+1 -- ERP            Build the platform every future                                                              Working platform shell
+Foundation          module depends on                Identity, tenant/org model, workflow engine, approval
+                                                     engine, notification engine, audit engine, API              Employees log time and
+2 -- People + Time  Replace the first major Zoho     foundation                                                  apply leave in NEXORA
++ Leave             workflows
+                                                     Employee master, departments, reporting hierarchy,          An approved expense posts a
+3 -- Expense +      Money starts flowing through     attendance, timesheets, leave (including half-day and       balanced, immutable journal
+Finance Core        the ledger                       sick leave rules), self-service                             entry
+
+4 -- Project        Connect time and expense to      Expense claims/approval/reimbursement; GL, chart of         Live budget-vs-actual per
+Management +        project profitability            accounts, journals, AP/AR, budgets, fiscal periods,         project, no spreadsheets
+Financials                                           immutable posting with reversal
+                    Close the largest Phase-1 gap:                                                               A purchase can be requested,
+5 -- Procurement    buying from suppliers            Projects, tasks, milestones, resources, budgets; time +     approved, and paid end-to-
+                                                     expense + resource cost + revenue = profitability           end
+6 -- Inventory &    Track stock, not just cost                                                                   Stock levels reconcile against
+Warehouse                                            Requisition  approval  RFQ  PO  goods                       transactions
+                    Bring revenue into the same      receipt  invoice  3-way match  payment
+7 -- Sales & CRM    engine                                                                                       A sale flows to accounting
+                                                     Product master, stock, warehouses, transfers,               with zero manual entry
+8 -- Supply Chain   Plan ahead, not just react       adjustments, batch/serial, reorder levels
+                                                                                                                 Supply plan reflects real
+9 -- Asset &        Track what the company owns      Lead  opportunity  quotation  order  delivery               demand signals
+Facility                                              invoice  payment, integrated with inventory and
+Management          Enterprise-grade financial       projects                                                    Every fixed asset has a full
+10 -- Advanced      control                                                                                      lifecycle record
+Finance                                              Demand planning, supplier management, logistics,
+                    Full HCM, not only leave and     forecasting, replenishment                                  Multi-entity close completes
+11 -- Advanced HR   attendance                                                                                   on schedule
+                                                     Asset register, assignment, maintenance, depreciation,      Payroll runs inside
+12 --               Only if commercial demand        disposal                                                    NEXORA, statutory-
+Manufacturing       justifies it                                                                                 compliant
+(optional)                                           Advanced budgeting, forecasting, cash flow, multi-
+                    Move from reporting to           company, multi-currency, intercompany, financial close      Gated behind explicit market
+13 -- BI + AI       explanation                                                                                  validation
+                                                     Recruitment, onboarding, payroll (including
+14 -- Commercial    Become externally sellable       PF/ESIC/PT/TDS), performance, training, workforce           A dashboard can explain
+SaaS Platform                                        analytics                                                   "why", not just "what"
+
+                                                     BOM, MRP, work orders, production costing, quality,         A new customer reaches their
+                                                     maintenance                                                 first transaction with no
+                                                                                                                 engineering involvement
+                                                     Operational  management  predictive analytics;
+                                                     document intelligence, anomaly detection, forecasting,
+                                                     early agentic workflows
+
+                                                     Multi-tenancy, subscription plans
+                                                     (Starter/Professional/Enterprise), module licensing, self-
+                                                     serve tenant onboarding
+
+                                                     Page 14 of 18
+                                                                                                                 NEXORA -- Product & Architecture Documentation
+
+Phase 1 of the roadmap corresponds to the four modules already agreed for the immediate build -- People,
+Timecard & Leave, Accounting/Reimbursement, and Project Expenses -- delivered here as Phases 1-4 with the
+added rigor of an immutable ledger, fiscal periods, and full project financials.
+
+                                                              Page 15 of 18
+                                                                                                                     NEXORA -- Product & Architecture Documentation
+
+14. Definition of Done -- Worked Example
+
+Every module in this roadmap is only considered complete when it satisfies measurable, testable acceptance
+criteria -- not a one-line description. The Leave module is used here as a worked example of the standard applied
+to every module.
+
+  · Employee can submit a leave request, including half-day and backdated sick leave.
+  · Leave balance is calculated correctly, including partial-day debits.
+  · Overlap and blackout-date conflicts are detected before submission.
+  · Manager approval and rejection both function and are logged.
+  · Cancellation of an already-submitted request is supported.
+  · Concurrent requests against the same balance are handled without a race condition.
+  · Historical balances are preserved even after an organizational change (department, manager).
+  · Every state transition (submit, approve, reject, cancel) writes an audit entry.
+  · Notifications fire correctly on every state transition.
+   Functional, technical (unit/integration/API/performance tests), security, business (UAT passed, users trained,
+   documentation available), and production (monitoring, backups, rollback plan) criteria are all required together --
+   a module is not "done" on functional criteria alone.
+
+15. Data Governance & Migration Strategy
+
+Since our organization is the first production customer, migrating cleanly off the existing Zoho environment is
+itself a first-class deliverable, not an afterthought.
+
+  · Stage 1 -- Inventory every existing Zoho process: data, users, roles, approvals, reports, integrations, and pain
+     points, not just features.
+
+  · Stage 2 -- Build AS-IS and TO-BE process maps for each workflow being migrated.
+  · Stage 3 -- For each process, decide: replicate, improve, remove, automate, or generalize into a configurable
+
+     capability.
+  · Stage 4 -- Migrate: extract, transform, clean, validate, map, and import -- never a raw CSV export and
+
+     import.
+  · Stage 5 -- Run NEXORA and Zoho in parallel to validate before cutover.
+  · Stage 6 -- Cut over to NEXORA as the system of record.
+  · Stage 7 -- Zoho becomes a read-only archive per an approved retention policy.
+
+                                                                 Page 16 of 18
+                                                        NEXORA -- Product & Architecture Documentation
+
+16. Success Metrics
+
+Category                 Metrics
+Adoption
+Process efficiency       Greater than 90% of targeted users active; manual spreadsheet usage down; duplicate data
+Financial                entry down.
+System health
+Product readiness        Approval turnaround time reduced; reimbursement processing time reduced.
+
+Commercial (north star)  Accounting errors reduced; audit findings resolved without rework.
+
+                         API response time, error rate, uptime, and security incident count within target.
+
+                         Percentage of functionality configurable without code; percentage of modules reusable across
+                         future tenants; time to onboard a new tenant.
+
+                         Time-to-First-Transaction -- how quickly a new customer reaches their first real transaction
+                         after signup.
+
+17. Risk Register
+
+Risk                                     Mitigation
+Scope explosion beyond Phase 1
+Zoho migration data issues               Strict module gates -- each phase has a defined exit gate before the next begins.
+Accounting errors
+Security failure                         Dedicated migration plan with parallel validation before cutover (Section 15).
+Hard-coded, customer-specific rules
+                                         Finance UAT plus the immutable-ledger-and-reversal design (Section 13, Phase 3).
+Over-engineered microservices too early
+                                         Full security architecture (Section 9) built from Phase 1, not retrofitted.
+Product becomes internal-only
+Aggressive timeline                      Configuration engine -- a requirement is only hand-coded if configuration genuinely
+                                         cannot solve it.
+
+                                         Modular monolith first; independent services are extracted only where scale justifies
+                                         it.
+
+                                         Explicit product governance (Section 18) and multi-tenancy architecture from day
+                                         one.
+
+                                         Phase gates use measurable acceptance criteria, not calendar promises.
+
+                                         Page 17 of 18
+                                                            NEXORA -- Product & Architecture Documentation
+
+18. Governance Model
+
+This is a product, not a side project -- it requires a steering body beyond the engineering team.
+
+  · ERP Steering Committee: Product Owner, Technical Architect, Finance Representative, HR Representative,
+     Operations Representative, End-user Representatives.
+
+  · Flow: business requirement  product evaluation  architecture review  development  UAT  release.
+  · Every requirement is tested against one question before it is built: can configuration solve this, or does it need
+
+     a genuine platform capability?
+
+19. Frequently Challenged Questions
+
+Questions this documentation is expected to face, answered directly rather than left implicit.
+
+Question                                     Answer
+
+Why build instead of buying Odoo, Dynamics,  We control the roadmap, data, and architecture, and can validate every workflow
+or SAP Business One?                         against our own operations before generalizing it into a sellable product -- see Section
+                                             15.
+Where is MFA and SSO?
+                                             Defined in Section 9 as part of the authentication layer, alongside OAuth2/OIDC.
+Where is backup and disaster recovery?
+                                             Section 9 requires explicit RPO/RTO targets and tested restores, not a vague "daily
+How does the ledger handle corrections?      backup" statement.
+
+How will multi-tenancy work?                 Only through a linked reversal entry (Section 13, Phase 3) -- postings are never edited
+                                             or deleted.
+What happens if Phase 1 fails to hit its
+timeline?                                    Architected from Phase 1 into the data model (Section 7.3-7.4); implemented
+What is our unique advantage over existing   commercially in Phase 14.
+ERP products?
+                                             Each phase has a measurable deliverable/gate (Section 13); the timeline is indicative
+                                             and subject to team capacity, not a fixed promise.
+
+                                             The configurable process-to-ledger engine and configuration-first philosophy (Section
+                                             4) -- not feature count.
+
+20. Closing Statement
+
+NEXORA is not an internal business application that might later become a product. It is a commercial ERP
+platform, with our organization serving as its first production environment.
+
+Phase 1 solves our immediate operational requirements and ends our dependency on Zoho. Every subsequent
+phase expands the platform toward a complete ERP covering Finance, HR, Procurement, Inventory, Sales,
+Projects, Supply Chain, Assets, Analytics, and AI.
+
+The platform's advantage is not the number of screens it has. It is the engine underneath those screens: one
+configurable pipeline connecting business rules, approvals, transactions, accounting, audit, and analytics into a
+single continuous thread -- from the first policy check to the final ledger entry.
+
+                                             Page 18 of 18
+

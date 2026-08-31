@@ -10,4 +10,10 @@ public class ProjectMember : TenantEntity
     public Guid ProjectId { get; set; }
     public Guid EmployeeId { get; set; }
     public string RoleOnProject { get; set; } = default!;
+
+    // Per-project override, since the same person can cost/bill differently on different
+    // engagements. Feeds project profitability: CostRate is what the project "pays" for the
+    // hour internally, BillingRate is what's invoiced to the customer for a billable hour.
+    public decimal CostRate { get; set; }
+    public decimal BillingRate { get; set; }
 }

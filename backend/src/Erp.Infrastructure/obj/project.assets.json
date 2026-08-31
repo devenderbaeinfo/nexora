@@ -1287,11 +1287,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\Deven\\Desktop\\erp\\backend\\src\\Erp.Infrastructure\\Erp.Infrastructure.csproj",
+      "projectUniqueName": "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Erp.Infrastructure\\Erp.Infrastructure.csproj",
       "projectName": "Erp.Infrastructure",
-      "projectPath": "C:\\Users\\Deven\\Desktop\\erp\\backend\\src\\Erp.Infrastructure\\Erp.Infrastructure.csproj",
+      "projectPath": "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Erp.Infrastructure\\Erp.Infrastructure.csproj",
       "packagesPath": "C:\\Users\\Deven\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\Deven\\Desktop\\erp\\backend\\src\\Erp.Infrastructure\\obj\\",
+      "outputPath": "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Erp.Infrastructure\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
@@ -1314,11 +1314,11 @@
           "framework": "net10.0",
           "targetAlias": "net10.0",
           "projectReferences": {
-            "C:\\Users\\Deven\\Desktop\\erp\\backend\\src\\Erp.Application\\Erp.Application.csproj": {
-              "projectPath": "C:\\Users\\Deven\\Desktop\\erp\\backend\\src\\Erp.Application\\Erp.Application.csproj"
+            "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Erp.Application\\Erp.Application.csproj": {
+              "projectPath": "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Erp.Application\\Erp.Application.csproj"
             },
-            "C:\\Users\\Deven\\Desktop\\erp\\backend\\src\\Erp.Domain\\Erp.Domain.csproj": {
-              "projectPath": "C:\\Users\\Deven\\Desktop\\erp\\backend\\src\\Erp.Domain\\Erp.Domain.csproj"
+            "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Erp.Domain\\Erp.Domain.csproj": {
+              "projectPath": "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Erp.Domain\\Erp.Domain.csproj"
             }
           }
         }

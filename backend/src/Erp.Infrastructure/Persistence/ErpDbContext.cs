@@ -65,6 +65,7 @@ public class ErpDbContext : IdentityDbContext<AppUser, AppRole, Guid>
     public DbSet<ProjectExpense> ProjectExpenses => Set<ProjectExpense>();
     public DbSet<ProjectMember> ProjectMembers => Set<ProjectMember>();
     public DbSet<ProjectTask> ProjectTasks => Set<ProjectTask>();
+    public DbSet<ProjectMilestone> ProjectMilestones => Set<ProjectMilestone>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

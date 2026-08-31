@@ -136,7 +136,8 @@ public class ProjectsController : ControllerBase
         var members = await _db.ProjectMembers.Where(m => m.ProjectId == id).ToListAsync();
 
         return Ok(members.Select(m => new ProjectMemberDto(
-            m.Id, m.EmployeeId, employees.TryGetValue(m.EmployeeId, out var name) ? name : "—", m.RoleOnProject)).ToList());
+            m.Id, m.EmployeeId, employees.TryGetValue(m.EmployeeId, out var name) ? name : "—", m.RoleOnProject,
+            m.CostRate, m.BillingRate)).ToList());
     }
 
     [HttpPost("{id:guid}/team")]
@@ -151,16 +152,34 @@ public class ProjectsController : ControllerBase
 
         var alreadyMember = await _db.ProjectMembers.AnyAsync(m => m.ProjectId == id && m.EmployeeId == request.EmployeeId);
         if (alreadyMember) return Conflict("This employee is already on the project.");
+        if (request.CostRate < 0 || request.BillingRate < 0) return BadRequest("Rates can't be negative.");
 
         _db.ProjectMembers.Add(new ProjectMember
         {
             ProjectId = id,
             EmployeeId = request.EmployeeId,
             RoleOnProject = request.RoleOnProject,
+            CostRate = request.CostRate,
+            BillingRate = request.BillingRate,
         });
         await _db.SaveChangesAsync();
 
         return CreatedAtAction(nameof(Team), new { id }, null);
+    }
+
+    [HttpPatch("{id:guid}/team/{memberId:guid}/rates")]
+    [RequirePermission(Permission.Project.ManageBudget)]
+    public async Task<IActionResult> UpdateMemberRates(Guid id, Guid memberId, UpdateProjectMemberRatesRequest request)
+    {
+        var member = await _db.ProjectMembers.FirstOrDefaultAsync(m => m.Id == memberId && m.ProjectId == id);
+        if (member is null) return NotFound();
+        if (request.CostRate < 0 || request.BillingRate < 0) return BadRequest("Rates can't be negative.");
+
+        member.CostRate = request.CostRate;
+        member.BillingRate = request.BillingRate;
+        await _db.SaveChangesAsync();
+
+        return NoContent();
     }
 
     [HttpDelete("{id:guid}/team/{memberId:guid}")]
@@ -192,6 +211,129 @@ public class ProjectsController : ControllerBase
         var percentSpent = project.BudgetAmount == 0 ? 0 : Math.Round((approved + pending) / project.BudgetAmount * 100, 1);
 
         return Ok(new ProjectBudgetDto(project.BudgetAmount, approved, pending, remaining, percentSpent));
+    }
+
+    // Backs "Project Profitability": labor cost/revenue comes from approved timesheet hours
+    // priced at each member's per-project rates; expense cost/revenue comes from approved
+    // project expenses (billable ones also count as revenue, pass-through, no markup).
+    [HttpGet("{id:guid}/financials")]
+    [RequirePermission(Permission.Project.View)]
+    public async Task<ActionResult<ProjectFinancialsDto>> Financials(Guid id)
+    {
+        var projectExists = await _db.Projects.AnyAsync(p => p.Id == id);
+        if (!projectExists) return NotFound();
+
+        var rates = await _db.ProjectMembers.Where(m => m.ProjectId == id)
+            .ToDictionaryAsync(m => m.EmployeeId, m => (m.CostRate, m.BillingRate));
+
+        var hours = await _db.TimesheetEntries
+            .Where(t => t.ProjectId == id && t.Status == Erp.Domain.Timecard.TimesheetStatus.Approved)
+            .ToListAsync();
+
+        var expenses = await _db.ProjectExpenses
+            .Where(e => e.ProjectId == id && e.Status == ProjectExpenseStatus.Approved)
+            .ToListAsync();
+
+        decimal laborCost = 0, laborRevenue = 0;
+        var monthlyRevenue = new SortedDictionary<string, decimal>();
+        var monthlyCost = new SortedDictionary<string, decimal>();
+
+        foreach (var h in hours)
+        {
+            var (costRate, billingRate) = rates.TryGetValue(h.EmployeeId, out var r) ? r : (0m, 0m);
+            var cost = h.Hours * costRate;
+            var revenue = h.IsBillable ? h.Hours * billingRate : 0;
+            laborCost += cost;
+            laborRevenue += revenue;
+
+            var key = h.WorkDate.ToString("yyyy-MM");
+            monthlyRevenue[key] = monthlyRevenue.GetValueOrDefault(key) + revenue;
+            monthlyCost[key] = monthlyCost.GetValueOrDefault(key) + cost;
+        }
+
+        decimal expenseCost = 0, expenseRevenue = 0;
+        foreach (var e in expenses)
+        {
+            expenseCost += e.Amount;
+            var revenue = e.IsBillable ? e.Amount : 0;
+            expenseRevenue += revenue;
+
+            var key = e.IncurredOn.ToString("yyyy-MM");
+            monthlyRevenue[key] = monthlyRevenue.GetValueOrDefault(key) + revenue;
+            monthlyCost[key] = monthlyCost.GetValueOrDefault(key) + e.Amount;
+        }
+
+        var totalCost = laborCost + expenseCost;
+        var totalRevenue = laborRevenue + expenseRevenue;
+        var profit = totalRevenue - totalCost;
+        var marginPercent = totalRevenue == 0 ? 0 : Math.Round(profit / totalRevenue * 100, 1);
+
+        var months = monthlyRevenue.Keys.Union(monthlyCost.Keys).OrderBy(k => k);
+        var monthly = months.Select(k => new ProjectFinancialsMonthDto(
+            k, monthlyRevenue.GetValueOrDefault(k), monthlyCost.GetValueOrDefault(k))).ToList();
+
+        return Ok(new ProjectFinancialsDto(
+            laborCost, laborRevenue, expenseCost, expenseRevenue,
+            totalCost, totalRevenue, profit, marginPercent, monthly));
+    }
+
+    [HttpGet("{id:guid}/milestones")]
+    [RequirePermission(Permission.Project.View)]
+    public async Task<ActionResult<List<ProjectMilestoneDto>>> Milestones(Guid id)
+    {
+        var milestones = await _db.ProjectMilestones
+            .Where(m => m.ProjectId == id)
+            .OrderBy(m => m.DueDate)
+            .ToListAsync();
+
+        return Ok(milestones.Select(m => new ProjectMilestoneDto(m.Id, m.ProjectId, m.Name, m.DueDate, m.Status.ToString())).ToList());
+    }
+
+    [HttpPost("{id:guid}/milestones")]
+    [RequirePermission(Permission.Project.ManageBudget)]
+    public async Task<IActionResult> AddMilestone(Guid id, CreateProjectMilestoneRequest request)
+    {
+        var projectExists = await _db.Projects.AnyAsync(p => p.Id == id);
+        if (!projectExists) return NotFound();
+        if (string.IsNullOrWhiteSpace(request.Name)) return BadRequest("Name is required.");
+
+        _db.ProjectMilestones.Add(new Erp.Domain.Project.ProjectMilestone
+        {
+            ProjectId = id,
+            Name = request.Name.Trim(),
+            DueDate = request.DueDate,
+        });
+        await _db.SaveChangesAsync();
+
+        return CreatedAtAction(nameof(Milestones), new { id }, null);
+    }
+
+    [HttpPatch("{id:guid}/milestones/{milestoneId:guid}")]
+    [RequirePermission(Permission.Project.ManageBudget)]
+    public async Task<IActionResult> UpdateMilestone(Guid id, Guid milestoneId, UpdateProjectMilestoneRequest request)
+    {
+        var milestone = await _db.ProjectMilestones.FirstOrDefaultAsync(m => m.Id == milestoneId && m.ProjectId == id);
+        if (milestone is null) return NotFound();
+        if (string.IsNullOrWhiteSpace(request.Name)) return BadRequest("Name is required.");
+
+        milestone.Name = request.Name.Trim();
+        milestone.DueDate = request.DueDate;
+        milestone.Status = request.Status;
+        await _db.SaveChangesAsync();
+
+        return NoContent();
+    }
+
+    [HttpDelete("{id:guid}/milestones/{milestoneId:guid}")]
+    [RequirePermission(Permission.Project.ManageBudget)]
+    public async Task<IActionResult> DeleteMilestone(Guid id, Guid milestoneId)
+    {
+        var milestone = await _db.ProjectMilestones.FirstOrDefaultAsync(m => m.Id == milestoneId && m.ProjectId == id);
+        if (milestone is null) return NotFound();
+
+        _db.ProjectMilestones.Remove(milestone);
+        await _db.SaveChangesAsync();
+        return NoContent();
     }
 
     // Itemized cost for "Project Cost" — every expense against this project, any status,

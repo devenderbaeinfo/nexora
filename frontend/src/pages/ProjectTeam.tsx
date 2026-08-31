@@ -21,6 +21,8 @@ interface ProjectMemberRow {
   employeeId: string;
   employeeName: string;
   roleOnProject: string;
+  costRate: number;
+  billingRate: number;
 }
 
 interface ProjectTaskRow {
@@ -116,6 +118,8 @@ function ProjectDetail({ project, canManage, onClose }: { project: ProjectRow; c
   const [assignOpen, setAssignOpen] = useState(false);
   const [employeeId, setEmployeeId] = useState("");
   const [roleOnProject, setRoleOnProject] = useState("");
+  const [costRate, setCostRate] = useState("");
+  const [billingRate, setBillingRate] = useState("");
   const [taskTitle, setTaskTitle] = useState("");
   const [taskAssignee, setTaskAssignee] = useState("");
   const [taskDue, setTaskDue] = useState("");
@@ -142,11 +146,20 @@ function ProjectDetail({ project, canManage, onClose }: { project: ProjectRow; c
   });
 
   const addMember = useMutation({
-    mutationFn: () => api.post(`/projects/${project.id}/team`, { employeeId, roleOnProject }),
+    mutationFn: () => api.post(`/projects/${project.id}/team`, {
+      employeeId, roleOnProject,
+      costRate: Number(costRate) || 0, billingRate: Number(billingRate) || 0,
+    }),
     onSuccess: () => {
-      setEmployeeId(""); setRoleOnProject("");
+      setEmployeeId(""); setRoleOnProject(""); setCostRate(""); setBillingRate("");
       queryClient.invalidateQueries({ queryKey: ["projects", project.id, "team"] });
     },
+  });
+
+  const updateRates = useMutation({
+    mutationFn: ({ memberId, costRate, billingRate }: { memberId: string; costRate: number; billingRate: number }) =>
+      api.patch(`/projects/${project.id}/team/${memberId}/rates`, { costRate, billingRate }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["projects", project.id, "team"] }),
   });
 
   const removeMember = useMutation({
@@ -225,6 +238,8 @@ function ProjectDetail({ project, canManage, onClose }: { project: ProjectRow; c
                 {employees.data?.map((e) => <option key={e.id} value={e.id}>{e.firstName} {e.lastName}</option>)}
               </select>
               <input style={s.input} placeholder="Role on project" value={roleOnProject} onChange={(e) => setRoleOnProject(e.target.value)} />
+              <input style={{ ...s.input, width: 100 }} type="number" min={0} placeholder="Cost rate/hr" value={costRate} onChange={(e) => setCostRate(e.target.value)} />
+              <input style={{ ...s.input, width: 100 }} type="number" min={0} placeholder="Bill rate/hr" value={billingRate} onChange={(e) => setBillingRate(e.target.value)} />
               <button
                 style={s.addButton}
                 disabled={!employeeId || !roleOnProject.trim() || addMember.isPending}
@@ -241,17 +256,43 @@ function ProjectDetail({ project, canManage, onClose }: { project: ProjectRow; c
                 <tr>
                   <th style={s.th}>Name</th>
                   <th style={s.th}>Role</th>
+                  {canManage && <th style={s.th}>Cost/hr</th>}
+                  {canManage && <th style={s.th}>Bill/hr</th>}
                   {canManage && <th style={s.th}></th>}
                 </tr>
               </thead>
               <tbody>
                 {(!team.data || team.data.length === 0) && (
-                  <tr><td style={s.td} colSpan={canManage ? 3 : 2}>No one staffed yet.</td></tr>
+                  <tr><td style={s.td} colSpan={canManage ? 5 : 2}>No one staffed yet.</td></tr>
                 )}
                 {team.data?.map((m) => (
                   <tr key={m.id}>
                     <td style={s.td}>{m.employeeName}</td>
                     <td style={s.td}>{m.roleOnProject}</td>
+                    {canManage && (
+                      <td style={s.td}>
+                        <input
+                          style={{ ...s.input, width: 80 }} type="number" min={0}
+                          defaultValue={m.costRate}
+                          onBlur={(e) => {
+                            const v = Number(e.target.value) || 0;
+                            if (v !== m.costRate) updateRates.mutate({ memberId: m.id, costRate: v, billingRate: m.billingRate });
+                          }}
+                        />
+                      </td>
+                    )}
+                    {canManage && (
+                      <td style={s.td}>
+                        <input
+                          style={{ ...s.input, width: 80 }} type="number" min={0}
+                          defaultValue={m.billingRate}
+                          onBlur={(e) => {
+                            const v = Number(e.target.value) || 0;
+                            if (v !== m.billingRate) updateRates.mutate({ memberId: m.id, costRate: m.costRate, billingRate: v });
+                          }}
+                        />
+                      </td>
+                    )}
                     {canManage && (
                       <td style={s.td}>
                         <button style={s.secondary} onClick={() => removeMember.mutate(m.id)}>Remove</button>

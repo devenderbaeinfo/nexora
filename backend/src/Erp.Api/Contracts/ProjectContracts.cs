@@ -12,8 +12,9 @@ public record ProjectDetailDto(
 
 public record UpdateProjectScheduleRequest(DateOnly StartDate, DateOnly? EndDate, Erp.Domain.Project.ProjectStatus Status);
 
-public record ProjectMemberDto(Guid Id, Guid EmployeeId, string EmployeeName, string RoleOnProject);
-public record AddProjectMemberRequest(Guid EmployeeId, string RoleOnProject);
+public record ProjectMemberDto(Guid Id, Guid EmployeeId, string EmployeeName, string RoleOnProject, decimal CostRate, decimal BillingRate);
+public record AddProjectMemberRequest(Guid EmployeeId, string RoleOnProject, decimal CostRate = 0, decimal BillingRate = 0);
+public record UpdateProjectMemberRatesRequest(decimal CostRate, decimal BillingRate);
 
 public record MyProjectDto(Guid ProjectId, string Name, string CustomerName, string Status, string RoleOnProject);
 
@@ -36,3 +37,13 @@ public record ProjectExpenseDto(
     Guid Id, string ProjectName, string EmployeeName, decimal Amount, string Category,
     string? Description, DateOnly IncurredOn, bool IsBillable, string Status);
 public record DecideProjectExpenseRequest(bool Approve, string? Note);
+
+public record ProjectMilestoneDto(Guid Id, Guid ProjectId, string Name, DateOnly? DueDate, string Status);
+public record CreateProjectMilestoneRequest(string Name, DateOnly? DueDate);
+public record UpdateProjectMilestoneRequest(string Name, DateOnly? DueDate, Erp.Domain.Project.ProjectMilestoneStatus Status);
+
+public record ProjectFinancialsMonthDto(string Label, decimal Revenue, decimal Cost);
+public record ProjectFinancialsDto(
+    decimal LaborCost, decimal LaborRevenue, decimal ExpenseCost, decimal ExpenseRevenue,
+    decimal TotalCost, decimal TotalRevenue, decimal Profit, decimal MarginPercent,
+    List<ProjectFinancialsMonthDto> Monthly);

@@ -14,7 +14,16 @@ interface ProjectDetail {
   budgetAmount: number;
 }
 
+interface Milestone {
+  id: string;
+  projectId: string;
+  name: string;
+  dueDate: string | null;
+  status: string;
+}
+
 const STATUSES = ["Active", "OnHold", "Completed", "Cancelled"];
+const MILESTONE_STATUSES = ["Planned", "InProgress", "Completed", "Delayed"];
 
 export default function ProjectPlanning() {
   const { can } = useAuth();
@@ -24,11 +33,37 @@ export default function ProjectPlanning() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [status, setStatus] = useState("Active");
+  const [milestoneName, setMilestoneName] = useState("");
+  const [milestoneDue, setMilestoneDue] = useState("");
 
   const { data } = useQuery({
     queryKey: ["projects", projectId],
     queryFn: async () => (await api.get<ProjectDetail>(`/projects/${projectId}`)).data,
     enabled: !!projectId,
+  });
+
+  const milestones = useQuery({
+    queryKey: ["projects", projectId, "milestones"],
+    queryFn: async () => (await api.get<Milestone[]>(`/projects/${projectId}/milestones`)).data,
+    enabled: !!projectId,
+  });
+
+  const addMilestone = useMutation({
+    mutationFn: () => api.post(`/projects/${projectId}/milestones`, { name: milestoneName, dueDate: milestoneDue || null }),
+    onSuccess: () => {
+      setMilestoneName(""); setMilestoneDue("");
+      queryClient.invalidateQueries({ queryKey: ["projects", projectId, "milestones"] });
+    },
+  });
+
+  const updateMilestone = useMutation({
+    mutationFn: (m: Milestone) => api.patch(`/projects/${projectId}/milestones/${m.id}`, { name: m.name, dueDate: m.dueDate, status: m.status }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["projects", projectId, "milestones"] }),
+  });
+
+  const deleteMilestone = useMutation({
+    mutationFn: (id: string) => api.delete(`/projects/${projectId}/milestones/${id}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["projects", projectId, "milestones"] }),
   });
 
   useEffect(() => {
@@ -85,6 +120,68 @@ export default function ProjectPlanning() {
             </button>
           )}
         </div>
+      )}
+
+      {data && (
+        <section style={{ ...s.section, marginTop: 24 }}>
+          <h2 style={s.sectionTitle}>Milestones</h2>
+
+          {canManage && (
+            <div style={{ ...s.card, marginBottom: 14, display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+              <input style={s.input} placeholder="Milestone name" value={milestoneName} onChange={(e) => setMilestoneName(e.target.value)} />
+              <input type="date" style={s.input} value={milestoneDue} onChange={(e) => setMilestoneDue(e.target.value)} />
+              <button
+                style={s.addButton}
+                disabled={!milestoneName.trim() || addMilestone.isPending}
+                onClick={() => addMilestone.mutate()}
+              >
+                Add milestone
+              </button>
+            </div>
+          )}
+
+          <div style={s.tableWrap}>
+            <table style={s.table}>
+              <thead>
+                <tr>
+                  <th style={s.th}>Name</th>
+                  <th style={s.th}>Due date</th>
+                  <th style={s.th}>Status</th>
+                  {canManage && <th style={s.th}></th>}
+                </tr>
+              </thead>
+              <tbody>
+                {(!milestones.data || milestones.data.length === 0) && (
+                  <tr><td style={s.td} colSpan={canManage ? 4 : 3}>No milestones yet.</td></tr>
+                )}
+                {milestones.data?.map((m) => (
+                  <tr key={m.id}>
+                    <td style={s.td}>{m.name}</td>
+                    <td style={s.td}>{m.dueDate ?? "—"}</td>
+                    <td style={s.td}>
+                      {canManage ? (
+                        <select
+                          style={s.select}
+                          value={m.status}
+                          onChange={(e) => updateMilestone.mutate({ ...m, status: e.target.value })}
+                        >
+                          {MILESTONE_STATUSES.map((st) => <option key={st} value={st}>{st}</option>)}
+                        </select>
+                      ) : (
+                        m.status
+                      )}
+                    </td>
+                    {canManage && (
+                      <td style={s.td}>
+                        <button style={s.secondary} onClick={() => deleteMilestone.mutate(m.id)}>Remove</button>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
       )}
     </div>
   );
