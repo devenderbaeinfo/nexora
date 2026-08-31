@@ -111,4 +111,26 @@ public static class Permission
     {
         public const string ManageTenants = "platform.manage_tenants";
     }
+
+    // Every permission key that a tenant's own roles can be granted, grouped by module —
+    // built by reflection so a new Permission.* constant is automatically available to the
+    // Roles admin UI the moment it's added here, with no second list to keep in sync.
+    // Platform.* is excluded: those are reserved for the BAE operator tenant, never assignable
+    // to a customer tenant's own roles.
+    public static IReadOnlyList<(string Module, string Key)> Catalog()
+    {
+        var result = new List<(string, string)>();
+        foreach (var module in typeof(Permission).GetNestedTypes())
+        {
+            if (module == typeof(Platform)) continue;
+            foreach (var field in module.GetFields())
+            {
+                if (field.FieldType == typeof(string) && field.IsLiteral)
+                {
+                    result.Add((module.Name, (string)field.GetRawConstantValue()!));
+                }
+            }
+        }
+        return result;
+    }
 }

@@ -166,6 +166,7 @@ const DEFAULT_NAV_GROUPS: NavGroup[] = [
     items: [
       { to: "/", label: "People", show: (can) => can("people.view") },
       { to: "/job-titles", label: "Job Titles", show: (can) => can("people.manage") },
+      { to: "/roles", label: "Roles & Permissions", show: (can) => can("admin.manage_roles") },
       { to: "/leave-types", label: "Leave Types", show: (can) => can("leave.configure_policy") },
       { to: "/reimbursement", label: "Reimbursement", show: (can) => can("expense.view") },
       { to: "/accounting", label: "Accounting", show: (can) => can("accounting.view") },
@@ -247,6 +248,7 @@ export default function AppShell() {
             </div>
           ))}
         </nav>
+        <AnnouncementBanner />
         </div>
       </aside>
 
@@ -264,7 +266,6 @@ export default function AppShell() {
         </header>
         <main style={styles.main}>
           <div key={location.pathname} className="page-transition">
-            <AnnouncementBanner />
             <Outlet />
           </div>
         </main>

@@ -34,4 +34,9 @@ public class AppRole : IdentityRole<Guid>
     // System roles (Owner, Admin) ship with every tenant and can't be deleted;
     // custom roles are created per-tenant via the System Administrator persona.
     public bool IsSystemRole { get; set; }
+
+    // Once an Admin has explicitly edited this role's permission set (via RolesController),
+    // RolePermissionSync leaves it alone entirely — a shipped default is a starting point,
+    // not something that silently re-applies itself over a tenant's own customization.
+    public bool IsCustomized { get; set; }
 }

@@ -23,8 +23,11 @@ public static class RolePermissionSync
         using var scope = services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<ErpDbContext>();
 
+        // Custom, tenant-created roles and any role an Admin has hand-edited are never
+        // touched here — only the untouched, out-of-the-box system roles get topped up
+        // with newly shipped permissions.
         var roles = (await db.Roles.IgnoreQueryFilters().ToListAsync())
-            .Where(r => KnownRoles.Contains(r.Name!))
+            .Where(r => KnownRoles.Contains(r.Name!) && !r.IsCustomized)
             .ToList();
 
         var existingKeysByRole = await db.RolePermissions.IgnoreQueryFilters()

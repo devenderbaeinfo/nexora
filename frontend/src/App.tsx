@@ -25,6 +25,7 @@ import MyProfile from "./pages/MyProfile";
 import MyProjects from "./pages/MyProjects";
 import MyExpenses from "./pages/MyExpenses";
 import JobTitles from "./pages/JobTitles";
+import Roles from "./pages/Roles";
 import LeaveTypes from "./pages/LeaveTypes";
 import AuditLog from "./pages/AuditLog";
 import TimesheetApproval from "./pages/TimesheetApproval";
@@ -87,6 +88,7 @@ export default function App() {
         <Route path="my-profile" element={<MyProfile />} />
         <Route path="my-expenses" element={<MyExpenses />} />
         <Route path="job-titles" element={<JobTitles />} />
+        <Route path="roles" element={<Roles />} />
         <Route path="leave-types" element={<LeaveTypes />} />
         <Route path="audit-log" element={<AuditLog />} />
         <Route path="projects/progress" element={<ProjectProgress />} />

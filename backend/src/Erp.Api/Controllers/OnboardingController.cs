@@ -53,6 +53,21 @@ public class OnboardingController : ControllerBase
         return Ok(await BuildDtos(_db.OnboardingTasks.Where(t => t.EmployeeId == employeeId)));
     }
 
+    // Employees with no onboarding plan yet — the only ones HR should be able to pick when
+    // starting a new plan, so someone already onboarded (or mid-onboarding) never shows up
+    // to be started again.
+    [HttpGet("not-started")]
+    [RequirePermission(Permission.Onboarding.Manage)]
+    public async Task<ActionResult<List<Guid>>> NotStarted()
+    {
+        var startedIds = await _db.OnboardingTasks.Select(t => t.EmployeeId).Distinct().ToListAsync();
+        var eligible = await _db.Employees
+            .Where(e => !startedIds.Contains(e.Id))
+            .Select(e => e.Id)
+            .ToListAsync();
+        return Ok(eligible);
+    }
+
     // Seeds the default checklist for a new hire. Safe to call again later if HR wants to
     // top up a plan that was somehow left empty — it's a no-op once tasks already exist.
     [HttpPost("start")]

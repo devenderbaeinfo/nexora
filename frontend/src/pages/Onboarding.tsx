@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 import Spinner from "../components/Spinner";
+import Drawer from "../components/Drawer";
 
 interface OnboardingTaskRow {
   id: string;
@@ -28,6 +29,7 @@ export default function Onboarding() {
   const { can } = useAuth();
   const queryClient = useQueryClient();
   const [startingFor, setStartingFor] = useState("");
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   const canManage = can("onboarding.manage");
 
@@ -49,10 +51,21 @@ export default function Onboarding() {
     enabled: canManage,
   });
 
+  // Only employees with no onboarding plan yet — once someone's plan is started (in
+  // progress or completed) they drop off this list, so they can never be re-onboarded.
+  const notStarted = useQuery({
+    queryKey: ["onboarding", "not-started"],
+    queryFn: async () => (await api.get<string[]>("/onboarding/not-started")).data,
+    enabled: canManage && drawerOpen,
+  });
+
+  const eligibleEmployees = (employees.data ?? []).filter((e) => notStarted.data?.includes(e.id));
+
   const start = useMutation({
     mutationFn: (employeeId: string) => api.post("/onboarding/start", { employeeId }),
     onSuccess: () => {
       setStartingFor("");
+      setDrawerOpen(false);
       queryClient.invalidateQueries({ queryKey: ["onboarding"] });
     },
   });
@@ -80,17 +93,35 @@ export default function Onboarding() {
           </p>
         </div>
         {canManage && (
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <button style={styles.addButton} onClick={() => setDrawerOpen(true)}>
+            Start onboarding
+          </button>
+        )}
+      </header>
+
+      {canManage && (
+        <Drawer open={drawerOpen} title="Start onboarding" onClose={() => setDrawerOpen(false)}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             <select
-              style={styles.select}
+              style={{ ...styles.select, width: "100%" }}
               value={startingFor}
               onChange={(e) => setStartingFor(e.target.value)}
             >
-              <option value="">Start plan for…</option>
-              {employees.data?.map((e) => (
+              <option value="">Select employee…</option>
+              {eligibleEmployees.map((e) => (
                 <option key={e.id} value={e.id}>{e.firstName} {e.lastName}</option>
               ))}
             </select>
+            {notStarted.isSuccess && eligibleEmployees.length === 0 && (
+              <p style={{ color: "var(--muted)", fontSize: 13 }}>
+                Every employee already has an onboarding plan.
+              </p>
+            )}
+            {start.isError && (
+              <p style={{ color: "var(--danger)", fontSize: 13 }}>
+                {(start.error as any)?.response?.data ?? "Couldn't start onboarding for this employee."}
+              </p>
+            )}
             <button
               style={styles.addButton}
               disabled={!startingFor || start.isPending}
@@ -99,13 +130,7 @@ export default function Onboarding() {
               Start onboarding
             </button>
           </div>
-        )}
-      </header>
-
-      {start.isError && (
-        <p style={{ color: "var(--danger)", fontSize: 13, marginBottom: 16 }}>
-          {(start.error as any)?.response?.data ?? "Couldn't start onboarding for this employee."}
-        </p>
+        </Drawer>
       )}
 
       {isLoading && <Spinner />}

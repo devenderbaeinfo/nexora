@@ -33,6 +33,7 @@ public class UsersController : ControllerBase
     }
 
     private Guid CurrentUserId => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub")!);
+    private Guid TenantId => Guid.Parse(User.FindFirstValue("tenant_id")!);
 
     private async Task<string?> CurrentCreatorRoleAsync()
     {
@@ -55,7 +56,7 @@ public class UsersController : ControllerBase
         // Employee/Manager accounts to reset, not Admin's. Role here is each person's
         // *current* Job Title mapping, not a stored snapshot — always in sync, even
         // right after someone remaps a Job Title, with no separate refresh step.
-        var visibleRoles = RoleTemplates.AssignableRolesByCreatorRole[creatorRole].ToHashSet();
+        var visibleRoles = (await AssignableRoleResolver.ResolveAsync(_db, TenantId, creatorRole)).ToHashSet();
 
         var employees = await _db.Employees.ToListAsync();
         var jobTitleRoles = await _db.JobTitles.ToDictionaryAsync(j => j.Id, j => j.SystemRole);
@@ -91,7 +92,7 @@ public class UsersController : ControllerBase
         if (targetUser is null) return NotFound();
 
         var targetRole = await EffectiveRoleResolver.ResolveAsync(_db, _userManager, targetUser);
-        var allowedRoles = RoleTemplates.AssignableRolesByCreatorRole[creatorRole];
+        var allowedRoles = await AssignableRoleResolver.ResolveAsync(_db, TenantId, creatorRole);
         if (targetRole is null || !allowedRoles.Contains(targetRole))
         {
             // Same boundary as creation: HR can't reset an Admin's password, an Admin can't reset another Admin's.
@@ -128,7 +129,7 @@ public class UsersController : ControllerBase
     {
         var creatorRole = await CurrentCreatorRoleAsync();
         if (creatorRole is null) return Ok(Array.Empty<string>());
-        return Ok(RoleTemplates.AssignableRolesByCreatorRole[creatorRole]);
+        return Ok(await AssignableRoleResolver.ResolveAsync(_db, TenantId, creatorRole));
     }
 
     [HttpPost]
@@ -147,7 +148,7 @@ public class UsersController : ControllerBase
         // The role this person gets follows entirely from their Job Title now — no separate
         // Role pick — but the "who can create whom" boundary still applies: HR still can't
         // stand up an Admin account just by picking a job title that happens to map to one.
-        var allowedRoles = RoleTemplates.AssignableRolesByCreatorRole[creatorRole];
+        var allowedRoles = await AssignableRoleResolver.ResolveAsync(_db, TenantId, creatorRole);
         if (!allowedRoles.Contains(jobTitle.SystemRole))
         {
             return Forbid();

@@ -60,7 +60,7 @@ public class JobTitlesController : ControllerBase
 
         var creatorRole = await CurrentCreatorRoleAsync();
         if (creatorRole is null) return Forbid();
-        if (!RoleTemplates.AssignableRolesByCreatorRole[creatorRole].Contains(request.SystemRole))
+        if (!(await AssignableRoleResolver.ResolveAsync(_db, TenantId, creatorRole)).Contains(request.SystemRole))
         {
             return Forbid();
         }
@@ -93,7 +93,7 @@ public class JobTitlesController : ControllerBase
     {
         var creatorRole = await CurrentCreatorRoleAsync();
         if (creatorRole is null) return Forbid();
-        if (!RoleTemplates.AssignableRolesByCreatorRole[creatorRole].Contains(request.SystemRole))
+        if (!(await AssignableRoleResolver.ResolveAsync(_db, TenantId, creatorRole)).Contains(request.SystemRole))
         {
             return Forbid();
         }
@@ -121,4 +121,5 @@ public class JobTitlesController : ControllerBase
     }
 
     private Guid CurrentUserId => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub")!);
+    private Guid TenantId => Guid.Parse(User.FindFirstValue("tenant_id")!);
 }

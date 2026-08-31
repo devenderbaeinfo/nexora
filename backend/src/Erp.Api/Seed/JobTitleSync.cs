@@ -19,9 +19,12 @@ public static class JobTitleSync
         var db = scope.ServiceProvider.GetRequiredService<ErpDbContext>();
 
         var tenantIds = await db.Tenants.IgnoreQueryFilters().Select(t => t.Id).ToListAsync();
+        // Case-insensitive to match the (TenantId, Name) unique index's default SQL Server
+        // collation — a HashSet with the default ordinal comparer would treat "Intern" and
+        // "intern" as different, seed a duplicate insert, and blow up the unique constraint.
         var existingByTenant = (await db.JobTitles.IgnoreQueryFilters().ToListAsync())
             .GroupBy(j => j.TenantId)
-            .ToDictionary(g => g.Key, g => g.Select(j => j.Name).ToHashSet());
+            .ToDictionary(g => g.Key, g => g.Select(j => j.Name).ToHashSet(StringComparer.OrdinalIgnoreCase));
 
         foreach (var tenantId in tenantIds)
         {
