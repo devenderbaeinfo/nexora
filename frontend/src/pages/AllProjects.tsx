@@ -11,7 +11,7 @@ interface ProjectRow {
   customerName: string;
   projectManagerName: string;
   status: string;
-  budgetAmount: number;
+  budgetAmount: number | null;
 }
 
 export default function AllProjects() {
@@ -57,7 +57,7 @@ export default function AllProjects() {
                   <td style={s.td}>{p.customerName}</td>
                   <td style={s.td}>{p.projectManagerName}</td>
                   <td style={s.td}>{p.status}</td>
-                  <td style={s.td}>{p.budgetAmount.toLocaleString(undefined, { style: "currency", currency: "USD" })}</td>
+                  <td style={s.td}>{p.budgetAmount === null ? "—" : p.budgetAmount.toLocaleString(undefined, { style: "currency", currency: "USD" })}</td>
                 </tr>
               ))}
             </tbody>

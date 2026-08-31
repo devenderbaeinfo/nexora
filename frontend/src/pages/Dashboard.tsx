@@ -20,6 +20,11 @@ interface HeadcountPoint { month: string; count: number; }
 interface AttendancePoint { date: string; present: number; activeEmployees: number; }
 interface HrTrends { headcount: HeadcountPoint[]; attendance: AttendancePoint[]; }
 
+interface EmployeeListItem { id: string; status: string; }
+interface OnboardingTaskRow { employeeId: string; }
+interface FnfCaseRow { id: string; }
+interface LeaveRequestRow { id: string; }
+
 export default function Dashboard() {
   const { can } = useAuth();
   const { data, isLoading } = useQuery({
@@ -32,6 +37,32 @@ export default function Dashboard() {
     queryFn: async () => (await api.get<HrTrends>("/dashboard/hr-trends")).data,
     enabled: can("attendance.view_all"),
   });
+
+  // /dashboard/summary is scoped to the caller's own direct reports and managed projects —
+  // an HR/Admin account typically has neither, so every card above would be a genuine zero,
+  // not a bug. These org-wide numbers (same source as the People module's own overview) are
+  // what actually make this page useful for that account instead of an all-zero dead end.
+  const orgEmployees = useQuery({
+    queryKey: ["employees"],
+    queryFn: async () => (await api.get<EmployeeListItem[]>("/employees")).data,
+    enabled: can("people.view"),
+  });
+  const pendingHrLeave = useQuery({
+    queryKey: ["leave-requests", "pending-hr-approval"],
+    queryFn: async () => (await api.get<LeaveRequestRow[]>("/leave-requests/pending-hr-approval")).data,
+    enabled: can("leave.approve_as_hr"),
+  });
+  const onboardingInProgress = useQuery({
+    queryKey: ["onboarding", "all"],
+    queryFn: async () => (await api.get<OnboardingTaskRow[]>("/onboarding")).data,
+    enabled: can("onboarding.manage"),
+  });
+  const fnfInProgress = useQuery({
+    queryKey: ["fnf", "all"],
+    queryFn: async () => (await api.get<FnfCaseRow[]>("/fnf")).data,
+    enabled: can("fnf.manage"),
+  });
+  const hasOrgStats = orgEmployees.isSuccess || pendingHrLeave.isSuccess || onboardingInProgress.isSuccess || fnfInProgress.isSuccess;
 
   const currency = (n: number) => n.toLocaleString(undefined, { style: "currency", currency: "USD" });
 
@@ -46,8 +77,49 @@ export default function Dashboard() {
 
       {isLoading && <Spinner />}
 
-      {data && (
+      {hasOrgStats && (
+        <section style={{ marginBottom: 28 }}>
+          <h2 style={s.sectionTitle}>Organization</h2>
+          <div style={s.statGrid}>
+            {orgEmployees.isSuccess && (
+              <Link to="/people" style={{ textDecoration: "none" }}>
+                <div style={s.statCard}>
+                  <div style={s.statLabel}>Active employees</div>
+                  <div style={s.statValue}>{orgEmployees.data.filter((e) => e.status === "Active").length}</div>
+                </div>
+              </Link>
+            )}
+            {pendingHrLeave.isSuccess && (
+              <Link to="/timecard" style={{ textDecoration: "none" }}>
+                <div style={s.statCard}>
+                  <div style={s.statLabel}>Pending HR leave approvals</div>
+                  <div style={s.statValue}>{pendingHrLeave.data.length}</div>
+                </div>
+              </Link>
+            )}
+            {onboardingInProgress.isSuccess && (
+              <Link to="/onboarding" style={{ textDecoration: "none" }}>
+                <div style={s.statCard}>
+                  <div style={s.statLabel}>Onboarding in progress</div>
+                  <div style={s.statValue}>{new Set(onboardingInProgress.data.map((t) => t.employeeId)).size}</div>
+                </div>
+              </Link>
+            )}
+            {fnfInProgress.isSuccess && (
+              <Link to="/fnf" style={{ textDecoration: "none" }}>
+                <div style={s.statCard}>
+                  <div style={s.statLabel}>Settlements in progress</div>
+                  <div style={s.statValue}>{fnfInProgress.data.length}</div>
+                </div>
+              </Link>
+            )}
+          </div>
+        </section>
+      )}
+
+      {data && (hasManagerStats(data) || !hasOrgStats) && (
         <>
+          <h2 style={s.sectionTitle}>Your team & projects</h2>
           <div style={s.statGrid}>
             <Link to="/my-team" style={{ textDecoration: "none" }}>
               <div style={s.statCard}>
@@ -132,4 +204,9 @@ export default function Dashboard() {
       )}
     </div>
   );
+}
+
+function hasManagerStats(data: DashboardSummary) {
+  return data.teamSize > 0 || data.pendingLeaveApprovals > 0 || data.pendingExpenseApprovals > 0
+    || data.pendingProjectExpenseApprovals > 0 || data.managedProjectsCount > 0;
 }

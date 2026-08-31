@@ -42,6 +42,8 @@
 
   --shadow: 0 1px 2px rgba(20,27,46,.05), 0 8px 22px rgba(20,27,46,.06);
   --glow-accent: none;
+  /* Sky-blue hover glow in light mode; redefined to a white glow for dark (below). */
+  --hover-glow: 0 0 0 1px rgba(56,189,248,.45), 0 6px 20px rgba(56,189,248,.35);
   --radius: 10px;
   --radius-lg: 14px;
 
@@ -85,6 +87,7 @@
 
     --shadow: 0 1px 2px rgba(0,0,0,.35), 0 10px 26px rgba(0,0,0,.4);
     --glow-accent: 0 0 0 1px rgba(110,155,255,.25), 0 0 24px rgba(110,155,255,.12);
+    --hover-glow: 0 0 0 1px rgba(255,255,255,.35), 0 6px 22px rgba(255,255,255,.18);
   }
 }
 
@@ -122,6 +125,7 @@
 
   --shadow: 0 1px 2px rgba(0,0,0,.35), 0 10px 26px rgba(0,0,0,.4);
   --glow-accent: 0 0 0 1px rgba(110,155,255,.25), 0 0 24px rgba(110,155,255,.12);
+  --hover-glow: 0 0 0 1px rgba(255,255,255,.35), 0 6px 22px rgba(255,255,255,.18);
 }
 
 * { box-sizing: border-box; }
@@ -175,9 +179,13 @@ button:disabled { opacity: .6; cursor: not-allowed; }
   background-repeat: no-repeat;
   background-size: 0% 0%;
   background-position: center;
-  transition: background-size .32s ease;
+  transition: background-size .32s ease, transform .18s ease, box-shadow .18s ease;
 }
-.sidebar-nav-link:hover { background-size: 260% 420%; }
+.sidebar-nav-link:hover {
+  background-size: 260% 420%;
+  transform: scale(1.025);
+  box-shadow: var(--hover-glow);
+}
 :root:not([data-theme="light"]) .sidebar-nav-link {
   background-image: radial-gradient(circle at 26px 50%, rgba(110,155,255,.30) 0%, transparent 68%);
 }
@@ -196,7 +204,13 @@ button:disabled { opacity: .6; cursor: not-allowed; }
 :root:not([data-theme="light"]) .app-spotlight { display: block; }
 
 .card-surface { will-change: transform; }
-.card-surface:hover { transform: translateY(-2px); }
+/* !important: most callers set box-shadow inline (var(--shadow), at rest) — an inline style
+   otherwise always beats a stylesheet rule regardless of :hover, same reason the focus-ring
+   rule above needs it. */
+.card-surface:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: var(--hover-glow), var(--shadow) !important;
+}
 
 ::selection { background: var(--accent-soft); }
 

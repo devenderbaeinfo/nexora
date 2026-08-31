@@ -96,7 +96,7 @@ public class AuthController : ControllerBase
         var passwordExpired = DateTimeOffset.UtcNow - user.PasswordChangedAtUtc > TimeSpan.FromDays(180);
         var mustChangePassword = user.MustChangePassword || passwordExpired;
 
-        var (token, expires) = IssueToken(user, tenant.Id, permissions, mustChangePassword);
+        var (token, expires) = IssueToken(user, tenant.Id, roleIds, permissions, mustChangePassword);
 
         _db.AuditLogs.Add(new Erp.Domain.Audit.AuditLog
         {
@@ -153,7 +153,7 @@ public class AuthController : ControllerBase
             .Distinct()
             .ToListAsync();
 
-        var (token, expires) = IssueToken(user, user.TenantId, permissions, mustChangePassword: false);
+        var (token, expires) = IssueToken(user, user.TenantId, roleIds, permissions, mustChangePassword: false);
         return Ok(new LoginResponse(token, expires, user.Email ?? user.UserName ?? "", effectiveRole ?? "", permissions.ToArray(), false));
     }
 
@@ -174,7 +174,7 @@ public class AuthController : ControllerBase
         await _db.SaveChangesAsync();
     }
 
-    private (string token, DateTimeOffset expires) IssueToken(AppUser user, Guid tenantId, List<string> permissions, bool mustChangePassword)
+    private (string token, DateTimeOffset expires) IssueToken(AppUser user, Guid tenantId, List<Guid> roleIds, List<string> permissions, bool mustChangePassword)
     {
         var claims = new List<Claim>
         {
@@ -186,6 +186,10 @@ public class AuthController : ControllerBase
         {
             claims.Add(new Claim("employee_id", employeeId.ToString()));
         }
+        // Carries which role(s) granted the "perm" claims below, so data-scope/field-level
+        // lookups (DataScopeService) can find the right PermissionScope/RoleFieldPermission
+        // rows without a DB round trip just to re-derive the caller's role from EmployeeId.
+        claims.AddRange(roleIds.Select(id => new Claim("role_id", id.ToString())));
         if (mustChangePassword)
         {
             // Checked by RequirePasswordCurrentMiddleware to lock every endpoint except

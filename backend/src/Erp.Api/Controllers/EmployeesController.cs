@@ -3,6 +3,7 @@ using Erp.Api.Authorization;
 using Erp.Api.Contracts;
 using Erp.Domain.Identity;
 using Erp.Domain.People;
+using Erp.Infrastructure.Authorization;
 using Erp.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -16,11 +17,42 @@ namespace Erp.Api.Controllers;
 public class EmployeesController : ControllerBase
 {
     private readonly ErpDbContext _db;
+    private readonly DataScopeService _scope;
 
-    public EmployeesController(ErpDbContext db) => _db = db;
+    public EmployeesController(ErpDbContext db, DataScopeService scope)
+    {
+        _db = db;
+        _scope = scope;
+    }
 
     private Guid? CurrentEmployeeId =>
         Guid.TryParse(User.FindFirstValue("employee_id"), out var id) ? id : null;
+
+    // null = unrestricted. People.View only offers All/Department/Specific — there's no
+    // "Mine" for a plain employee directory.
+    private async Task<HashSet<Guid>?> ResolveAllowedEmployeeIdsAsync(ScopeDecision decision)
+    {
+        switch (decision.Type)
+        {
+            case DataScopeType.All:
+                return null;
+
+            case DataScopeType.Specific:
+                return decision.SpecificIds.ToHashSet();
+
+            case DataScopeType.Department:
+            {
+                if (CurrentEmployeeId is not { } employeeId) return [];
+                var me = await _db.Employees.FirstOrDefaultAsync(e => e.Id == employeeId);
+                if (me is null) return [];
+                var ids = await _db.Employees.Where(e => e.DepartmentId == me.DepartmentId).Select(e => e.Id).ToListAsync();
+                return ids.ToHashSet();
+            }
+
+            default:
+                return [];
+        }
+    }
 
     // A manager's own team — used by "My Team" and everything downstream of it
     // (team expenses, team reports). Empty for anyone without direct reports.
@@ -71,10 +103,15 @@ public class EmployeesController : ControllerBase
     [RequirePermission(Permission.People.View)]
     public async Task<ActionResult<List<EmployeeListItem>>> List()
     {
+        var scopeDecision = await _scope.ResolveAsync(User, Permission.People.View);
+        var allowedIds = await ResolveAllowedEmployeeIdsAsync(scopeDecision);
+
         var departments = await _db.Departments.ToDictionaryAsync(d => d.Id, d => d.Name);
         var jobTitles = await _db.JobTitles.ToDictionaryAsync(j => j.Id, j => j.Name);
 
-        var employees = await _db.Employees
+        var employeesQuery = _db.Employees.AsQueryable();
+        if (allowedIds is not null) employeesQuery = employeesQuery.Where(e => allowedIds.Contains(e.Id));
+        var employees = await employeesQuery
             .OrderBy(e => e.FirstName)
             .ToListAsync();
         var namesById = employees.ToDictionary(e => e.Id, e => $"{e.FirstName} {e.LastName}");
@@ -88,6 +125,35 @@ public class EmployeesController : ControllerBase
             e.ReportingManagerId is { } mgrId && namesById.TryGetValue(mgrId, out var mgrName) ? mgrName : null)).ToList();
 
         return Ok(result);
+    }
+
+    // The record-detail workspace's Overview tab — HR/Admin looking at one specific
+    // employee, as opposed to /me (always the caller's own record).
+    [HttpGet("{id:guid}")]
+    [RequirePermission(Permission.People.View)]
+    public async Task<ActionResult<EmployeeDetailDto>> Get(Guid id)
+    {
+        var scopeDecision = await _scope.ResolveAsync(User, Permission.People.View);
+        var allowedIds = await ResolveAllowedEmployeeIdsAsync(scopeDecision);
+        if (allowedIds is not null && !allowedIds.Contains(id)) return Forbid();
+
+        var employee = await _db.Employees.FirstOrDefaultAsync(e => e.Id == id);
+        if (employee is null) return NotFound();
+
+        var department = await _db.Departments.FirstOrDefaultAsync(d => d.Id == employee.DepartmentId);
+        var jobTitle = await _db.JobTitles.FirstOrDefaultAsync(j => j.Id == employee.JobTitleId);
+        var location = employee.LocationId is { } locationId
+            ? await _db.Locations.FirstOrDefaultAsync(l => l.Id == locationId)
+            : null;
+        var manager = employee.ReportingManagerId is { } managerId
+            ? await _db.Employees.FirstOrDefaultAsync(e => e.Id == managerId)
+            : null;
+
+        return Ok(new EmployeeDetailDto(
+            employee.Id, employee.FirstName, employee.LastName, employee.WorkEmail, employee.PersonalPhone,
+            jobTitle?.Name ?? "—", department?.Name ?? "—", location?.Name,
+            employee.ReportingManagerId, manager is null ? null : $"{manager.FirstName} {manager.LastName}",
+            employee.Status.ToString(), employee.HireDate));
     }
 
     [HttpPost]

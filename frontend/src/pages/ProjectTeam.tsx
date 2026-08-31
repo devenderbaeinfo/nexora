@@ -13,7 +13,7 @@ interface ProjectRow {
   customerName: string;
   projectManagerName: string;
   status: string;
-  budgetAmount: number;
+  budgetAmount: number | null;
 }
 
 interface ProjectMemberRow {
@@ -98,9 +98,11 @@ export default function ProjectTeam() {
               </div>
               <div style={{ fontSize: 13, color: "var(--muted)", marginTop: 6 }}>{p.customerName}</div>
               <div style={{ fontSize: 12.5, color: "var(--faint)", marginTop: 2 }}>PM: {p.projectManagerName}</div>
-              <div style={{ fontSize: 13, color: "var(--ink)", marginTop: 10, fontWeight: 600 }}>
-                {p.budgetAmount.toLocaleString(undefined, { style: "currency", currency: "USD" })} budget
-              </div>
+              {p.budgetAmount !== null && (
+                <div style={{ fontSize: 13, color: "var(--ink)", marginTop: 10, fontWeight: 600 }}>
+                  {p.budgetAmount.toLocaleString(undefined, { style: "currency", currency: "USD" })} budget
+                </div>
+              )}
             </button>
           ))}
         </div>

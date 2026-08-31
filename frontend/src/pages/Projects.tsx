@@ -13,7 +13,7 @@ interface ProjectRow {
   customerName: string;
   projectManagerName: string;
   status: string;
-  budgetAmount: number;
+  budgetAmount: number | null;
 }
 
 interface ProjectExpenseRow {
@@ -110,7 +110,7 @@ export default function Projects() {
                     <td style={styles.td}><div style={{ fontWeight: 600 }}>{p.name}</div></td>
                     <td style={styles.td}>{p.customerName}</td>
                     <td style={styles.td}>{p.projectManagerName}</td>
-                    <td style={styles.td}>₹{p.budgetAmount.toLocaleString()}</td>
+                    <td style={styles.td}>{p.budgetAmount === null ? "—" : `₹${p.budgetAmount.toLocaleString()}`}</td>
                     <td style={styles.td}>
                       <span style={styles.tag}>{p.status}</span>
                     </td>

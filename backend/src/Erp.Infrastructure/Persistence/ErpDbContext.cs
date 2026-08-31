@@ -29,6 +29,9 @@ public class ErpDbContext : IdentityDbContext<AppUser, AppRole, Guid>
 
     public DbSet<Tenant> Tenants => Set<Tenant>();
     public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
+    public DbSet<PermissionScope> PermissionScopes => Set<PermissionScope>();
+    public DbSet<PermissionScopeRecord> PermissionScopeRecords => Set<PermissionScopeRecord>();
+    public DbSet<RoleFieldPermission> RoleFieldPermissions => Set<RoleFieldPermission>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 
     public DbSet<Department> Departments => Set<Department>();
@@ -90,6 +93,8 @@ public class ErpDbContext : IdentityDbContext<AppUser, AppRole, Guid>
         builder.Entity<ProjectMember>().HasIndex(m => new { m.TenantId, m.ProjectId, m.EmployeeId }).IsUnique();
         builder.Entity<JobTitle>().HasIndex(j => new { j.TenantId, j.Name }).IsUnique();
         builder.Entity<Account>().HasIndex(a => new { a.TenantId, a.Code }).IsUnique();
+        builder.Entity<PermissionScope>().HasIndex(s => new { s.TenantId, s.RoleId, s.PermissionKey }).IsUnique();
+        builder.Entity<RoleFieldPermission>().HasIndex(f => new { f.TenantId, f.RoleId, f.Resource, f.FieldName }).IsUnique();
 
         // Login no longer asks which workspace you're in — it looks the account up by email
         // alone and reads the tenant off of it. That only works if email is unique across the

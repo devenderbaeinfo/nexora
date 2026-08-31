@@ -6,20 +6,24 @@ import HeroPanel from "./login/HeroPanel";
 import ThemeToggle from "../components/ThemeToggle";
 import "./login/login.css";
 
-// The hero panel (right) stays a fixed dark navy in both themes — that split-panel contrast
-// is the design. The form panel (left) follows the viewer's own light/dark preference via the
-// toggle in its corner, using the same tokens.css variables as the rest of the app. All copy
-// and demo data come from loginPageConfig; nothing here touches the existing auth flow beyond
-// LoginForm calling the same useAuth().login it always has.
+// Brand/product showcase on the left, the actual sign-in form on the right — the order an
+// enterprise SaaS login is expected to read in. The theme toggle lives at the page root now,
+// not nested inside the form panel, so switching it recolors the whole page in one action
+// (see login.css's :root[data-theme] overrides for .bae-hero-panel) rather than only the
+// form half. All copy and demo data come from loginPageConfig; nothing here touches the
+// existing auth flow beyond LoginForm calling the same useAuth().login it always has.
 export default function Login() {
   const cfg = loginPageConfig.login;
 
   return (
     <div className="bae-login">
+      <div className="bae-login-theme-toggle">
+        <ThemeToggle compact />
+      </div>
+
+      <HeroPanel />
+
       <div className="bae-login-panel">
-        <div className="bae-login-theme-toggle">
-          <ThemeToggle compact />
-        </div>
         <div className="bae-login-panel-inner">
           <BrandLogo name={loginPageConfig.branding.name} subtitle={loginPageConfig.branding.subtitle} />
 
@@ -48,8 +52,6 @@ export default function Login() {
           <SecurityMessage text={cfg.securityMessage} />
         </div>
       </div>
-
-      <HeroPanel />
     </div>
   );
 }

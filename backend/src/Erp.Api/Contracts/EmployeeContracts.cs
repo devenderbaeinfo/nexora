@@ -15,3 +15,10 @@ public record SetReportingManagerRequest(Guid? ReportingManagerId);
 public record EmployeeProfileDto(
     Guid Id, string FirstName, string LastName, string WorkEmail, string? PersonalPhone,
     string JobTitleName, string DepartmentName, string? LocationName, string Status, DateOnly HireDate);
+
+// HR/Admin's view of one specific employee's record — the profile page's Overview tab.
+// Distinct from EmployeeProfileDto (that's always the caller's own record via /employees/me).
+public record EmployeeDetailDto(
+    Guid Id, string FirstName, string LastName, string WorkEmail, string? PersonalPhone,
+    string JobTitleName, string DepartmentName, string? LocationName,
+    Guid? ReportingManagerId, string? ReportingManagerName, string Status, DateOnly HireDate);

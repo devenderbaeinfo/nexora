@@ -4,6 +4,11 @@ import RequireAuth from "./components/RequireAuth";
 import RequireSuperAdmin from "./components/RequireSuperAdmin";
 import Login from "./pages/Login";
 import People from "./pages/People";
+import PeopleOverview from "./pages/PeopleOverview";
+import EmployeeProfile from "./pages/EmployeeProfile";
+import ExpensesOverview from "./pages/ExpensesOverview";
+import ProjectsOverview from "./pages/ProjectsOverview";
+import ReportsOverview from "./pages/ReportsOverview";
 import Timecard from "./pages/Timecard";
 import Reimbursement from "./pages/Reimbursement";
 import Projects from "./pages/Projects";
@@ -31,6 +36,7 @@ import AuditLog from "./pages/AuditLog";
 import TimesheetApproval from "./pages/TimesheetApproval";
 import ProjectProfitability from "./pages/ProjectProfitability";
 import FinanceDashboard from "./pages/FinanceDashboard";
+import Accounting from "./pages/Accounting";
 import ChartOfAccounts from "./pages/ChartOfAccounts";
 import JournalEntries from "./pages/JournalEntries";
 import GeneralLedger from "./pages/GeneralLedger";
@@ -72,6 +78,11 @@ export default function App() {
         }
       >
         <Route index element={<People />} />
+        <Route path="people" element={<PeopleOverview />} />
+        <Route path="people/:employeeId" element={<EmployeeProfile />} />
+        <Route path="expenses" element={<ExpensesOverview />} />
+        <Route path="projects-overview" element={<ProjectsOverview />} />
+        <Route path="reports" element={<ReportsOverview />} />
         <Route path="dashboard" element={<Dashboard />} />
         <Route path="my-team" element={<MyTeam />} />
         <Route path="timecard" element={<Timecard />} />
@@ -97,6 +108,7 @@ export default function App() {
         <Route path="timesheets/approval" element={<TimesheetApproval />} />
 
         <Route path="finance/dashboard" element={<FinanceDashboard />} />
+        <Route path="accounting" element={<Accounting />} />
         <Route path="accounting/chart-of-accounts" element={<ChartOfAccounts />} />
         <Route path="accounting/journal-entries" element={<JournalEntries />} />
         <Route path="accounting/ledger" element={<GeneralLedger />} />

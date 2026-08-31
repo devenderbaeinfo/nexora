@@ -3,12 +3,15 @@ namespace Erp.Api.Contracts;
 public record CustomerDto(Guid Id, string Name, string? ContactEmail);
 public record CreateCustomerRequest(string Name, string? ContactEmail, string? ContactPhone);
 
-public record ProjectDto(Guid Id, string Name, string CustomerName, string ProjectManagerName, string Status, decimal BudgetAmount);
+// BudgetAmount is null when the caller's role has field-level access Hidden for
+// Project.BudgetAmount (see RoleFieldPermission) — not the same thing as a project
+// genuinely having no budget set.
+public record ProjectDto(Guid Id, string Name, string CustomerName, string ProjectManagerName, string Status, decimal? BudgetAmount);
 public record CreateProjectRequest(string Name, Guid CustomerId, Guid ProjectManagerId, DateOnly StartDate, DateOnly? EndDate, decimal BudgetAmount);
 
 public record ProjectDetailDto(
     Guid Id, string Name, Guid CustomerId, string CustomerName, Guid ProjectManagerId, string ProjectManagerName,
-    string Status, DateOnly StartDate, DateOnly? EndDate, decimal BudgetAmount);
+    string Status, DateOnly StartDate, DateOnly? EndDate, decimal? BudgetAmount);
 
 public record UpdateProjectScheduleRequest(DateOnly StartDate, DateOnly? EndDate, Erp.Domain.Project.ProjectStatus Status);
 

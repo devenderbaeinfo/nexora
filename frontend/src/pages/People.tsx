@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
@@ -100,8 +101,10 @@ export default function People() {
               {data.map((e) => (
                 <tr key={e.id}>
                   <td style={styles.td}>
-                    <div style={{ fontWeight: 600 }}>{e.firstName} {e.lastName}</div>
-                    <div style={{ color: "var(--faint)", fontSize: 12.5 }}>{e.workEmail}</div>
+                    <Link to={`/people/${e.id}`} style={{ textDecoration: "none" }}>
+                      <div style={{ fontWeight: 600, color: "var(--accent)" }}>{e.firstName} {e.lastName}</div>
+                      <div style={{ color: "var(--faint)", fontSize: 12.5 }}>{e.workEmail}</div>
+                    </Link>
                   </td>
                   <td style={styles.td}>{e.jobTitleName}</td>
                   <td style={styles.td}>{e.departmentName}</td>

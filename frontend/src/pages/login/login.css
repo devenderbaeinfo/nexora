@@ -1,12 +1,13 @@
 /*
   Styling for the split-panel login page. Scoped under .bae-login so it can't leak into the
   rest of the app, which uses inline styles driven by the same app-wide tokens.css variables
-  referenced here. The hero panel (right) stays a fixed dark, artistic navy in both themes —
-  that's a deliberate visual choice, not a light/dark state. The form panel (left) now follows
-  the viewer's theme via the toggle in its corner, using the same tokens as the rest of the app.
+  referenced here. Brand/hero panel on the left, sign-in form on the right. The theme toggle
+  lives at the page root (not nested in either panel) and both panels follow the viewer's
+  light/dark preference via the :root[data-theme] overrides below — one toggle, whole page.
 */
 
 .bae-login {
+  position: relative;
   display: flex;
   min-height: 100vh;
   width: 100%;
@@ -29,6 +30,7 @@
   position: absolute;
   top: 24px;
   right: 24px;
+  z-index: 5;
 }
 
 .bae-login-panel-inner {
@@ -45,6 +47,15 @@
   flex-direction: column;
   padding: 28px 4vw 40px;
 }
+
+/* Light theme: the hero panel recolors along with the rest of the page instead of staying
+   a fixed dark navy — the inner dashboard-preview mockup keeps its own dark "screenshot"
+   look either way, same as a real product screenshot would on a light marketing page. */
+:root[data-theme="light"] .bae-hero-panel {
+  background: linear-gradient(135deg, #EEF1FF, #F3F0FF, #EAFBFA);
+}
+:root[data-theme="light"] .bae-hero-title { color: #201B4D; }
+:root[data-theme="light"] .bae-hero-desc { color: #4B4763; }
 
 .bae-input {
   width: 100%;

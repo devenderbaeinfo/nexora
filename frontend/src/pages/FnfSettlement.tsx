@@ -121,22 +121,34 @@ export default function FnfSettlement() {
                 </span>
               ) : (
                 canManage && (
-                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                    <input
-                      style={styles.payoutInput}
-                      type="number"
-                      placeholder="Final payout"
-                      disabled={!allCleared}
-                      value={payoutDrafts[c.id] ?? ""}
-                      onChange={(e) => setPayoutDrafts((d) => ({ ...d, [c.id]: e.target.value }))}
-                    />
-                    <button
-                      style={styles.addButton}
-                      disabled={!allCleared || !payoutDrafts[c.id] || close.isPending}
-                      onClick={() => close.mutate({ id: c.id, finalPayoutAmount: Number(payoutDrafts[c.id]) })}
-                    >
-                      Close case
-                    </button>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-end" }}>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                      <input
+                        style={styles.payoutInput}
+                        type="number"
+                        placeholder="Final payout"
+                        disabled={!allCleared}
+                        value={payoutDrafts[c.id] ?? ""}
+                        onChange={(e) => setPayoutDrafts((d) => ({ ...d, [c.id]: e.target.value }))}
+                      />
+                      <button
+                        style={styles.addButton}
+                        disabled={!allCleared || !payoutDrafts[c.id] || close.isPending}
+                        onClick={() => close.mutate({ id: c.id, finalPayoutAmount: Number(payoutDrafts[c.id]) })}
+                      >
+                        {close.isPending && close.variables?.id === c.id ? "Closing…" : "Close case"}
+                      </button>
+                    </div>
+                    {!allCleared && (
+                      <span style={{ fontSize: 12, color: "var(--muted)" }}>
+                        Every clearance item must be cleared first.
+                      </span>
+                    )}
+                    {close.isError && close.variables?.id === c.id && (
+                      <span style={{ fontSize: 12, color: "var(--danger)" }}>
+                        {(close.error as any)?.response?.data ?? "Couldn't close this case."}
+                      </span>
+                    )}
                   </div>
                 )
               )}

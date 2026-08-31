@@ -10,7 +10,7 @@ interface ProjectRow {
   customerName: string;
   projectManagerName: string;
   status: string;
-  budgetAmount: number;
+  budgetAmount: number | null;
 }
 
 interface ProjectBudgetData {
@@ -96,9 +96,11 @@ export default function FinanceProjects() {
               </div>
               <div style={{ fontSize: 13, color: "var(--muted)", marginTop: 6 }}>{p.customerName}</div>
               <div style={{ fontSize: 12.5, color: "var(--faint)", marginTop: 2 }}>PM: {p.projectManagerName}</div>
-              <div style={{ fontSize: 13, color: "var(--ink)", marginTop: 10, fontWeight: 600 }}>
-                {currency(p.budgetAmount)} budget
-              </div>
+              {p.budgetAmount !== null && (
+                <div style={{ fontSize: 13, color: "var(--ink)", marginTop: 10, fontWeight: 600 }}>
+                  {currency(p.budgetAmount)} budget
+                </div>
+              )}
             </button>
           ))}
         </div>
@@ -120,7 +122,7 @@ function FinanceProjectDetail({ project, onClose }: { project: ProjectRow; onClo
     queryFn: async () => (await api.get<ProjectExpenseRow[]>(`/projects/${project.id}/expenses`)).data,
   });
 
-  const series = useMemo(() => buildDummySeries(project.id, project.budgetAmount), [project.id, project.budgetAmount]);
+  const series = useMemo(() => buildDummySeries(project.id, project.budgetAmount ?? 0), [project.id, project.budgetAmount]);
   const maxValue = Math.max(1, ...series.flatMap((p) => [p.revenue, p.cost]));
   const totalRevenue = series.reduce((sum, p) => sum + p.revenue, 0);
   const totalCost = series.reduce((sum, p) => sum + p.cost, 0);

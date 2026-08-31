@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import Drawer from "../components/Drawer";
@@ -17,6 +17,33 @@ interface RoleRow {
 interface PermissionItem {
   module: string;
   key: string;
+}
+
+interface ScopablePermission {
+  permissionKey: string;
+  allowedScopeTypes: string[];
+}
+
+interface RoleScope {
+  permissionKey: string;
+  scopeType: string;
+  specificRecordIds: string[];
+}
+
+interface FieldCatalogItem {
+  resource: string;
+  fieldName: string;
+}
+
+interface RoleFieldPermission {
+  resource: string;
+  fieldName: string;
+  access: string;
+}
+
+interface RecordOption {
+  id: string;
+  label: string;
 }
 
 export default function Roles() {
@@ -158,6 +185,9 @@ function RoleCard({
               <button style={s.secondary} onClick={onDelete}>Delete role</button>
             )}
           </div>
+
+          <DataScopeSection roleId={role.id} selectedPermissions={selected} />
+          <FieldPermissionSection roleId={role.id} />
         </div>
       )}
     </section>
@@ -197,6 +227,205 @@ function PermissionChecklist({
     </div>
   );
 }
+
+// Only shown for a permission the role actually has checked above — scoping a permission
+// the role doesn't hold at all would be meaningless.
+function DataScopeSection({ roleId, selectedPermissions }: { roleId: string; selectedPermissions: Set<string> }) {
+  const scopable = useQuery({
+    queryKey: ["roles", "scopable-permissions"],
+    queryFn: async () => (await api.get<ScopablePermission[]>("/roles/scopable-permissions")).data,
+  });
+  const scopes = useQuery({
+    queryKey: ["roles", roleId, "scopes"],
+    queryFn: async () => (await api.get<RoleScope[]>(`/roles/${roleId}/scopes`)).data,
+  });
+  const projects = useQuery({
+    queryKey: ["projects"],
+    queryFn: async () => (await api.get<{ id: string; name: string }[]>("/projects")).data,
+  });
+  const employees = useQuery({
+    queryKey: ["employees"],
+    queryFn: async () => (await api.get<{ id: string; firstName: string; lastName: string }[]>("/employees")).data,
+  });
+
+  const applicable = (scopable.data ?? []).filter((p) => selectedPermissions.has(p.permissionKey));
+  if (applicable.length === 0) return null;
+
+  const recordOptionsFor = (permissionKey: string): RecordOption[] =>
+    permissionKey === "project.view"
+      ? (projects.data ?? []).map((p) => ({ id: p.id, label: p.name }))
+      : (employees.data ?? []).map((e) => ({ id: e.id, label: `${e.firstName} ${e.lastName}` }));
+
+  return (
+    <div style={{ marginTop: 20 }}>
+      <div style={sectionLabelStyle}>Data Scope</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {applicable.map((p) => (
+          <ScopeRow
+            key={p.permissionKey}
+            roleId={roleId}
+            permissionKey={p.permissionKey}
+            allowedTypes={p.allowedScopeTypes}
+            current={scopes.data?.find((sc) => sc.permissionKey === p.permissionKey)}
+            recordOptions={recordOptionsFor(p.permissionKey)}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ScopeRow({
+  roleId, permissionKey, allowedTypes, current, recordOptions,
+}: {
+  roleId: string;
+  permissionKey: string;
+  allowedTypes: string[];
+  current: RoleScope | undefined;
+  recordOptions: RecordOption[];
+}) {
+  const queryClient = useQueryClient();
+  const [scopeType, setScopeType] = useState(current?.scopeType ?? "All");
+  const [specificIds, setSpecificIds] = useState<Set<string>>(new Set(current?.specificRecordIds ?? []));
+
+  useEffect(() => {
+    setScopeType(current?.scopeType ?? "All");
+    setSpecificIds(new Set(current?.specificRecordIds ?? []));
+  }, [current]);
+
+  const save = useMutation({
+    mutationFn: () => api.put(`/roles/${roleId}/scopes/${permissionKey}`, {
+      scopeType, specificRecordIds: scopeType === "Specific" ? Array.from(specificIds) : null,
+    }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["roles", roleId, "scopes"] }),
+  });
+
+  const toggleRecord = (id: string) => {
+    const next = new Set(specificIds);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    setSpecificIds(next);
+  };
+
+  return (
+    <div style={{ background: "var(--surface-sunken)", borderRadius: "var(--radius)", padding: 12 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, marginBottom: 8, flexWrap: "wrap" }}>
+        <span style={{ fontSize: 13, fontWeight: 600 }}>{permissionKey}</span>
+        <select style={s.select} value={scopeType} onChange={(e) => setScopeType(e.target.value)}>
+          {allowedTypes.map((t) => <option key={t} value={t}>{t}</option>)}
+        </select>
+      </div>
+
+      {scopeType === "Specific" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: 160, overflowY: "auto", marginBottom: 10 }}>
+          {recordOptions.length === 0 && <span style={{ fontSize: 12.5, color: "var(--muted)" }}>Nothing to pick from yet.</span>}
+          {recordOptions.map((opt) => (
+            <label key={opt.id} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5 }}>
+              <input type="checkbox" checked={specificIds.has(opt.id)} onChange={() => toggleRecord(opt.id)} />
+              {opt.label}
+            </label>
+          ))}
+        </div>
+      )}
+
+      <button style={s.addButton} disabled={save.isPending} onClick={() => save.mutate()}>Save scope</button>
+      {save.isError && (
+        <span style={{ display: "block", marginTop: 6, fontSize: 12, color: "var(--danger)" }}>
+          {(save.error as any)?.response?.data ?? "Couldn't save this scope."}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function FieldPermissionSection({ roleId }: { roleId: string }) {
+  const catalog = useQuery({
+    queryKey: ["roles", "field-catalog"],
+    queryFn: async () => (await api.get<FieldCatalogItem[]>("/roles/field-catalog")).data,
+  });
+  const current = useQuery({
+    queryKey: ["roles", roleId, "field-permissions"],
+    queryFn: async () => (await api.get<RoleFieldPermission[]>(`/roles/${roleId}/field-permissions`)).data,
+  });
+
+  const byResource = new Map<string, FieldCatalogItem[]>();
+  for (const item of catalog.data ?? []) {
+    const list = byResource.get(item.resource) ?? [];
+    list.push(item);
+    byResource.set(item.resource, list);
+  }
+  if (byResource.size === 0) return null;
+
+  return (
+    <div style={{ marginTop: 20 }}>
+      <div style={sectionLabelStyle}>Field Access</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {Array.from(byResource.entries()).map(([resource, fields]) => (
+          <FieldResourceRow key={resource} roleId={roleId} resource={resource} fields={fields} current={current.data ?? []} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function FieldResourceRow({
+  roleId, resource, fields, current,
+}: {
+  roleId: string;
+  resource: string;
+  fields: FieldCatalogItem[];
+  current: RoleFieldPermission[];
+}) {
+  const queryClient = useQueryClient();
+  const buildInitial = () => {
+    const map: Record<string, string> = {};
+    for (const f of fields) {
+      map[f.fieldName] = current.find((c) => c.resource === resource && c.fieldName === f.fieldName)?.access ?? "View";
+    }
+    return map;
+  };
+  const [access, setAccess] = useState<Record<string, string>>(buildInitial);
+
+  useEffect(() => { setAccess(buildInitial()); }, [current]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const save = useMutation({
+    mutationFn: () => api.put(`/roles/${roleId}/field-permissions`, {
+      resource,
+      fields: Object.entries(access).map(([fieldName, acc]) => ({ fieldName, access: acc })),
+    }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["roles", roleId, "field-permissions"] }),
+  });
+
+  return (
+    <div style={{ background: "var(--surface-sunken)", borderRadius: "var(--radius)", padding: 12 }}>
+      <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>{resource}</div>
+      {fields.map((f) => (
+        <div key={f.fieldName} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6, gap: 10 }}>
+          <span style={{ fontSize: 13 }}>{f.fieldName}</span>
+          <select
+            style={s.select}
+            value={access[f.fieldName]}
+            onChange={(e) => setAccess((a) => ({ ...a, [f.fieldName]: e.target.value }))}
+          >
+            <option value="Hidden">Hidden</option>
+            <option value="View">View</option>
+            <option value="Edit">Edit</option>
+          </select>
+        </div>
+      ))}
+      <button style={s.addButton} disabled={save.isPending} onClick={() => save.mutate()}>Save fields</button>
+      {save.isError && (
+        <span style={{ display: "block", marginTop: 6, fontSize: 12, color: "var(--danger)" }}>
+          {(save.error as any)?.response?.data ?? "Couldn't save field access."}
+        </span>
+      )}
+    </div>
+  );
+}
+
+const sectionLabelStyle: React.CSSProperties = {
+  fontSize: 11.5, fontWeight: 700, color: "var(--faint)", textTransform: "uppercase",
+  letterSpacing: ".04em", marginBottom: 8,
+};
 
 function groupByModule(items: PermissionItem[]): [string, PermissionItem[]][] {
   const map = new Map<string, PermissionItem[]>();

@@ -16,7 +16,7 @@ export default function AdminLayout() {
 
   const handleShellMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (spotRef.current) {
-      spotRef.current.style.background = `radial-gradient(280px circle at ${e.clientX}px ${e.clientY}px, rgba(124,92,255,.16), transparent 70%)`;
+      spotRef.current.style.background = `radial-gradient(140px circle at ${e.clientX}px ${e.clientY}px, rgba(124,92,255,.16), transparent 70%)`;
     }
   };
 

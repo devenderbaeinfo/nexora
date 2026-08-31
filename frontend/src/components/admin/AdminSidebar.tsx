@@ -64,9 +64,9 @@ const styles: Record<string, React.CSSProperties> = {
   sidebar: {
     background: "var(--surface-sunken)", borderRight: "1px solid var(--border)",
     padding: "28px 18px", display: "flex", flexDirection: "column", width: 256, flexShrink: 0,
-    height: "100vh", overflowY: "auto",
+    height: "100vh",
   },
-  brand: { display: "flex", alignItems: "center", gap: 10, marginBottom: 36, padding: "0 6px" },
+  brand: { display: "flex", alignItems: "center", gap: 10, marginBottom: 36, padding: "0 6px", flexShrink: 0 },
   mark: {
     width: 28, height: 28, borderRadius: 8, background: "var(--accent)", color: "var(--accent-ink)",
     display: "flex", alignItems: "center", justifyContent: "center",
@@ -74,7 +74,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   brandName: { fontFamily: "var(--font-display)", fontWeight: 700, fontSize: 15, color: "var(--ink)", lineHeight: 1.2 },
   brandSub: { fontSize: 10.5, color: "var(--faint)", fontWeight: 600, letterSpacing: ".04em" },
-  nav: { display: "flex", flexDirection: "column", gap: 22 },
+  nav: { display: "flex", flexDirection: "column", gap: 22, flex: 1, minHeight: 0, overflowY: "auto" },
   group: { display: "flex", flexDirection: "column", gap: 2 },
   groupHeading: {
     fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: ".1em", fontWeight: 700,

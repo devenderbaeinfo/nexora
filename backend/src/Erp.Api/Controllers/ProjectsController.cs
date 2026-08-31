@@ -3,6 +3,7 @@ using Erp.Api.Authorization;
 using Erp.Api.Contracts;
 using Erp.Domain.Identity;
 using Erp.Domain.Project;
+using Erp.Infrastructure.Authorization;
 using Erp.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -16,10 +17,50 @@ namespace Erp.Api.Controllers;
 public class ProjectsController : ControllerBase
 {
     private readonly ErpDbContext _db;
-    public ProjectsController(ErpDbContext db) => _db = db;
+    private readonly DataScopeService _scope;
+    public ProjectsController(ErpDbContext db, DataScopeService scope)
+    {
+        _db = db;
+        _scope = scope;
+    }
 
     private Guid? CurrentEmployeeId =>
         Guid.TryParse(User.FindFirstValue("employee_id"), out var id) ? id : null;
+
+    // null = unrestricted ("All"). A non-null (possibly empty) set is the exact allowlist
+    // of project ids this caller's role permits for Permission.Project.View.
+    private async Task<HashSet<Guid>?> ResolveAllowedProjectIdsAsync(ScopeDecision decision)
+    {
+        switch (decision.Type)
+        {
+            case DataScopeType.All:
+                return null;
+
+            case DataScopeType.Specific:
+                return decision.SpecificIds.ToHashSet();
+
+            case DataScopeType.Mine:
+            {
+                if (CurrentEmployeeId is not { } employeeId) return [];
+                var memberIds = await _db.ProjectMembers.Where(m => m.EmployeeId == employeeId).Select(m => m.ProjectId).ToListAsync();
+                var managedIds = await _db.Projects.Where(p => p.ProjectManagerId == employeeId).Select(p => p.Id).ToListAsync();
+                return memberIds.Concat(managedIds).ToHashSet();
+            }
+
+            case DataScopeType.Department:
+            {
+                if (CurrentEmployeeId is not { } employeeId) return [];
+                var me = await _db.Employees.FirstOrDefaultAsync(e => e.Id == employeeId);
+                if (me is null) return [];
+                var peerIds = await _db.Employees.Where(e => e.DepartmentId == me.DepartmentId).Select(e => e.Id).ToListAsync();
+                var ids = await _db.Projects.Where(p => peerIds.Contains(p.ProjectManagerId)).Select(p => p.Id).ToListAsync();
+                return ids.ToHashSet();
+            }
+
+            default:
+                return [];
+        }
+    }
 
     // The projects an employee is actually staffed on (ProjectMember), not the ones they
     // merely have view rights to — "My Projects" for a plain Employee.
@@ -48,16 +89,22 @@ public class ProjectsController : ControllerBase
     [RequirePermission(Permission.Project.View)]
     public async Task<ActionResult<List<ProjectDto>>> List()
     {
+        var scopeDecision = await _scope.ResolveAsync(User, Permission.Project.View);
+        var allowedIds = await ResolveAllowedProjectIdsAsync(scopeDecision);
+        var budgetAccess = await _scope.FieldAccessAsync(User, "Project", "BudgetAmount");
+
         var customers = await _db.Customers.ToDictionaryAsync(c => c.Id, c => c.Name);
         var employees = await _db.Employees.ToDictionaryAsync(e => e.Id, e => $"{e.FirstName} {e.LastName}");
 
-        var projects = await _db.Projects.OrderBy(p => p.Name).ToListAsync();
+        var projectsQuery = _db.Projects.AsQueryable();
+        if (allowedIds is not null) projectsQuery = projectsQuery.Where(p => allowedIds.Contains(p.Id));
+        var projects = await projectsQuery.OrderBy(p => p.Name).ToListAsync();
 
         return Ok(projects.Select(p => new ProjectDto(
             p.Id, p.Name,
             customers.TryGetValue(p.CustomerId, out var customerName) ? customerName : "—",
             employees.TryGetValue(p.ProjectManagerId, out var pmName) ? pmName : "—",
-            p.Status.ToString(), p.BudgetAmount)).ToList());
+            p.Status.ToString(), budgetAccess == FieldAccessLevel.Hidden ? null : p.BudgetAmount)).ToList());
     }
 
     [HttpPost]
@@ -96,16 +143,22 @@ public class ProjectsController : ControllerBase
     [RequirePermission(Permission.Project.View)]
     public async Task<ActionResult<ProjectDetailDto>> Get(Guid id)
     {
+        var scopeDecision = await _scope.ResolveAsync(User, Permission.Project.View);
+        var allowedIds = await ResolveAllowedProjectIdsAsync(scopeDecision);
+        if (allowedIds is not null && !allowedIds.Contains(id)) return Forbid();
+
         var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == id);
         if (project is null) return NotFound();
 
         var customer = await _db.Customers.FirstOrDefaultAsync(c => c.Id == project.CustomerId);
         var pm = await _db.Employees.FirstOrDefaultAsync(e => e.Id == project.ProjectManagerId);
+        var budgetAccess = await _scope.FieldAccessAsync(User, "Project", "BudgetAmount");
 
         return Ok(new ProjectDetailDto(
             project.Id, project.Name, project.CustomerId, customer?.Name ?? "—",
             project.ProjectManagerId, pm is null ? "—" : $"{pm.FirstName} {pm.LastName}",
-            project.Status.ToString(), project.StartDate, project.EndDate, project.BudgetAmount));
+            project.Status.ToString(), project.StartDate, project.EndDate,
+            budgetAccess == FieldAccessLevel.Hidden ? null : project.BudgetAmount));
     }
 
     // Covers "Project Planning": the schedule and status are the only things about a
@@ -201,6 +254,10 @@ public class ProjectsController : ControllerBase
     [RequirePermission(Permission.Project.View)]
     public async Task<ActionResult<ProjectBudgetDto>> Budget(Guid id)
     {
+        var scopeDecision = await _scope.ResolveAsync(User, Permission.Project.View);
+        var allowedIds = await ResolveAllowedProjectIdsAsync(scopeDecision);
+        if (allowedIds is not null && !allowedIds.Contains(id)) return Forbid();
+
         var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == id);
         if (project is null) return NotFound();
 

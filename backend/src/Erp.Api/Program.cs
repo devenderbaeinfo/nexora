@@ -28,6 +28,7 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ITenantContext, JwtTenantContext>();
 builder.Services.AddScoped<Erp.Infrastructure.Workflow.IApprovalWorkflowService, Erp.Infrastructure.Workflow.ApprovalWorkflowService>();
 builder.Services.AddSingleton<Erp.Api.Services.EmployeeDocumentStorage>();
+builder.Services.AddScoped<Erp.Infrastructure.Authorization.DataScopeService>();
 builder.Services.AddDbContext<ErpDbContext>(opt =>
     opt.UseSqlServer(builder.Configuration.GetConnectionString("Default")));
 

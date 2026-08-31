@@ -10,7 +10,7 @@ interface ProjectDetail {
   status: string;
   startDate: string;
   endDate: string | null;
-  budgetAmount: number;
+  budgetAmount: number | null;
 }
 
 interface ProjectBudget {
