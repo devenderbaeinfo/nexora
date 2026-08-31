@@ -1,0 +1,299 @@
+using System.Security.Claims;
+using Erp.Api.Authorization;
+using Erp.Api.Contracts;
+using Erp.Domain.Identity;
+using Erp.Domain.Project;
+using Erp.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+
+namespace Erp.Api.Controllers;
+
+[ApiController]
+[Authorize]
+[Route("api/projects")]
+public class ProjectsController : ControllerBase
+{
+    private readonly ErpDbContext _db;
+    public ProjectsController(ErpDbContext db) => _db = db;
+
+    private Guid? CurrentEmployeeId =>
+        Guid.TryParse(User.FindFirstValue("employee_id"), out var id) ? id : null;
+
+    // The projects an employee is actually staffed on (ProjectMember), not the ones they
+    // merely have view rights to — "My Projects" for a plain Employee.
+    [HttpGet("mine")]
+    [RequirePermission(Permission.Project.View)]
+    public async Task<ActionResult<List<MyProjectDto>>> Mine()
+    {
+        if (CurrentEmployeeId is not { } employeeId) return Ok(new List<MyProjectDto>());
+
+        var memberships = await _db.ProjectMembers.Where(m => m.EmployeeId == employeeId).ToListAsync();
+        var projectIds = memberships.Select(m => m.ProjectId).ToList();
+        var projects = await _db.Projects.Where(p => projectIds.Contains(p.Id)).ToListAsync();
+        var customers = await _db.Customers.ToDictionaryAsync(c => c.Id, c => c.Name);
+
+        return Ok(memberships.Select(m =>
+        {
+            var project = projects.First(p => p.Id == m.ProjectId);
+            return new MyProjectDto(
+                project.Id, project.Name,
+                customers.TryGetValue(project.CustomerId, out var name) ? name : "—",
+                project.Status.ToString(), m.RoleOnProject);
+        }).ToList());
+    }
+
+    [HttpGet]
+    [RequirePermission(Permission.Project.View)]
+    public async Task<ActionResult<List<ProjectDto>>> List()
+    {
+        var customers = await _db.Customers.ToDictionaryAsync(c => c.Id, c => c.Name);
+        var employees = await _db.Employees.ToDictionaryAsync(e => e.Id, e => $"{e.FirstName} {e.LastName}");
+
+        var projects = await _db.Projects.OrderBy(p => p.Name).ToListAsync();
+
+        return Ok(projects.Select(p => new ProjectDto(
+            p.Id, p.Name,
+            customers.TryGetValue(p.CustomerId, out var customerName) ? customerName : "—",
+            employees.TryGetValue(p.ProjectManagerId, out var pmName) ? pmName : "—",
+            p.Status.ToString(), p.BudgetAmount)).ToList());
+    }
+
+    [HttpPost]
+    [RequirePermission(Permission.Project.ManageBudget)]
+    public async Task<ActionResult<ProjectDto>> Create(CreateProjectRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Name)) return BadRequest("Name is required.");
+        if (request.Name.Trim().Length > 200) return BadRequest("Name can't be longer than 200 characters.");
+        if (request.BudgetAmount < 0) return BadRequest("Budget can't be negative.");
+        if (request.EndDate is { } end && end < request.StartDate) return BadRequest("End date can't be before the start date.");
+
+        var customer = await _db.Customers.FirstOrDefaultAsync(c => c.Id == request.CustomerId);
+        if (customer is null) return BadRequest("Unknown customer.");
+
+        var projectManager = await _db.Employees.FirstOrDefaultAsync(e => e.Id == request.ProjectManagerId);
+        if (projectManager is null) return BadRequest("Unknown project manager.");
+
+        var project = new ProjectEntity
+        {
+            Name = request.Name.Trim(),
+            CustomerId = request.CustomerId,
+            ProjectManagerId = request.ProjectManagerId,
+            StartDate = request.StartDate,
+            EndDate = request.EndDate,
+            BudgetAmount = request.BudgetAmount,
+        };
+        _db.Projects.Add(project);
+        await _db.SaveChangesAsync();
+
+        return CreatedAtAction(nameof(List), new ProjectDto(
+            project.Id, project.Name, customer.Name,
+            $"{projectManager.FirstName} {projectManager.LastName}", project.Status.ToString(), project.BudgetAmount));
+    }
+
+    [HttpGet("{id:guid}")]
+    [RequirePermission(Permission.Project.View)]
+    public async Task<ActionResult<ProjectDetailDto>> Get(Guid id)
+    {
+        var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == id);
+        if (project is null) return NotFound();
+
+        var customer = await _db.Customers.FirstOrDefaultAsync(c => c.Id == project.CustomerId);
+        var pm = await _db.Employees.FirstOrDefaultAsync(e => e.Id == project.ProjectManagerId);
+
+        return Ok(new ProjectDetailDto(
+            project.Id, project.Name, project.CustomerId, customer?.Name ?? "—",
+            project.ProjectManagerId, pm is null ? "—" : $"{pm.FirstName} {pm.LastName}",
+            project.Status.ToString(), project.StartDate, project.EndDate, project.BudgetAmount));
+    }
+
+    // Covers "Project Planning": the schedule and status are the only things about a
+    // project that change after it's created — budget changes go through a real change
+    // order in a future module, not a silent edit here.
+    [HttpPatch("{id:guid}")]
+    [RequirePermission(Permission.Project.ManageBudget)]
+    public async Task<IActionResult> UpdateSchedule(Guid id, UpdateProjectScheduleRequest request)
+    {
+        var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == id);
+        if (project is null) return NotFound();
+        if (request.EndDate is not null && request.EndDate < request.StartDate)
+            return BadRequest("End date can't be before the start date.");
+
+        project.StartDate = request.StartDate;
+        project.EndDate = request.EndDate;
+        project.Status = request.Status;
+        await _db.SaveChangesAsync();
+
+        return NoContent();
+    }
+
+    [HttpGet("{id:guid}/team")]
+    [RequirePermission(Permission.Project.View)]
+    public async Task<ActionResult<List<ProjectMemberDto>>> Team(Guid id)
+    {
+        var employees = await _db.Employees.ToDictionaryAsync(e => e.Id, e => $"{e.FirstName} {e.LastName}");
+        var members = await _db.ProjectMembers.Where(m => m.ProjectId == id).ToListAsync();
+
+        return Ok(members.Select(m => new ProjectMemberDto(
+            m.Id, m.EmployeeId, employees.TryGetValue(m.EmployeeId, out var name) ? name : "—", m.RoleOnProject)).ToList());
+    }
+
+    [HttpPost("{id:guid}/team")]
+    [RequirePermission(Permission.Project.ManageBudget)]
+    public async Task<IActionResult> AddTeamMember(Guid id, AddProjectMemberRequest request)
+    {
+        var projectExists = await _db.Projects.AnyAsync(p => p.Id == id);
+        if (!projectExists) return NotFound();
+
+        var employeeExists = await _db.Employees.AnyAsync(e => e.Id == request.EmployeeId);
+        if (!employeeExists) return BadRequest("Unknown employee.");
+
+        var alreadyMember = await _db.ProjectMembers.AnyAsync(m => m.ProjectId == id && m.EmployeeId == request.EmployeeId);
+        if (alreadyMember) return Conflict("This employee is already on the project.");
+
+        _db.ProjectMembers.Add(new ProjectMember
+        {
+            ProjectId = id,
+            EmployeeId = request.EmployeeId,
+            RoleOnProject = request.RoleOnProject,
+        });
+        await _db.SaveChangesAsync();
+
+        return CreatedAtAction(nameof(Team), new { id }, null);
+    }
+
+    [HttpDelete("{id:guid}/team/{memberId:guid}")]
+    [RequirePermission(Permission.Project.ManageBudget)]
+    public async Task<IActionResult> RemoveTeamMember(Guid id, Guid memberId)
+    {
+        var member = await _db.ProjectMembers.FirstOrDefaultAsync(m => m.Id == memberId && m.ProjectId == id);
+        if (member is null) return NotFound();
+
+        _db.ProjectMembers.Remove(member);
+        await _db.SaveChangesAsync();
+        return NoContent();
+    }
+
+    // Backs "Project Budget": approved spend is money already committed, pending spend is
+    // still awaiting sign-off — kept separate so a PM can see how much headroom is left
+    // even before every pending claim clears.
+    [HttpGet("{id:guid}/budget")]
+    [RequirePermission(Permission.Project.View)]
+    public async Task<ActionResult<ProjectBudgetDto>> Budget(Guid id)
+    {
+        var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == id);
+        if (project is null) return NotFound();
+
+        var expenses = await _db.ProjectExpenses.Where(e => e.ProjectId == id).ToListAsync();
+        var approved = expenses.Where(e => e.Status == ProjectExpenseStatus.Approved).Sum(e => e.Amount);
+        var pending = expenses.Where(e => e.Status is ProjectExpenseStatus.Pending or ProjectExpenseStatus.ManagerApproved).Sum(e => e.Amount);
+        var remaining = project.BudgetAmount - approved - pending;
+        var percentSpent = project.BudgetAmount == 0 ? 0 : Math.Round((approved + pending) / project.BudgetAmount * 100, 1);
+
+        return Ok(new ProjectBudgetDto(project.BudgetAmount, approved, pending, remaining, percentSpent));
+    }
+
+    // Itemized cost for "Project Cost" — every expense against this project, any status,
+    // unlike Budget above which only ever shows totals.
+    [HttpGet("{id:guid}/expenses")]
+    [RequirePermission(Permission.Project.View)]
+    public async Task<ActionResult<List<ProjectExpenseDto>>> Expenses(Guid id)
+    {
+        var expenses = await _db.ProjectExpenses.Where(e => e.ProjectId == id).OrderByDescending(e => e.IncurredOn).ToListAsync();
+        var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == id);
+        var employees = await _db.Employees.ToDictionaryAsync(e => e.Id, e => $"{e.FirstName} {e.LastName}");
+
+        return Ok(expenses.Select(e => new ProjectExpenseDto(
+            e.Id, project?.Name ?? "—", employees.TryGetValue(e.EmployeeId, out var name) ? name : "—",
+            e.Amount, e.Category, e.Description, e.IncurredOn, e.IsBillable, e.Status.ToString())).ToList());
+    }
+
+    // Every task assigned to the caller, across every project — nothing else in the app
+    // surfaces this, so without it a task a manager assigns is invisible to the person
+    // holding it unless they already know which project to go dig through.
+    [HttpGet("my-tasks")]
+    [RequirePermission(Permission.Project.View)]
+    public async Task<ActionResult<List<ProjectTaskDto>>> MyTasks()
+    {
+        if (CurrentEmployeeId is not { } employeeId) return Ok(new List<ProjectTaskDto>());
+
+        var tasks = await _db.ProjectTasks
+            .Where(t => t.AssignedToEmployeeId == employeeId)
+            .OrderBy(t => t.DueDate)
+            .ToListAsync();
+        var projectNames = await _db.Projects.ToDictionaryAsync(p => p.Id, p => p.Name);
+
+        return Ok(tasks.Select(t => new ProjectTaskDto(
+            t.Id, t.ProjectId, t.Title, t.Description,
+            t.AssignedToEmployeeId, null,
+            t.Status.ToString(), t.DueDate,
+            projectNames.GetValueOrDefault(t.ProjectId, "—"))).ToList());
+    }
+
+    // The task's own assignee can move it ToDo -> InProgress -> Done without needing the
+    // project-management permission that reassigning or re-dating a task requires.
+    [HttpPatch("{id:guid}/tasks/{taskId:guid}/status")]
+    [RequirePermission(Permission.Project.View)]
+    public async Task<IActionResult> UpdateOwnTaskStatus(Guid id, Guid taskId, UpdateTaskStatusRequest request)
+    {
+        var task = await _db.ProjectTasks.FirstOrDefaultAsync(t => t.Id == taskId && t.ProjectId == id);
+        if (task is null) return NotFound();
+        if (task.AssignedToEmployeeId != CurrentEmployeeId) return Forbid();
+
+        task.Status = request.Status;
+        await _db.SaveChangesAsync();
+
+        return NoContent();
+    }
+
+    [HttpGet("{id:guid}/tasks")]
+    [RequirePermission(Permission.Project.View)]
+    public async Task<ActionResult<List<ProjectTaskDto>>> Tasks(Guid id)
+    {
+        var tasks = await _db.ProjectTasks.Where(t => t.ProjectId == id).OrderBy(t => t.DueDate).ToListAsync();
+        var employees = await _db.Employees.ToDictionaryAsync(e => e.Id, e => $"{e.FirstName} {e.LastName}");
+
+        return Ok(tasks.Select(t => new ProjectTaskDto(
+            t.Id, t.ProjectId, t.Title, t.Description,
+            t.AssignedToEmployeeId,
+            t.AssignedToEmployeeId is { } aid && employees.TryGetValue(aid, out var name) ? name : null,
+            t.Status.ToString(), t.DueDate)).ToList());
+    }
+
+    [HttpPost("{id:guid}/tasks")]
+    [RequirePermission(Permission.Project.ManageBudget)]
+    public async Task<IActionResult> AddTask(Guid id, CreateProjectTaskRequest request)
+    {
+        var projectExists = await _db.Projects.AnyAsync(p => p.Id == id);
+        if (!projectExists) return NotFound();
+        if (string.IsNullOrWhiteSpace(request.Title)) return BadRequest("Title is required.");
+
+        _db.ProjectTasks.Add(new ProjectTask
+        {
+            ProjectId = id,
+            Title = request.Title.Trim(),
+            Description = request.Description,
+            AssignedToEmployeeId = request.AssignedToEmployeeId,
+            DueDate = request.DueDate,
+        });
+        await _db.SaveChangesAsync();
+
+        return CreatedAtAction(nameof(Tasks), new { id }, null);
+    }
+
+    [HttpPatch("{id:guid}/tasks/{taskId:guid}")]
+    [RequirePermission(Permission.Project.ManageBudget)]
+    public async Task<IActionResult> UpdateTask(Guid id, Guid taskId, UpdateProjectTaskRequest request)
+    {
+        var task = await _db.ProjectTasks.FirstOrDefaultAsync(t => t.Id == taskId && t.ProjectId == id);
+        if (task is null) return NotFound();
+
+        task.Status = request.Status;
+        task.AssignedToEmployeeId = request.AssignedToEmployeeId;
+        task.DueDate = request.DueDate;
+        await _db.SaveChangesAsync();
+
+        return NoContent();
+    }
+}

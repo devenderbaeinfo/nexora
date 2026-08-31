@@ -1,0 +1,251 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap');
+
+/*
+  NEXORA design system — one token set, two premium themes.
+  Nexora Navy carries headings, navigation state, and primary actions (the purple/teal
+  system this replaced used purple in that role). Aurora Gold is a deliberately minor
+  secondary accent — featured/premium highlights, never a primary action. Signal Teal
+  marks approvals and success states. Alert Coral replaces a generic red for danger/alerts.
+*/
+
+:root {
+  --bg: #F6F7FA;
+  --surface: #FFFFFF;
+  --surface-2: #E9EDF4;       /* soft navy — table headers, active nav bg */
+  --surface-sunken: #F1F3F8;  /* ultra-soft navy — sidebar bg, ghost hover */
+  --input-bg: #FFFFFF;        /* inputs stay white in light mode */
+  --ink: #141B2E;
+  --muted: #5B6478;
+  --faint: #8890A0;
+  --border: #DDE2EA;
+  --border-strong: #C7CEDC;
+
+  --accent: #1F3A63;
+  --accent-strong: #16294A;
+  --accent-light: #4A6FA5;
+  --accent-soft: #E7ECF4;
+  --accent-ink: #FFFFFF;
+
+  --gold: #C6941C;
+  --gold-soft: #FBF1DC;
+
+  --teal: #0FB8A6;
+  --teal-soft: #E1F7F4;
+
+  --good: #0FB8A6;
+  --good-soft: #E1F7F4;
+  --warn: #D3900F;
+  --warn-soft: #FBF0DC;
+  --danger: #E15142;
+  --danger-soft: #FBE7E3;
+  --info: #3B72B7;
+
+  --shadow: 0 1px 2px rgba(20,27,46,.05), 0 8px 22px rgba(20,27,46,.06);
+  --glow-accent: none;
+  --radius: 10px;
+  --radius-lg: 14px;
+
+  --font-display: "Playfair Display", Georgia, serif;
+  --font-body: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Inter", ui-sans-serif, system-ui, sans-serif; /* labels/tags stay Inter, styled via letter-spacing */
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0A0F1C;
+    --surface: #121826;
+    --surface-2: #1A2233;       /* elevated card / table header */
+    --surface-sunken: #0E1420;  /* sidebar bg */
+    --input-bg: #0E1420;        /* inputs share the sunken tone in dark mode */
+    --ink: #EDF1F7;
+    --muted: #A3ACC2;
+    --faint: #6E7891;
+    --border: #2A3348;
+    --border-strong: #3A4560;
+
+    --accent: #6E9BFF;
+    --accent-strong: #5583EE;
+    --accent-light: #A7C1FF;
+    --accent-soft: #1C2A47;
+    --accent-ink: #0A0F1C;
+
+    --gold: #F0C25B;
+    --gold-soft: rgba(240,194,91,.14);
+
+    --teal: #2FE0C8;
+    --teal-soft: rgba(47,224,200,.14);
+
+    --good: #2FE0C8;
+    --good-soft: rgba(47,224,200,.14);
+    --warn: #F5B94D;
+    --warn-soft: rgba(245,185,77,.14);
+    --danger: #FF8271;
+    --danger-soft: rgba(255,130,113,.14);
+    --info: #6E9BFF;
+
+    --shadow: 0 1px 2px rgba(0,0,0,.35), 0 10px 26px rgba(0,0,0,.4);
+    --glow-accent: 0 0 0 1px rgba(110,155,255,.25), 0 0 24px rgba(110,155,255,.12);
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg: #0A0F1C;
+  --surface: #121826;
+  --surface-2: #1A2233;
+  --surface-sunken: #0E1420;
+  --input-bg: #0E1420;
+  --ink: #EDF1F7;
+  --muted: #A3ACC2;
+  --faint: #6E7891;
+  --border: #2A3348;
+  --border-strong: #3A4560;
+
+  --accent: #6E9BFF;
+  --accent-strong: #5583EE;
+  --accent-light: #A7C1FF;
+  --accent-soft: #1C2A47;
+  --accent-ink: #0A0F1C;
+
+  --gold: #F0C25B;
+  --gold-soft: rgba(240,194,91,.14);
+
+  --teal: #2FE0C8;
+  --teal-soft: rgba(47,224,200,.14);
+
+  --good: #2FE0C8;
+  --good-soft: rgba(47,224,200,.14);
+  --warn: #F5B94D;
+  --warn-soft: rgba(245,185,77,.14);
+  --danger: #FF8271;
+  --danger-soft: rgba(255,130,113,.14);
+  --info: #6E9BFF;
+
+  --shadow: 0 1px 2px rgba(0,0,0,.35), 0 10px 26px rgba(0,0,0,.4);
+  --glow-accent: 0 0 0 1px rgba(110,155,255,.25), 0 0 24px rgba(110,155,255,.12);
+}
+
+* { box-sizing: border-box; }
+
+html, body, #root { height: 100%; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 15px;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; }
+
+button, input, select, textarea { font-family: inherit; }
+
+button, a, input, select, textarea, .nav-link, .card-surface {
+  transition: background-color .2s ease, border-color .2s ease, color .2s ease, transform .2s ease, box-shadow .2s ease;
+}
+
+/* Navy focus ring + soft focus background on every form control, overriding each
+   component's inline resting background — the one place !important is warranted since
+   inline styles otherwise always win over a stylesheet rule. */
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--accent) !important;
+  background: var(--accent-soft) !important;
+  box-shadow: 0 0 0 3px rgba(31,58,99,.14);
+}
+:root[data-theme="dark"] input:focus,
+:root[data-theme="dark"] select:focus,
+:root[data-theme="dark"] textarea:focus {
+  box-shadow: 0 0 0 3px rgba(110,155,255,.18);
+}
+
+/* Restrained hover feedback for every clickable control, regardless of which button
+   variant's inline styles set its resting colors. Darkening reads as basically invisible
+   against an already-dark surface, so dark mode brightens instead — same idea, opposite direction. */
+button:not(:disabled):hover { filter: brightness(0.96); }
+:root:not([data-theme="light"]) button:not(:disabled):hover { filter: brightness(1.22); }
+button:disabled { opacity: .6; cursor: not-allowed; }
+
+/* Sidebar nav links: a soft circular glow that grows in from the icon on hover, rather
+   than a flat color swap — noticeably more visible in dark mode, where a flat highlight
+   tends to disappear against the sunken sidebar background. */
+.sidebar-nav-link {
+  background-image: radial-gradient(circle at 26px 50%, var(--accent-soft) 0%, transparent 68%);
+  background-repeat: no-repeat;
+  background-size: 0% 0%;
+  background-position: center;
+  transition: background-size .32s ease;
+}
+.sidebar-nav-link:hover { background-size: 260% 420%; }
+:root:not([data-theme="light"]) .sidebar-nav-link {
+  background-image: radial-gradient(circle at 26px 50%, rgba(110,155,255,.30) 0%, transparent 68%);
+}
+
+/* A cursor-tracking spotlight across the entire screen, dark mode only — sidebar and main
+   content alike, in every shell that includes it (client app, admin/platform layout). Fixed
+   to the viewport since it spans everything; position is written directly to this element's
+   background by whichever shell mounts it, on pointer move. This rule only controls whether
+   it's ever visible, and where it sits in the stack (above surfaces, below real content via
+   a low, deliberately inert opacity + pointer-events: none). */
+.app-spotlight {
+  position: fixed; inset: 0; z-index: 40; pointer-events: none;
+  transition: opacity .25s ease;
+  display: none;
+}
+:root:not([data-theme="light"]) .app-spotlight { display: block; }
+
+.card-surface { will-change: transform; }
+.card-surface:hover { transform: translateY(-2px); }
+
+::selection { background: var(--accent-soft); }
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Themed scrollbars everywhere, instead of the raw OS default — thin, quiet, and only
+   darkens on hover so it doesn't compete with page content at rest. */
+html { scroll-behavior: smooth; }
+* { scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 20px; }
+*::-webkit-scrollbar-thumb:hover { background: var(--faint); }
+
+/* Every data table in the app shares this markup shape (table > tbody > tr > td) even
+   though each page owns its own inline cell styles, so one rule here makes scanning a
+   row easier everywhere at once. */
+tbody tr { transition: background-color .12s ease; }
+tbody tr:hover > td { background: var(--surface-2); }
+
+/* One shared entrance for route content and anything that pops in (drawers, dropdown
+   panels) — subtle on purpose, and fully skipped under reduced-motion below. */
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.page-transition { animation: fade-in-up .22s ease; }
+
+@keyframes overlay-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes panel-slide-in {
+  from { opacity: 0; transform: translateX(24px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+.drawer-backdrop { animation: overlay-fade-in .18s ease; }
+.drawer-panel { animation: panel-slide-in .24s cubic-bezier(.22,.61,.36,1); }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+.spinner {
+  display: inline-block; width: 16px; height: 16px; border-radius: 50%;
+  border: 2px solid var(--border-strong); border-top-color: var(--accent);
+  animation: spin .7s linear infinite; vertical-align: -3px; margin-right: 8px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; }
+}

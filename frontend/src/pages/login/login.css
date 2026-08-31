@@ -1,0 +1,424 @@
+/*
+  Styling for the split-panel login page. Scoped under .bae-login so it can't leak into the
+  rest of the app, which uses inline styles driven by the same app-wide tokens.css variables
+  referenced here. The hero panel (right) stays a fixed dark, artistic navy in both themes —
+  that's a deliberate visual choice, not a light/dark state. The form panel (left) now follows
+  the viewer's theme via the toggle in its corner, using the same tokens as the rest of the app.
+*/
+
+.bae-login {
+  display: flex;
+  min-height: 100vh;
+  width: 100%;
+  overflow-x: hidden;
+  background: var(--bg);
+}
+
+.bae-login-panel {
+  position: relative;
+  flex: 0 0 40%;
+  max-width: 40%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 7vw;
+  background: var(--surface);
+}
+
+.bae-login-theme-toggle {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+}
+
+.bae-login-panel-inner {
+  width: 100%;
+  max-width: 420px;
+}
+
+.bae-hero-panel {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, #07111F, #0B0C20, #11102B);
+  display: flex;
+  flex-direction: column;
+  padding: 28px 4vw 40px;
+}
+
+.bae-input {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 14px;
+  color: var(--ink);
+  font-family: inherit;
+  transition: border-color .18s ease, box-shadow .18s ease, background-color .18s ease;
+}
+
+.bae-input::placeholder { color: var(--faint); }
+
+.bae-input:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: 0 0 0 3px rgba(109, 74, 255, 0.14);
+}
+
+.bae-input.has-error {
+  border-color: var(--danger);
+}
+
+.bae-field-error {
+  color: var(--danger);
+  font-size: 12.5px;
+  margin-top: 6px;
+}
+
+.bae-password-toggle {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border-radius: 6px;
+  transition: color .15s ease, background-color .15s ease;
+}
+.bae-password-toggle:hover { color: var(--accent); background: var(--accent-soft); }
+.bae-password-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.bae-checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+  color: var(--muted);
+  cursor: pointer;
+  user-select: none;
+}
+.bae-checkbox-row input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.bae-link {
+  font-size: 13.5px;
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 600;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  font-family: inherit;
+}
+.bae-link:hover { color: var(--accent-strong); text-decoration: underline; }
+.bae-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+
+.bae-submit-button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 13px;
+  border-radius: 10px;
+  border: none;
+  color: #FFFFFF;
+  font-weight: 700;
+  font-size: 14.5px;
+  cursor: pointer;
+  font-family: inherit;
+  background: linear-gradient(90deg, var(--accent), #4F6FFF);
+  transition: filter .18s ease, transform .12s ease, box-shadow .18s ease;
+  box-shadow: 0 8px 20px rgba(109, 74, 255, 0.25);
+}
+.bae-submit-button:hover:not(:disabled) { filter: brightness(1.08); }
+.bae-submit-button:active:not(:disabled) { transform: translateY(1px); }
+.bae-submit-button:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+.bae-submit-button:disabled { opacity: 0.7; cursor: not-allowed; }
+
+.bae-submit-button .arrow {
+  transition: transform .18s ease;
+}
+.bae-submit-button:hover:not(:disabled) .arrow {
+  transform: translateX(3px);
+}
+
+.bae-form-error {
+  background: var(--danger-soft);
+  color: var(--danger);
+  font-size: 13px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+
+/* ---------- Hero panel ---------- */
+
+.bae-hero-content {
+  position: relative;
+  z-index: 2;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 22px;
+  max-width: 620px;
+}
+
+.bae-hero-title {
+  font-size: clamp(30px, 3.6vw, 44px);
+  font-weight: 800;
+  line-height: 1.12;
+  color: #F5F3FF;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+.bae-hero-title .grad {
+  background: linear-gradient(90deg, #A78BFA, #6D4AFF 45%, #4F6FFF);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.bae-hero-desc {
+  font-size: 15.5px;
+  line-height: 1.7;
+  color: #AAA7BD;
+  max-width: 52ch;
+}
+.bae-hero-desc .teal { color: #12D6C5; font-weight: 600; }
+
+/* ---------- Network background ---------- */
+
+.bae-network-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  opacity: 0.55;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .bae-network-bg circle.pulse {
+    animation: bae-pulse 5s ease-in-out infinite;
+  }
+}
+@keyframes bae-pulse {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 0.9; }
+}
+
+/* ---------- Dashboard preview ---------- */
+
+.bae-dashboard {
+  position: relative;
+  border-radius: 8px;
+  border: 1px solid #292B3A;
+  background: linear-gradient(135deg, #151722, #19172B);
+  overflow: hidden;
+  width: 100%;
+}
+
+/* ---------- Laptop frame ---------- */
+
+.bae-laptop {
+  position: relative;
+  z-index: 2;
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  filter: drop-shadow(0 34px 46px rgba(0,0,0,0.5));
+}
+
+.bae-laptop-screen {
+  position: relative;
+  width: 100%;
+  max-width: 640px;
+  background: #0B0C14;
+  border: 10px solid #1D1F2C;
+  border-bottom: none;
+  border-radius: 14px 14px 4px 4px;
+  padding: 16px 10px 10px;
+}
+
+.bae-laptop-camera {
+  position: absolute;
+  top: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #3A3D50;
+}
+
+.bae-laptop-screen-content {
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.bae-laptop-base {
+  position: relative;
+  width: 100%;
+  max-width: 716px;
+  height: 16px;
+  background: linear-gradient(180deg, #23253388, #14151f);
+  border-radius: 0 0 10px 10px;
+  clip-path: polygon(3% 0, 97% 0, 100% 100%, 0 100%);
+}
+
+.bae-laptop-notch {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 90px;
+  height: 5px;
+  background: #0B0C14;
+  border-radius: 0 0 6px 6px;
+}
+
+.bae-dashboard-titlebar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-bottom: 1px solid #292B3A;
+  background: #11121D;
+}
+.bae-dashboard-dot { width: 8px; height: 8px; border-radius: 50%; }
+.bae-dashboard-url {
+  margin-left: 8px;
+  font-size: 11px;
+  color: #777489;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+}
+
+.bae-dashboard-body {
+  display: grid;
+  grid-template-columns: 108px 1fr;
+}
+
+.bae-dashboard-sidebar {
+  border-right: 1px solid #292B3A;
+  padding: 12px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.bae-dashboard-nav-item {
+  font-size: 10.5px;
+  color: #777489;
+  padding: 6px 8px;
+  border-radius: 6px;
+  font-weight: 600;
+}
+.bae-dashboard-nav-item.active {
+  color: #A78BFA;
+  background: #241C46;
+}
+
+.bae-dashboard-main {
+  padding: 16px 18px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.bae-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.bae-stat-card {
+  background: #191B28;
+  border: 1px solid #292B3A;
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+.bae-stat-label { font-size: 9.5px; letter-spacing: .05em; text-transform: uppercase; color: #777489; margin-bottom: 4px; }
+.bae-stat-value { font-size: 17px; font-weight: 800; color: #F5F3FF; }
+.bae-stat-change { font-size: 10px; color: #12D6C5; margin-top: 2px; }
+
+.bae-dashboard-row {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr;
+  gap: 12px;
+}
+
+.bae-activity-list {
+  background: #191B28;
+  border: 1px solid #292B3A;
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.bae-activity-heading { font-size: 10.5px; font-weight: 700; color: #AAA7BD; margin-bottom: 2px; }
+.bae-activity-item { display: flex; justify-content: space-between; gap: 8px; font-size: 11px; }
+.bae-activity-item .title { color: #F5F3FF; }
+.bae-activity-item .time { color: #777489; flex-shrink: 0; }
+
+.bae-chart-card {
+  background: #191B28;
+  border: 1px solid #292B3A;
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.bae-chart-label { font-size: 9.5px; color: #AAA7BD; text-align: center; }
+
+.bae-security-badge {
+  position: absolute;
+  bottom: 2px;
+  right: 6%;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #151722;
+  border: 1px solid #12D6C5;
+  color: #12D6C5;
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 7px 12px;
+  border-radius: 100px;
+  box-shadow: 0 0 24px rgba(18, 214, 197, 0.18);
+}
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 1100px) {
+  .bae-login-panel { flex-basis: 46%; max-width: 46%; }
+  .bae-dashboard { max-width: 100%; }
+}
+
+@media (max-width: 860px) {
+  .bae-login { flex-direction: column; }
+  .bae-login-panel { flex-basis: auto; max-width: 100%; padding: 40px 6vw; order: 1; }
+  .bae-hero-panel { order: 2; padding: 24px 6vw 40px; min-height: 520px; }
+  .bae-hero-content { max-width: 100%; }
+}
+
+@media (max-width: 520px) {
+  .bae-login-panel { padding: 32px 20px; }
+  .bae-hero-panel { padding: 20px 16px 32px; }
+  .bae-hero-nav { flex-wrap: wrap; gap: 14px 18px; justify-content: flex-start; }
+  .bae-stat-grid { grid-template-columns: 1fr 1fr; }
+  .bae-dashboard-row { grid-template-columns: 1fr; }
+}
