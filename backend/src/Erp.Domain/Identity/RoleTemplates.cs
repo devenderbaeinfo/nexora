@@ -37,6 +37,7 @@ public static class RoleTemplates
             Permission.Onboarding.View, Permission.EmployeeDocs.View,
             Permission.Attendance.ViewAll,
             Permission.Fnf.View,
+            Permission.Payroll.View,
         ],
 
         Hr =>
@@ -50,6 +51,7 @@ public static class RoleTemplates
             Permission.Attendance.ClockInOut, Permission.Attendance.ViewAll, Permission.Attendance.Correct,
             Permission.Fnf.View, Permission.Fnf.Manage,
             Permission.Announcements.Manage,
+            Permission.Payroll.View, Permission.Payroll.Manage,
         ],
 
         Manager =>
@@ -63,6 +65,7 @@ public static class RoleTemplates
             Permission.Onboarding.View, Permission.EmployeeDocs.View,
             Permission.Attendance.ClockInOut, Permission.Attendance.ViewTeam,
             Permission.Fnf.View,
+            Permission.Payroll.View,
         ],
 
         Finance =>
@@ -71,6 +74,7 @@ public static class RoleTemplates
             Permission.Project.View, Permission.Project.ApproveExpenseAsFinance,
             Permission.Accounting.View, Permission.Accounting.PostEntries, Permission.Accounting.RunReimbursement,
             Permission.Attendance.ClockInOut,
+            Permission.Payroll.View, Permission.Payroll.Approve,
         ],
 
         Employee =>
@@ -83,6 +87,7 @@ public static class RoleTemplates
             Permission.Onboarding.View, Permission.EmployeeDocs.View,
             Permission.Attendance.ClockInOut,
             Permission.Fnf.View,
+            Permission.Payroll.View,
         ],
 
         _ => throw new ArgumentOutOfRangeException(nameof(role), role, "Unknown role."),

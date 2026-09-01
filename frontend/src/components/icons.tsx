@@ -98,7 +98,7 @@ const RULES: [RegExp, (p: IconProps) => ReactElement][] = [
   [/^create|new /i, PlusCircleIcon],
   [/task/i, CheckSquareIcon],
   [/progress|profitability/i, TrendingUpIcon],
-  [/budget|my expenses|team expenses/i, WalletIcon],
+  [/budget|my expenses|team expenses|payroll|payslip/i, WalletIcon],
   [/project expense|reimbursement|expense/i, CreditCardIcon],
   [/approv|verification/i, ShieldCheckIcon],
   [/report|p&l|balance sheet|cash flow/i, BarChartIcon],

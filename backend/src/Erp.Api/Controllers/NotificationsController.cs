@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using Erp.Domain.Identity;
+using Erp.Domain.Payroll;
 using Erp.Domain.Project;
 using Erp.Domain.Reimbursement;
 using Erp.Domain.Timecard;
@@ -10,7 +11,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Erp.Api.Controllers;
 
-public record NotificationItem(string Kind, string Label, Guid Id, DateTimeOffset CreatedAtUtc, string LinkPath);
+// RequiresAction distinguishes "waiting on you to act" (a pending-approval queue) from
+// "FYI, here's what happened to your own request" — the Action Center groups and counts
+// only the former; the latter stays a flat recent-activity feed.
+public record NotificationItem(string Kind, string Label, Guid Id, DateTimeOffset CreatedAtUtc, string LinkPath, bool RequiresAction);
 
 // An aggregation point over two kinds of things worth a bell icon: the "pending approval"
 // queues that already exist per module (Leave, Timesheet, Reimbursement, Project Expense),
@@ -43,7 +47,7 @@ public class NotificationsController : ControllerBase
                 .Where(r => directReportIds.Contains(r.EmployeeId) && r.Status == LeaveRequestStatus.PendingManagerApproval)
                 .Select(r => new { r.Id, r.CreatedAtUtc })
                 .ToListAsync();
-            items.AddRange(rows.Select(r => new NotificationItem("Leave", "Leave request awaiting your approval", r.Id, r.CreatedAtUtc, "/timecard")));
+            items.AddRange(rows.Select(r => new NotificationItem("Leave", "Leave request awaiting your approval", r.Id, r.CreatedAtUtc, "/timecard", true)));
         }
 
         if (Has(Permission.Leave.ApproveAsHr))
@@ -52,7 +56,7 @@ public class NotificationsController : ControllerBase
                 .Where(r => r.Status == LeaveRequestStatus.PendingHrApproval)
                 .Select(r => new { r.Id, r.CreatedAtUtc })
                 .ToListAsync();
-            items.AddRange(rows.Select(r => new NotificationItem("Leave", "Leave request awaiting HR approval", r.Id, r.CreatedAtUtc, "/timecard")));
+            items.AddRange(rows.Select(r => new NotificationItem("Leave", "Leave request awaiting HR approval", r.Id, r.CreatedAtUtc, "/timecard", true)));
         }
 
         if (Has(Permission.Timesheet.Approve) && employeeId is { } tsMgrId)
@@ -62,7 +66,7 @@ public class NotificationsController : ControllerBase
                 .Where(t => directReportIds.Contains(t.EmployeeId) && t.Status == TimesheetStatus.Submitted)
                 .Select(t => new { t.Id, t.CreatedAtUtc })
                 .ToListAsync();
-            items.AddRange(rows.Select(t => new NotificationItem("Timesheet", "Timesheet entry awaiting your approval", t.Id, t.CreatedAtUtc, "/timesheets/approval")));
+            items.AddRange(rows.Select(t => new NotificationItem("Timesheet", "Timesheet entry awaiting your approval", t.Id, t.CreatedAtUtc, "/timesheets/approval", true)));
         }
 
         if (Has(Permission.Expense.ApproveAsManager) && employeeId is { } expMgrId)
@@ -72,7 +76,7 @@ public class NotificationsController : ControllerBase
                 .Where(r => directReportIds.Contains(r.EmployeeId) && r.Status == ReimbursementStatus.Pending)
                 .Select(r => new { r.Id, r.CreatedAtUtc })
                 .ToListAsync();
-            items.AddRange(rows.Select(r => new NotificationItem("Expense", "Reimbursement awaiting your approval", r.Id, r.CreatedAtUtc, "/expenses/approvals")));
+            items.AddRange(rows.Select(r => new NotificationItem("Expense", "Reimbursement awaiting your approval", r.Id, r.CreatedAtUtc, "/expenses/approvals", true)));
         }
 
         if (Has(Permission.Expense.ApproveAsFinance))
@@ -81,7 +85,7 @@ public class NotificationsController : ControllerBase
                 .Where(r => r.Status == ReimbursementStatus.ManagerApproved)
                 .Select(r => new { r.Id, r.CreatedAtUtc })
                 .ToListAsync();
-            items.AddRange(rows.Select(r => new NotificationItem("Expense", "Reimbursement awaiting Finance approval", r.Id, r.CreatedAtUtc, "/expenses/approvals")));
+            items.AddRange(rows.Select(r => new NotificationItem("Expense", "Reimbursement awaiting Finance approval", r.Id, r.CreatedAtUtc, "/expenses/approvals", true)));
         }
 
         if (Has(Permission.Project.ApproveExpenseAsProjectManager) && employeeId is { } pmId)
@@ -91,7 +95,7 @@ public class NotificationsController : ControllerBase
                 .Where(e => myProjectIds.Contains(e.ProjectId) && e.Status == ProjectExpenseStatus.Pending)
                 .Select(e => new { e.Id, e.CreatedAtUtc })
                 .ToListAsync();
-            items.AddRange(rows.Select(e => new NotificationItem("Project expense", "Project expense awaiting your approval", e.Id, e.CreatedAtUtc, "/expenses/approvals")));
+            items.AddRange(rows.Select(e => new NotificationItem("Project expense", "Project expense awaiting your approval", e.Id, e.CreatedAtUtc, "/expenses/approvals", true)));
         }
 
         if (Has(Permission.Project.ApproveExpenseAsFinance))
@@ -100,7 +104,22 @@ public class NotificationsController : ControllerBase
                 .Where(e => e.Status == ProjectExpenseStatus.ManagerApproved)
                 .Select(e => new { e.Id, e.CreatedAtUtc })
                 .ToListAsync();
-            items.AddRange(rows.Select(e => new NotificationItem("Project expense", "Project expense awaiting Finance approval", e.Id, e.CreatedAtUtc, "/projects/expenses")));
+            items.AddRange(rows.Select(e => new NotificationItem("Project expense", "Project expense awaiting Finance approval", e.Id, e.CreatedAtUtc, "/projects/expenses", true)));
+        }
+
+        if (Has(Permission.Payroll.Approve))
+        {
+            var draftRuns = await _db.PayrollRuns
+                .Where(r => r.Status == PayrollRunStatus.Draft)
+                .Select(r => new { r.Id, r.CreatedAtUtc })
+                .ToListAsync();
+            items.AddRange(draftRuns.Select(r => new NotificationItem("Payroll", "Payroll run awaiting your approval", r.Id, r.CreatedAtUtc, $"/payroll/runs/{r.Id}", true)));
+
+            var approvedRuns = await _db.PayrollRuns
+                .Where(r => r.Status == PayrollRunStatus.Approved)
+                .Select(r => new { r.Id, ApprovedAtUtc = r.ApprovedAtUtc ?? r.CreatedAtUtc })
+                .ToListAsync();
+            items.AddRange(approvedRuns.Select(r => new NotificationItem("Payroll", "Payroll run awaiting disbursement", r.Id, r.ApprovedAtUtc, $"/payroll/runs/{r.Id}", true)));
         }
 
         // The other half: telling someone what happened to THEIR OWN request, not just
@@ -117,7 +136,7 @@ public class NotificationsController : ControllerBase
                 .Select(r => new { r.Id, DecidedAt = (r.HrActedAtUtc ?? r.ManagerActedAtUtc)!.Value, r.Status })
                 .ToListAsync();
             items.AddRange(myLeave.Select(r => new NotificationItem(
-                "Leave", $"Your leave request was {DecisionLabel(r.Status.ToString())}", r.Id, r.DecidedAt, "/timecard")));
+                "Leave", $"Your leave request was {DecisionLabel(r.Status.ToString())}", r.Id, r.DecidedAt, "/timecard", false)));
 
             var myReimbursements = await _db.ReimbursementRequests
                 .Where(r => r.EmployeeId == selfId
@@ -126,7 +145,7 @@ public class NotificationsController : ControllerBase
                 .Select(r => new { r.Id, DecidedAt = r.UpdatedAtUtc!.Value, r.Status })
                 .ToListAsync();
             items.AddRange(myReimbursements.Select(r => new NotificationItem(
-                "Expense", $"Your reimbursement was {DecisionLabel(r.Status.ToString())}", r.Id, r.DecidedAt, "/reimbursement")));
+                "Expense", $"Your reimbursement was {DecisionLabel(r.Status.ToString())}", r.Id, r.DecidedAt, "/reimbursement", false)));
 
             var myProjectExpenses = await _db.ProjectExpenses
                 .Where(e => e.EmployeeId == selfId
@@ -135,7 +154,7 @@ public class NotificationsController : ControllerBase
                 .Select(e => new { e.Id, DecidedAt = e.UpdatedAtUtc!.Value, e.Status })
                 .ToListAsync();
             items.AddRange(myProjectExpenses.Select(e => new NotificationItem(
-                "Project expense", $"Your project expense was {DecisionLabel(e.Status.ToString())}", e.Id, e.DecidedAt, "/projects/expenses")));
+                "Project expense", $"Your project expense was {DecisionLabel(e.Status.ToString())}", e.Id, e.DecidedAt, "/projects/expenses", false)));
         }
 
         return Ok(items.OrderByDescending(i => i.CreatedAtUtc).ToList());

@@ -5,6 +5,7 @@ using Erp.Domain.Common;
 using Erp.Domain.Identity;
 using Erp.Domain.Offboarding;
 using Erp.Domain.Onboarding;
+using Erp.Domain.Payroll;
 using Erp.Domain.People;
 using Erp.Domain.Tenancy;
 using Erp.Domain.Project;
@@ -52,6 +53,12 @@ public class ErpDbContext : IdentityDbContext<AppUser, AppRole, Guid>
     public DbSet<FnfCase> FnfCases => Set<FnfCase>();
     public DbSet<FnfClearanceItem> FnfClearanceItems => Set<FnfClearanceItem>();
 
+    public DbSet<SalaryStructure> SalaryStructures => Set<SalaryStructure>();
+    public DbSet<SalaryComponent> SalaryComponents => Set<SalaryComponent>();
+    public DbSet<PayrollRun> PayrollRuns => Set<PayrollRun>();
+    public DbSet<Payslip> Payslips => Set<Payslip>();
+    public DbSet<PayslipLine> PayslipLines => Set<PayslipLine>();
+
     public DbSet<Announcement> Announcements => Set<Announcement>();
 
     public DbSet<Account> Accounts => Set<Account>();
@@ -91,6 +98,8 @@ public class ErpDbContext : IdentityDbContext<AppUser, AppRole, Guid>
         builder.Entity<Tenant>().HasIndex(t => t.Slug).IsUnique();
         builder.Entity<LeaveBalance>().HasIndex(b => new { b.TenantId, b.EmployeeId, b.LeaveTypeId, b.Year }).IsUnique();
         builder.Entity<ProjectMember>().HasIndex(m => new { m.TenantId, m.ProjectId, m.EmployeeId }).IsUnique();
+        builder.Entity<PayrollRun>().HasIndex(r => new { r.TenantId, r.PeriodYear, r.PeriodMonth }).IsUnique();
+        builder.Entity<Payslip>().HasIndex(p => new { p.TenantId, p.PayrollRunId, p.EmployeeId }).IsUnique();
         builder.Entity<JobTitle>().HasIndex(j => new { j.TenantId, j.Name }).IsUnique();
         builder.Entity<Account>().HasIndex(a => new { a.TenantId, a.Code }).IsUnique();
         builder.Entity<PermissionScope>().HasIndex(s => new { s.TenantId, s.RoleId, s.PermissionKey }).IsUnique();

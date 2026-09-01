@@ -41,6 +41,13 @@ public static class Permission
         public const string Manage = "fnf.manage"; // initiate, clear items, close out with final payout
     }
 
+    public static class Payroll
+    {
+        public const string View = "payroll.view"; // own payslips, or any employee's with Manage
+        public const string Manage = "payroll.manage"; // set salary structures, process a run (Draft)
+        public const string Approve = "payroll.approve"; // approve a run and disburse it (posts to accounting)
+    }
+
     public static class Announcements
     {
         // No separate View permission — every authenticated user in a tenant can read

@@ -17,6 +17,9 @@ import EmployeeDocuments from "./pages/EmployeeDocuments";
 import Attendance from "./pages/Attendance";
 import FnfSettlement from "./pages/FnfSettlement";
 import Announcements from "./pages/Announcements";
+import PayrollRuns from "./pages/PayrollRuns";
+import PayrollRunDetail from "./pages/PayrollRunDetail";
+import MyPayslips from "./pages/MyPayslips";
 import Dashboard from "./pages/Dashboard";
 import MyTeam from "./pages/MyTeam";
 import AllProjects from "./pages/AllProjects";
@@ -134,6 +137,10 @@ export default function App() {
         <Route path="documents" element={<EmployeeDocuments />} />
         <Route path="fnf" element={<FnfSettlement />} />
         <Route path="announcements" element={<Announcements />} />
+
+        <Route path="payroll/runs" element={<PayrollRuns />} />
+        <Route path="payroll/runs/:runId" element={<PayrollRunDetail />} />
+        <Route path="my-payslips" element={<MyPayslips />} />
       </Route>
 
       {/* Platform control center — SuperAdmin only. Completely separate from the client

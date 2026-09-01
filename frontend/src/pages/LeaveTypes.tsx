@@ -9,6 +9,7 @@ interface LeaveTypeRow {
   annualAllowance: number;
   allowsHalfDay: boolean;
   selfCertificationLimitDays: number;
+  isPaidLeave: boolean;
 }
 
 export default function LeaveTypes() {
@@ -17,6 +18,7 @@ export default function LeaveTypes() {
   const [annualAllowance, setAnnualAllowance] = useState(12);
   const [allowsHalfDay, setAllowsHalfDay] = useState(true);
   const [selfCertLimit, setSelfCertLimit] = useState(2);
+  const [isPaidLeave, setIsPaidLeave] = useState(true);
 
   const leaveTypes = useQuery({
     queryKey: ["leaveTypes"],
@@ -25,10 +27,10 @@ export default function LeaveTypes() {
 
   const create = useMutation({
     mutationFn: () => api.post("/leave-types", {
-      name, annualAllowance, allowsHalfDay, selfCertificationLimitDays: selfCertLimit,
+      name, annualAllowance, allowsHalfDay, selfCertificationLimitDays: selfCertLimit, isPaidLeave,
     }),
     onSuccess: () => {
-      setName(""); setAnnualAllowance(12); setAllowsHalfDay(true); setSelfCertLimit(2);
+      setName(""); setAnnualAllowance(12); setAllowsHalfDay(true); setSelfCertLimit(2); setIsPaidLeave(true);
       queryClient.invalidateQueries({ queryKey: ["leaveTypes"] });
     },
   });
@@ -37,6 +39,7 @@ export default function LeaveTypes() {
     mutationFn: (row: LeaveTypeRow) => api.patch(`/leave-types/${row.id}`, {
       name: row.name, annualAllowance: row.annualAllowance,
       allowsHalfDay: row.allowsHalfDay, selfCertificationLimitDays: row.selfCertificationLimitDays,
+      isPaidLeave: row.isPaidLeave,
     }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["leaveTypes"] }),
   });
@@ -59,6 +62,10 @@ export default function LeaveTypes() {
         <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
           <input type="checkbox" checked={allowsHalfDay} onChange={(e) => setAllowsHalfDay(e.target.checked)} />
           Allows half-day
+        </label>
+        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
+          <input type="checkbox" checked={isPaidLeave} onChange={(e) => setIsPaidLeave(e.target.checked)} />
+          Paid leave
         </label>
         <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
           Self-certify up to
@@ -87,11 +94,12 @@ export default function LeaveTypes() {
               <th style={s.th}>Default days/yr</th>
               <th style={s.th}>Half-day</th>
               <th style={s.th}>Self-certify limit</th>
+              <th style={s.th}>Paid</th>
             </tr>
           </thead>
           <tbody>
             {(!leaveTypes.data || leaveTypes.data.length === 0) && (
-              <tr><td style={s.td} colSpan={4}>No leave types yet — add one above.</td></tr>
+              <tr><td style={s.td} colSpan={5}>No leave types yet — add one above.</td></tr>
             )}
             {leaveTypes.data?.map((t) => (
               <tr key={t.id}>
@@ -117,6 +125,13 @@ export default function LeaveTypes() {
                       const value = Number(e.target.value);
                       if (value !== t.selfCertificationLimitDays) update.mutate({ ...t, selfCertificationLimitDays: value });
                     }}
+                  />
+                </td>
+                <td style={s.td}>
+                  <input
+                    type="checkbox" checked={t.isPaidLeave}
+                    onChange={(e) => update.mutate({ ...t, isPaidLeave: e.target.checked })}
+                    title="Unpaid leave counts as loss-of-pay when Payroll is processed"
                   />
                 </td>
               </tr>

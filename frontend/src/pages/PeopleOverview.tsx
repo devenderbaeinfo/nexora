@@ -125,6 +125,7 @@ export default function PeopleOverview() {
           {can("onboarding.view") && <ModuleCard to="/onboarding" title="Onboarding" description="New-hire checklists from paperwork to first day." />}
           {can("employee_docs.view") && <ModuleCard to="/documents" title="Documents" description="Offer letters, contracts, and ID proofs." />}
           {can("fnf.view") && <ModuleCard to="/fnf" title="Full & Final Settlement" description="Exit clearance and final payout." />}
+          {(can("payroll.manage") || can("payroll.approve")) && <ModuleCard to="/payroll/runs" title="Payroll" description="Salary structures, monthly runs, and payslips." />}
           <ModuleCard to="/announcements" title="Announcements & Policies" description="Company-wide announcements and policy documents." />
         </div>
       </section>

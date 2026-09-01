@@ -2,7 +2,7 @@ using Erp.Domain.Timecard;
 
 namespace Erp.Api.Contracts;
 
-public record LeaveTypeDto(Guid Id, string Name, bool AllowsHalfDay, int SelfCertificationLimitDays, decimal AnnualAllowance);
+public record LeaveTypeDto(Guid Id, string Name, bool AllowsHalfDay, int SelfCertificationLimitDays, decimal AnnualAllowance, bool IsPaidLeave);
 
 public record SubmitLeaveRequest(
     Guid LeaveTypeId, DateOnly StartDate, DateOnly EndDate,
@@ -24,8 +24,8 @@ public record LeaveAllotmentInput(Guid LeaveTypeId, decimal Allotted);
 
 public record EmployeeLeaveBalanceDto(Guid LeaveTypeId, string LeaveTypeName, decimal Allotted, decimal Used, decimal Remaining);
 
-public record CreateLeaveTypeRequest(string Name, decimal AnnualAllowance, bool AllowsHalfDay, int SelfCertificationLimitDays);
-public record UpdateLeaveTypeRequest(string Name, decimal AnnualAllowance, bool AllowsHalfDay, int SelfCertificationLimitDays);
+public record CreateLeaveTypeRequest(string Name, decimal AnnualAllowance, bool AllowsHalfDay, int SelfCertificationLimitDays, bool IsPaidLeave = true);
+public record UpdateLeaveTypeRequest(string Name, decimal AnnualAllowance, bool AllowsHalfDay, int SelfCertificationLimitDays, bool IsPaidLeave = true);
 
 public record LeaveHistoryItemDto(string LeaveTypeName, DateOnly StartDate, DateOnly EndDate, decimal DaysRequested, string Status);
 

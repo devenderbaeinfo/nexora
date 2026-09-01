@@ -9,7 +9,7 @@ import ResetPasswordAction from "./ResetPasswordAction";
 import DeleteUserAction from "./DeleteUserAction";
 import ManageLeaveBalances from "./ManageLeaveBalances";
 import SetManagerForm from "./SetManagerForm";
-import Spinner from "../components/Spinner";
+import DataTable, { type DataTableColumn } from "../components/DataTable";
 
 interface EmployeeListItem {
   id: string;
@@ -48,6 +48,54 @@ export default function People() {
     enabled: can("admin.manage_users"),
   });
 
+  const columns: DataTableColumn<EmployeeListItem>[] = [
+    {
+      key: "name", header: "Name",
+      value: (e) => `${e.firstName} ${e.lastName} ${e.workEmail}`,
+      render: (e) => (
+        <Link to={`/people/${e.id}`} style={{ textDecoration: "none" }}>
+          <div style={{ fontWeight: 600, color: "var(--accent)" }}>{e.firstName} {e.lastName}</div>
+          <div style={{ color: "var(--faint)", fontSize: 12.5 }}>{e.workEmail}</div>
+        </Link>
+      ),
+    },
+    { key: "jobTitle", header: "Job Title", value: (e) => e.jobTitleName, render: (e) => e.jobTitleName },
+    { key: "department", header: "Department", value: (e) => e.departmentName, render: (e) => e.departmentName },
+    {
+      key: "manager", header: "Manager", value: (e) => e.reportingManagerName ?? "None set",
+      render: (e) => e.reportingManagerName ?? <span style={{ color: "var(--danger)" }}>None set</span>,
+    },
+    { key: "status", header: "Status", value: (e) => e.status, render: (e) => <StatusTag status={e.status} /> },
+    ...(can("people.manage") ? [{
+      key: "actions", header: "",
+      render: (e: EmployeeListItem) => (
+        <div style={{ display: "flex", gap: 8 }}>
+          <button style={styles.leaveButton} onClick={() => setManagerEmployee(e)}>Set manager</button>
+          {can("leave.configure_policy") && (
+            <button style={styles.leaveButton} onClick={() => setLeaveEmployee(e)}>Manage leave</button>
+          )}
+        </div>
+      ),
+    } satisfies DataTableColumn<EmployeeListItem>] : []),
+  ];
+
+  const exportSelected = (ids: string[]) => {
+    const rows = (data ?? []).filter((e) => ids.includes(e.id));
+    const header = ["Name", "Email", "Job Title", "Department", "Manager", "Status"];
+    const lines = rows.map((e) => [
+      `${e.firstName} ${e.lastName}`, e.workEmail, e.jobTitleName, e.departmentName,
+      e.reportingManagerName ?? "None set", e.status,
+    ].map((v) => `"${v.replace(/"/g, '""')}"`).join(","));
+    const csv = [header.join(","), ...lines].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "employees-selected.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div>
       <header style={styles.header}>
@@ -78,58 +126,21 @@ export default function People() {
         )}
       </Drawer>
 
-      {isLoading && <Spinner />}
-      {error && <p style={{ color: "var(--danger)" }}>Couldn't load the team. Try refreshing.</p>}
-
-      {data && (
-        <div style={styles.tableWrap}>
-          <table style={styles.table}>
-            <thead>
-              <tr>
-                <th style={styles.th}>Name</th>
-                <th style={styles.th}>Job Title</th>
-                <th style={styles.th}>Department</th>
-                <th style={styles.th}>Manager</th>
-                <th style={styles.th}>Status</th>
-                {can("people.manage") && <th style={styles.th}></th>}
-              </tr>
-            </thead>
-            <tbody>
-              {data.length === 0 && (
-                <tr><td style={styles.td} colSpan={can("people.manage") ? 6 : 5}>No employees yet.</td></tr>
-              )}
-              {data.map((e) => (
-                <tr key={e.id}>
-                  <td style={styles.td}>
-                    <Link to={`/people/${e.id}`} style={{ textDecoration: "none" }}>
-                      <div style={{ fontWeight: 600, color: "var(--accent)" }}>{e.firstName} {e.lastName}</div>
-                      <div style={{ color: "var(--faint)", fontSize: 12.5 }}>{e.workEmail}</div>
-                    </Link>
-                  </td>
-                  <td style={styles.td}>{e.jobTitleName}</td>
-                  <td style={styles.td}>{e.departmentName}</td>
-                  <td style={styles.td}>
-                    {e.reportingManagerName ?? <span style={{ color: "var(--danger)" }}>None set</span>}
-                  </td>
-                  <td style={styles.td}>
-                    <StatusTag status={e.status} />
-                  </td>
-                  {can("people.manage") && (
-                    <td style={styles.td}>
-                      <div style={{ display: "flex", gap: 8 }}>
-                        <button style={styles.leaveButton} onClick={() => setManagerEmployee(e)}>Set manager</button>
-                        {can("leave.configure_policy") && (
-                          <button style={styles.leaveButton} onClick={() => setLeaveEmployee(e)}>Manage leave</button>
-                        )}
-                      </div>
-                    </td>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <DataTable
+        columns={columns}
+        rows={data ?? []}
+        rowKey={(e) => e.id}
+        isLoading={isLoading}
+        error={error}
+        errorMessage="Couldn't load the team. Try refreshing."
+        emptyMessage="No employees yet."
+        searchPlaceholder="Search by name, email, title, or department…"
+        exportFileName="employees"
+        selectable={can("people.manage")}
+        bulkActions={can("people.manage") ? (ids) => (
+          <button style={styles.leaveButton} onClick={() => exportSelected(ids)}>Export selected</button>
+        ) : undefined}
+      />
 
       {can("admin.manage_users") && accounts.data && accounts.data.length > 0 && (
         <div style={{ marginTop: 36 }}>

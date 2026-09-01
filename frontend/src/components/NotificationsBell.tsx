@@ -2,14 +2,7 @@ import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api";
-
-interface NotificationItem {
-  kind: string;
-  label: string;
-  id: string;
-  createdAtUtc: string;
-  linkPath: string;
-}
+import { groupPendingItems, type NotificationItem } from "./ActionCenter";
 
 function timeAgo(iso: string): string {
   const ms = Date.now() - new Date(iso).getTime();
@@ -23,7 +16,9 @@ function timeAgo(iso: string): string {
 
 // Polls the pending-approvals aggregate every 30s — cheap (a handful of small queries server
 // side) and simple, versus standing up a push channel for what's fundamentally a "did anything
-// new show up" check.
+// new show up" check. Items that require action are grouped into count+Review rows (same
+// grouping the dashboard's Action Center uses); FYI items ("your own request was decided")
+// stay a flat recent feed underneath — the two are different enough not to share one list.
 export default function NotificationsBell() {
   const [open, setOpen] = useState(false);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -36,7 +31,9 @@ export default function NotificationsBell() {
   });
 
   const items = data ?? [];
-  const count = items.length;
+  const groups = groupPendingItems(items);
+  const recent = items.filter((i) => !i.requiresAction).slice(0, 8);
+  const count = groups.reduce((sum, g) => sum + g.count, 0);
 
   return (
     <div
@@ -58,20 +55,40 @@ export default function NotificationsBell() {
         <div style={styles.panel}>
           <div style={styles.panelHeader}>Notifications</div>
           {items.length === 0 && <div style={styles.empty}>You're all caught up.</div>}
-          {items.length > 0 && (
-            <div style={styles.list}>
-              {items.map((item) => (
+
+          {groups.length > 0 && (
+            <div style={styles.groupList}>
+              {groups.map((g) => (
                 <button
-                  key={`${item.kind}-${item.id}`}
-                  style={styles.item}
-                  onClick={() => { setOpen(false); navigate(item.linkPath); }}
+                  key={g.kind}
+                  style={styles.groupRow}
+                  onClick={() => { setOpen(false); navigate(g.linkPath); }}
                 >
-                  <div style={styles.itemKind}>{item.kind}</div>
-                  <div style={styles.itemLabel}>{item.label}</div>
-                  <div style={styles.itemTime}>{timeAgo(item.createdAtUtc)}</div>
+                  <span style={styles.groupCount}>{g.count}</span>
+                  <span style={styles.groupLabel}>{g.kind} {g.count === 1 ? "item" : "items"} waiting on you</span>
+                  <span style={styles.groupReview}>Review</span>
                 </button>
               ))}
             </div>
+          )}
+
+          {recent.length > 0 && (
+            <>
+              <div style={styles.recentHeader}>Recent</div>
+              <div style={styles.list}>
+                {recent.map((item) => (
+                  <button
+                    key={`${item.kind}-${item.id}`}
+                    style={styles.item}
+                    onClick={() => { setOpen(false); navigate(item.linkPath); }}
+                  >
+                    <div style={styles.itemKind}>{item.kind}</div>
+                    <div style={styles.itemLabel}>{item.label}</div>
+                    <div style={styles.itemTime}>{timeAgo(item.createdAtUtc)}</div>
+                  </button>
+                ))}
+              </div>
+            </>
           )}
         </div>
       )}
@@ -109,7 +126,23 @@ const styles: Record<string, React.CSSProperties> = {
     textTransform: "uppercase", letterSpacing: ".04em", borderBottom: "1px solid var(--border)",
   },
   empty: { padding: "20px 16px", fontSize: 13.5, color: "var(--muted)" },
-  list: { maxHeight: 340, overflowY: "auto", display: "flex", flexDirection: "column" },
+  groupList: { display: "flex", flexDirection: "column", borderBottom: "1px solid var(--border)" },
+  groupRow: {
+    display: "flex", alignItems: "center", gap: 10, textAlign: "left", padding: "10px 16px",
+    background: "none", border: "none", borderBottom: "1px solid var(--border)", cursor: "pointer",
+    font: "inherit", color: "var(--ink)",
+  },
+  groupCount: {
+    fontFamily: "var(--font-display)", fontWeight: 700, fontSize: 15, color: "var(--accent)",
+    background: "var(--accent-soft)", borderRadius: 999, minWidth: 24, textAlign: "center", padding: "2px 6px",
+  },
+  groupLabel: { fontSize: 13, fontWeight: 500, flex: 1 },
+  groupReview: { fontSize: 11.5, fontWeight: 700, color: "var(--accent)" },
+  recentHeader: {
+    padding: "8px 16px", fontSize: 11, fontWeight: 700, color: "var(--faint)",
+    textTransform: "uppercase", letterSpacing: ".04em",
+  },
+  list: { maxHeight: 260, overflowY: "auto", display: "flex", flexDirection: "column" },
   item: {
     display: "flex", flexDirection: "column", gap: 2, textAlign: "left", padding: "10px 16px",
     background: "none", border: "none", borderBottom: "1px solid var(--border)", cursor: "pointer",

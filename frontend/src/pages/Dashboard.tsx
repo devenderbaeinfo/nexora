@@ -5,6 +5,7 @@ import { useAuth } from "../context/AuthContext";
 import { pageStyles as s } from "../styles/pageKit";
 import Spinner from "../components/Spinner";
 import TrendChart from "../components/TrendChart";
+import ActionCenter, { useActionGroups } from "../components/ActionCenter";
 
 interface DashboardSummary {
   teamSize: number;
@@ -27,6 +28,7 @@ interface LeaveRequestRow { id: string; }
 
 export default function Dashboard() {
   const { can } = useAuth();
+  const { groups: actionGroups } = useActionGroups();
   const { data, isLoading } = useQuery({
     queryKey: ["dashboard", "summary"],
     queryFn: async () => (await api.get<DashboardSummary>("/dashboard/summary")).data,
@@ -76,6 +78,8 @@ export default function Dashboard() {
       </header>
 
       {isLoading && <Spinner />}
+
+      <ActionCenter groups={actionGroups} />
 
       {hasOrgStats && (
         <section style={{ marginBottom: 28 }}>

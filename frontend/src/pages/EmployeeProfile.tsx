@@ -7,6 +7,9 @@ import Drawer from "../components/Drawer";
 import Spinner from "../components/Spinner";
 import SetManagerForm from "./SetManagerForm";
 import ManageLeaveBalances from "./ManageLeaveBalances";
+import AddEmployeeDocumentForm from "./AddEmployeeDocumentForm";
+import SetSalaryStructureForm from "./SetSalaryStructureForm";
+import PayslipDetailView from "./PayslipDetailView";
 import { pageStyles as s, tag } from "../styles/pageKit";
 
 interface EmployeeDetail {
@@ -56,7 +59,11 @@ interface FnfCaseRow {
   closedAtUtc: string | null;
 }
 
-const TABS = ["Overview", "Leave", "Documents", "Onboarding", "Full & Final Settlement"] as const;
+interface SalaryComponentDto { id: string; name: string; type: string; calculationType: string; value: number; isBasic: boolean; }
+interface SalaryStructureDto { id: string; effectiveFrom: string; components: SalaryComponentDto[]; }
+interface PayslipListItemRow { id: string; grossEarnings: number; lopDays: number; lopDeduction: number; otherDeductions: number; netPay: number; }
+
+const TABS = ["Overview", "Leave", "Payroll", "Documents", "Onboarding", "Full & Final Settlement"] as const;
 type Tab = typeof TABS[number];
 
 // The record-detail workspace: an employee is more than one row in a table — this page
@@ -69,6 +76,9 @@ export default function EmployeeProfile() {
   const [tab, setTab] = useState<Tab>("Overview");
   const [managerOpen, setManagerOpen] = useState(false);
   const [leaveOpen, setLeaveOpen] = useState(false);
+  const [documentOpen, setDocumentOpen] = useState(false);
+  const [salaryOpen, setSalaryOpen] = useState(false);
+  const [openPayslipId, setOpenPayslipId] = useState<string | null>(null);
 
   const employee = useQuery({
     queryKey: ["employees", employeeId],
@@ -80,6 +90,18 @@ export default function EmployeeProfile() {
     queryKey: ["leave-requests", "balances", employeeId],
     queryFn: async () => (await api.get<LeaveBalanceRow[]>(`/leave-requests/balances/${employeeId}`)).data,
     enabled: !!employeeId && tab === "Leave" && can("leave.configure_policy"),
+  });
+
+  const salaryStructure = useQuery({
+    queryKey: ["payroll", "salary-structure", employeeId],
+    queryFn: async () => (await api.get<SalaryStructureDto | null>(`/payroll/salary-structures/${employeeId}`)).data,
+    enabled: !!employeeId && tab === "Payroll" && can("payroll.view"),
+  });
+
+  const payslips = useQuery({
+    queryKey: ["payroll", "employee-payslips", employeeId],
+    queryFn: async () => (await api.get<PayslipListItemRow[]>(`/payroll/employees/${employeeId}/payslips`)).data,
+    enabled: !!employeeId && tab === "Payroll" && can("payroll.view"),
   });
 
   const documents = useQuery({
@@ -121,11 +143,19 @@ export default function EmployeeProfile() {
           <h1 style={s.title}>{e.firstName} {e.lastName}</h1>
           <p style={s.subtitle}>{e.jobTitleName} · {e.departmentName}</p>
         </div>
-        {can("people.manage") && (
+        {(can("people.manage") || can("employee_docs.manage") || can("payroll.manage")) && (
           <div style={{ display: "flex", gap: 8 }}>
-            <button style={s.secondary} onClick={() => setManagerOpen(true)}>Set manager</button>
-            {can("leave.configure_policy") && (
+            {can("people.manage") && (
+              <button style={s.secondary} onClick={() => setManagerOpen(true)}>Set manager</button>
+            )}
+            {can("people.manage") && can("leave.configure_policy") && (
               <button style={s.secondary} onClick={() => setLeaveOpen(true)}>Manage leave</button>
+            )}
+            {can("payroll.manage") && (
+              <button style={s.secondary} onClick={() => setSalaryOpen(true)}>Set salary</button>
+            )}
+            {can("employee_docs.manage") && (
+              <button style={s.secondary} onClick={() => setDocumentOpen(true)}>Add document</button>
             )}
           </div>
         )}
@@ -178,6 +208,55 @@ export default function EmployeeProfile() {
               </tbody>
             </table>
           </div>
+        )
+      )}
+
+      {tab === "Payroll" && (
+        !can("payroll.view") ? <p style={s.muted}>You don't have access to this employee's payroll.</p> : (
+          <>
+            <section style={{ ...s.section }}>
+              <h2 style={s.sectionTitle}>Current salary structure</h2>
+              {salaryStructure.isLoading ? <Spinner /> : !salaryStructure.data ? (
+                <p style={s.muted}>No salary structure set up yet.</p>
+              ) : (
+                <div style={{ ...s.card, maxWidth: 520 }}>
+                  {salaryStructure.data.components.map((c, i) => (
+                    <OverviewRow
+                      key={c.id}
+                      label={c.name + (c.isBasic ? " (Basic)" : "")}
+                      value={c.calculationType === "FixedAmount"
+                        ? c.value.toLocaleString(undefined, { style: "currency", currency: "USD" })
+                        : `${c.value}% of Basic`}
+                      last={i === salaryStructure.data!.components.length - 1}
+                    />
+                  ))}
+                </div>
+              )}
+            </section>
+
+            <section style={s.section}>
+              <h2 style={s.sectionTitle}>Payslip history</h2>
+              {payslips.isLoading ? <Spinner /> : (
+                <div style={s.tableWrap}>
+                  <table style={s.table}>
+                    <thead><tr><th style={s.th}>Gross</th><th style={s.th}>LOP days</th><th style={s.th}>Deductions</th><th style={s.th}>Net pay</th><th style={s.th}></th></tr></thead>
+                    <tbody>
+                      {(!payslips.data || payslips.data.length === 0) && <tr><td style={s.td} colSpan={5}>No payslips yet.</td></tr>}
+                      {payslips.data?.map((p) => (
+                        <tr key={p.id}>
+                          <td style={s.td}>{p.grossEarnings.toLocaleString(undefined, { style: "currency", currency: "USD" })}</td>
+                          <td style={s.td}>{p.lopDays || "—"}</td>
+                          <td style={s.td}>{(p.lopDeduction + p.otherDeductions).toLocaleString(undefined, { style: "currency", currency: "USD" })}</td>
+                          <td style={s.td}><strong>{p.netPay.toLocaleString(undefined, { style: "currency", currency: "USD" })}</strong></td>
+                          <td style={s.td}><button style={s.secondary} onClick={() => setOpenPayslipId(p.id)}>View</button></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
+          </>
         )
       )}
 
@@ -256,6 +335,18 @@ export default function EmployeeProfile() {
 
       <Drawer open={leaveOpen} title={`Leave allotment — ${e.firstName} ${e.lastName}`} onClose={() => setLeaveOpen(false)}>
         <ManageLeaveBalances employeeId={e.id} onDone={() => setLeaveOpen(false)} />
+      </Drawer>
+
+      <Drawer open={documentOpen} title={`Add document — ${e.firstName} ${e.lastName}`} onClose={() => setDocumentOpen(false)}>
+        <AddEmployeeDocumentForm employeeId={e.id} onDone={() => { setDocumentOpen(false); setTab("Documents"); }} />
+      </Drawer>
+
+      <Drawer open={salaryOpen} title={`Salary structure — ${e.firstName} ${e.lastName}`} onClose={() => setSalaryOpen(false)}>
+        <SetSalaryStructureForm employeeId={e.id} onDone={() => { setSalaryOpen(false); setTab("Payroll"); }} />
+      </Drawer>
+
+      <Drawer open={!!openPayslipId} title="Payslip" onClose={() => setOpenPayslipId(null)}>
+        {openPayslipId && <PayslipDetailView payslipId={openPayslipId} />}
       </Drawer>
     </div>
   );

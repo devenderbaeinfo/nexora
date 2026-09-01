@@ -23,7 +23,7 @@ public class LeaveTypesController : ControllerBase
     {
         var types = await _db.LeaveTypes
             .OrderBy(t => t.Name)
-            .Select(t => new LeaveTypeDto(t.Id, t.Name, t.AllowsHalfDay, t.SelfCertificationLimitDays, t.AnnualAllowance))
+            .Select(t => new LeaveTypeDto(t.Id, t.Name, t.AllowsHalfDay, t.SelfCertificationLimitDays, t.AnnualAllowance, t.IsPaidLeave))
             .ToListAsync();
         return Ok(types);
     }
@@ -48,11 +48,12 @@ public class LeaveTypesController : ControllerBase
             AnnualAllowance = request.AnnualAllowance,
             AllowsHalfDay = request.AllowsHalfDay,
             SelfCertificationLimitDays = request.SelfCertificationLimitDays,
+            IsPaidLeave = request.IsPaidLeave,
         };
         _db.LeaveTypes.Add(leaveType);
         await _db.SaveChangesAsync();
 
-        return CreatedAtAction(nameof(List), new LeaveTypeDto(leaveType.Id, leaveType.Name, leaveType.AllowsHalfDay, leaveType.SelfCertificationLimitDays, leaveType.AnnualAllowance));
+        return CreatedAtAction(nameof(List), new LeaveTypeDto(leaveType.Id, leaveType.Name, leaveType.AllowsHalfDay, leaveType.SelfCertificationLimitDays, leaveType.AnnualAllowance, leaveType.IsPaidLeave));
     }
 
     [HttpPatch("{id:guid}")]
@@ -71,6 +72,7 @@ public class LeaveTypesController : ControllerBase
         leaveType.AnnualAllowance = request.AnnualAllowance;
         leaveType.AllowsHalfDay = request.AllowsHalfDay;
         leaveType.SelfCertificationLimitDays = request.SelfCertificationLimitDays;
+        leaveType.IsPaidLeave = request.IsPaidLeave;
         await _db.SaveChangesAsync();
 
         return NoContent();

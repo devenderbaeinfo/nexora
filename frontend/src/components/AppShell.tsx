@@ -36,6 +36,7 @@ const canApproveAnything = (can: Can) =>
 // projects, not the HR/tenant-admin surface, so this list is deliberately closed rather than
 // permission-filtered from the shared set below.
 const MANAGER_MODULES: NavModule[] = [
+  { key: "dashboard", label: "Dashboard", to: "/dashboard", sections: [] },
   {
     key: "team", label: "Team",
     sections: [{
@@ -78,6 +79,7 @@ const MANAGER_MODULES: NavModule[] = [
         { to: "/timecard", label: "My Leave", show: () => true },
         { to: "/projects/mine", label: "My Projects", show: () => true },
         { to: "/my-expenses", label: "My Expenses", show: () => true },
+        { to: "/my-payslips", label: "My Payslips", show: () => true },
       ],
     }],
   },
@@ -112,6 +114,12 @@ const FINANCE_MODULES: NavModule[] = [
   // One workspace: pick a project from the list, see budget, cost, and profitability
   // together — instead of four separate pages each re-selecting the same project.
   { key: "projects", label: "Projects", to: "/finance/projects", sections: [] },
+  { key: "payroll", label: "Payroll Approvals", to: "/payroll/runs", sections: [] },
+  // Finance holds accounting.post_entries but previously had no way to reach Chart of
+  // Accounts/Journal Entries at all — only the read-only P&L/Balance Sheet/Cash Flow reports
+  // further down were linked. Without this, Finance could never set up a cash/bank account
+  // or post a manual journal entry through their own sidebar.
+  { key: "accounting", label: "Accounting", to: "/accounting", sections: [] },
   {
     key: "reports", label: "Reports",
     sections: [{
@@ -134,6 +142,7 @@ const EMPLOYEE_MODULES: NavModule[] = [
   { key: "my-leave", label: "My Leave", to: "/timecard", sections: [] },
   { key: "my-projects", label: "My Projects", to: "/projects/mine", sections: [] },
   { key: "my-expenses", label: "My Expenses", to: "/my-expenses", sections: [] },
+  { key: "my-payslips", label: "My Payslips", to: "/my-payslips", sections: [] },
 ];
 
 // perm: null means "every authenticated tenant user sees this" — no permission gate.
@@ -171,6 +180,11 @@ const DEFAULT_MODULES: NavModule[] = [
           { to: "/onboarding", label: "Onboarding", show: (can) => can("onboarding.view") },
           { to: "/documents", label: "Documents", show: (can) => can("employee_docs.view") },
           { to: "/fnf", label: "Full & Final Settlement", show: (can) => can("fnf.view") },
+        ],
+      },
+      {
+        section: "Payroll", items: [
+          { to: "/payroll/runs", label: "Payroll Runs", show: (can) => can("payroll.manage") || can("payroll.approve") },
         ],
       },
       {
@@ -458,7 +472,11 @@ const styles: Record<string, React.CSSProperties> = {
     display: "block",
   },
   navLinkButton: {
-    width: "100%", background: "none", border: "none", cursor: "pointer", font: "inherit",
+    // Reset only the non-left sides explicitly — mixing the `border` shorthand with the
+    // `borderLeft` longhand that navLink/navLinkActive set causes React to warn on re-render
+    // (toggling active state) about conflicting shorthand/non-shorthand style properties.
+    width: "100%", background: "none", borderTop: "none", borderRight: "none", borderBottom: "none",
+    cursor: "pointer", font: "inherit",
     textAlign: "left", display: "flex", alignItems: "center", justifyContent: "space-between",
   },
   navLinkNested: { fontSize: 14, padding: "8px 14px 8px 28px" },
