@@ -5,7 +5,8 @@ import { api } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 import Drawer from "../components/Drawer";
 import Spinner from "../components/Spinner";
-import { pageStyles as s, tag, progressFill } from "../styles/pageKit";
+import { pageStyles as s, tag, progressFill, projectCardGrid, projectCard, projectCardActive } from "../styles/pageKit";
+import { formatCurrency } from "../lib/currency";
 
 interface ProjectRow {
   id: string;
@@ -82,7 +83,7 @@ export default function ProjectTeam() {
       {!projects.isLoading && liveProjects.length === 0 && <p style={s.muted}>No live projects right now.</p>}
 
       {liveProjects.length > 0 && (
-        <div style={cardGrid}>
+        <div style={projectCardGrid}>
           {liveProjects.map((p) => (
             <button
               key={p.id}
@@ -100,7 +101,7 @@ export default function ProjectTeam() {
               <div style={{ fontSize: 12.5, color: "var(--faint)", marginTop: 2 }}>PM: {p.projectManagerName}</div>
               {p.budgetAmount !== null && (
                 <div style={{ fontSize: 13, color: "var(--ink)", marginTop: 10, fontWeight: 600 }}>
-                  {p.budgetAmount.toLocaleString(undefined, { style: "currency", currency: "USD" })} budget
+                  {formatCurrency(p.budgetAmount)} budget
                 </div>
               )}
             </button>
@@ -185,7 +186,7 @@ function ProjectDetail({ project, canManage, onClose }: { project: ProjectRow; c
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["projects", project.id, "tasks"] }),
   });
 
-  const currency = (n: number) => n.toLocaleString(undefined, { style: "currency", currency: "USD" });
+  const currency = formatCurrency;
 
   return (
     <div style={{ marginTop: 28 }}>
@@ -380,16 +381,3 @@ function TaskStatusTag({ status }: { status: string }) {
   const [bg, fg] = palette[status] ?? palette.ToDo;
   return <span style={tag(bg, fg)}>{status === "ToDo" ? "To do" : status === "InProgress" ? "In progress" : status}</span>;
 }
-
-const cardGrid: React.CSSProperties = {
-  display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 14,
-};
-
-const projectCard: React.CSSProperties = {
-  textAlign: "left", cursor: "pointer", background: "var(--surface)", border: "1px solid var(--border)",
-  borderRadius: "var(--radius-lg)", padding: 16, boxShadow: "var(--shadow)", font: "inherit",
-};
-
-const projectCardActive: React.CSSProperties = {
-  borderColor: "var(--accent)", boxShadow: "var(--glow-accent), var(--shadow)",
-};

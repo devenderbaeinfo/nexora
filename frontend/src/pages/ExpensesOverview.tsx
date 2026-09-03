@@ -8,6 +8,7 @@ import Spinner from "../components/Spinner";
 import SubmitReimbursementForm from "./SubmitReimbursementForm";
 import SubmitProjectExpenseForm from "./SubmitProjectExpenseForm";
 import { pageStyles as s } from "../styles/pageKit";
+import { formatCurrency } from "../lib/currency";
 
 interface ExpenseRow {
   id: string;
@@ -15,7 +16,7 @@ interface ExpenseRow {
   status: string;
 }
 
-const currency = (n: number) => n.toLocaleString(undefined, { style: "currency", currency: "USD" });
+const currency = formatCurrency;
 
 // The Expenses module's command center: what I owe/am owed, what's waiting for a decision,
 // and the fastest way to submit something — instead of landing straight on a bare table.

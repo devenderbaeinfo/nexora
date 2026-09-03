@@ -1,5 +1,6 @@
 import { paymentSummary, payments } from "../../data/adminMockData";
 import StatusBadge from "../../components/admin/StatusBadge";
+import BillingProviderBanner from "../../components/admin/BillingProviderBanner";
 import { adminStyles as s } from "../../components/admin/adminStyles";
 
 export default function AdminPayments() {
@@ -16,6 +17,8 @@ export default function AdminPayments() {
         <h1 style={s.title}>Payments</h1>
         <p style={s.subtitle}>High-level collection status across all clients.</p>
       </header>
+
+      <BillingProviderBanner />
 
       <div style={s.kpiGrid}>
         {cards.map((c) => (

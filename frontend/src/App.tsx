@@ -40,7 +40,9 @@ import TimesheetApproval from "./pages/TimesheetApproval";
 import ProjectProfitability from "./pages/ProjectProfitability";
 import FinanceDashboard from "./pages/FinanceDashboard";
 import Accounting from "./pages/Accounting";
+import VendorBills from "./pages/VendorBills";
 import ChartOfAccounts from "./pages/ChartOfAccounts";
+import ExchangeRates from "./pages/ExchangeRates";
 import JournalEntries from "./pages/JournalEntries";
 import GeneralLedger from "./pages/GeneralLedger";
 import TrialBalance from "./pages/TrialBalance";
@@ -112,7 +114,9 @@ export default function App() {
 
         <Route path="finance/dashboard" element={<FinanceDashboard />} />
         <Route path="accounting" element={<Accounting />} />
+        <Route path="vendor-bills" element={<VendorBills />} />
         <Route path="accounting/chart-of-accounts" element={<ChartOfAccounts />} />
+        <Route path="accounting/exchange-rates" element={<ExchangeRates />} />
         <Route path="accounting/journal-entries" element={<JournalEntries />} />
         <Route path="accounting/ledger" element={<GeneralLedger />} />
         <Route path="accounting/bank-cash" element={<GeneralLedger cashOnly />} />

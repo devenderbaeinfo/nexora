@@ -1,9 +1,18 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api";
-import ProjectPicker from "../components/ProjectPicker";
 import Spinner from "../components/Spinner";
-import { pageStyles as s, tag } from "../styles/pageKit";
+import { pageStyles as s, tag, projectCardGrid, projectCard, projectCardActive } from "../styles/pageKit";
+import { formatCurrency } from "../lib/currency";
+
+interface ProjectRow {
+  id: string;
+  name: string;
+  customerName: string;
+  projectManagerName: string;
+  status: string;
+  budgetAmount: number | null;
+}
 
 interface MonthPoint {
   label: string;
@@ -27,32 +36,74 @@ const CHART_HEIGHT = 200;
 const CHART_WIDTH = 480;
 
 export default function ProjectProfitability() {
-  const [projectId, setProjectId] = useState("");
+  const [projectId, setProjectId] = useState<string | null>(null);
 
-  const { data, isLoading } = useQuery({
-    queryKey: ["projects", projectId, "financials"],
-    queryFn: async () => (await api.get<Financials>(`/projects/${projectId}/financials`)).data,
-    enabled: !!projectId,
+  const projects = useQuery({
+    queryKey: ["projects"],
+    queryFn: async () => (await api.get<ProjectRow[]>("/projects")).data,
   });
 
-  const series = data?.monthly ?? [];
-  const maxValue = Math.max(1, ...series.flatMap((p) => [p.revenue, p.cost]));
-  const groupWidth = CHART_WIDTH / Math.max(series.length, 1);
-
-  const currency = (n: number) => n.toLocaleString(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+  const selected = (projects.data ?? []).find((p) => p.id === projectId) ?? null;
 
   return (
     <div>
       <header style={s.header}>
         <div>
           <h1 style={s.title}>Profitability</h1>
-          <p style={s.subtitle}>Revenue vs. cost by month, from approved timesheet hours and approved project expenses priced at each member's project rates.</p>
+          <p style={s.subtitle}>Pick a project to see revenue vs. cost by month, from approved timesheet hours and approved project expenses priced at each member's project rates.</p>
         </div>
-        <ProjectPicker value={projectId} onChange={setProjectId} />
       </header>
 
-      {!projectId && <p style={s.muted}>Select a project to see its profitability.</p>}
-      {projectId && isLoading && <Spinner />}
+      {projects.isLoading && <Spinner />}
+      {!projects.isLoading && (projects.data ?? []).length === 0 && <p style={s.muted}>No projects to show yet.</p>}
+
+      {(projects.data ?? []).length > 0 && (
+        <div style={projectCardGrid}>
+          {projects.data!.map((p) => (
+            <button
+              key={p.id}
+              onClick={() => setProjectId(p.id)}
+              className="card-surface"
+              style={{ ...projectCard, ...(p.id === projectId ? projectCardActive : {}) }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+                <div style={{ fontWeight: 700, fontSize: 15.5, color: "var(--ink)" }}>{p.name}</div>
+                <span style={tag(p.status === "Active" ? "var(--good-soft)" : "var(--warn-soft)", p.status === "Active" ? "var(--good)" : "var(--warn)")}>
+                  {p.status === "OnHold" ? "On hold" : p.status}
+                </span>
+              </div>
+              <div style={{ fontSize: 13, color: "var(--muted)", marginTop: 6 }}>{p.customerName}</div>
+              <div style={{ fontSize: 12.5, color: "var(--faint)", marginTop: 2 }}>PM: {p.projectManagerName}</div>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {selected && <ProfitabilityDetail key={selected.id} project={selected} onClose={() => setProjectId(null)} />}
+    </div>
+  );
+}
+
+function ProfitabilityDetail({ project, onClose }: { project: ProjectRow; onClose: () => void }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ["projects", project.id, "financials"],
+    queryFn: async () => (await api.get<Financials>(`/projects/${project.id}/financials`)).data,
+  });
+
+  const series = data?.monthly ?? [];
+  const maxValue = Math.max(1, ...series.flatMap((p) => [p.revenue, p.cost]));
+  const groupWidth = CHART_WIDTH / Math.max(series.length, 1);
+
+  const currency = (n: number) => formatCurrency(n, { maximumFractionDigits: 0 });
+
+  return (
+    <div style={{ marginTop: 28 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+        <h2 style={{ fontSize: 19, fontWeight: 700, fontFamily: "var(--font-display)" }}>{project.name}</h2>
+        <button style={s.secondary} onClick={onClose}>Close</button>
+      </div>
+
+      {isLoading && <Spinner />}
 
       {data && (
         <>

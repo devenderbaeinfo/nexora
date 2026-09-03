@@ -5,12 +5,15 @@ import { pageStyles as s } from "../styles/pageKit";
 import Spinner from "../components/Spinner";
 import Drawer from "../components/Drawer";
 import PayslipDetailView from "./PayslipDetailView";
+import { formatCurrency } from "../lib/currency";
 
 interface PayslipListItemDto {
-  id: string; grossEarnings: number; lopDays: number; lopDeduction: number; otherDeductions: number; netPay: number;
+  // Never actually null here — the API only hides these on someone ELSE's payslip, and this
+  // page only ever requests the caller's own.
+  id: string; grossEarnings: number | null; lopDays: number; lopDeduction: number; otherDeductions: number; netPay: number | null;
 }
 
-const currency = (n: number) => n.toLocaleString(undefined, { style: "currency", currency: "USD" });
+const currency = formatCurrency;
 
 export default function MyPayslips() {
   const [openPayslipId, setOpenPayslipId] = useState<string | null>(null);
@@ -47,10 +50,10 @@ export default function MyPayslips() {
             <tbody>
               {data.map((p) => (
                 <tr key={p.id}>
-                  <td style={s.td}>{currency(p.grossEarnings)}</td>
+                  <td style={s.td}>{currency(p.grossEarnings ?? 0)}</td>
                   <td style={s.td}>{p.lopDays || "—"}</td>
                   <td style={s.td}>{currency(p.lopDeduction + p.otherDeductions)}</td>
-                  <td style={s.td}><strong>{currency(p.netPay)}</strong></td>
+                  <td style={s.td}><strong>{currency(p.netPay ?? 0)}</strong></td>
                   <td style={s.td}>
                     <button style={s.secondary} onClick={() => setOpenPayslipId(p.id)}>View</button>
                   </td>

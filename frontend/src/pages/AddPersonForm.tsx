@@ -40,6 +40,7 @@ export default function AddPersonForm({ onDone }: { onDone: () => void }) {
   const [departmentId, setDepartmentId] = useState("");
   const [newDepartmentName, setNewDepartmentName] = useState("");
   const [reportingManagerId, setReportingManagerId] = useState("");
+  const [acknowledgeNoManager, setAcknowledgeNoManager] = useState(false);
   const [hireDate, setHireDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -85,6 +86,7 @@ export default function AddPersonForm({ onDone }: { onDone: () => void }) {
         firstName, lastName, workEmail,
         jobTitleId: resolvedJobTitleId, departmentId: resolvedDepartmentId, hireDate, password,
         reportingManagerId: reportingManagerId || null,
+        acknowledgeNoManager: !reportingManagerId && acknowledgeNoManager,
         leaveAllotments,
       });
     },
@@ -114,6 +116,10 @@ export default function AddPersonForm({ onDone }: { onDone: () => void }) {
     }
     if (!jobTitleId && !newJobTitleSystemRole) {
       setError("Pick which access-control role the new job title grants.");
+      return;
+    }
+    if (!reportingManagerId && !acknowledgeNoManager) {
+      setError("Pick a reporting manager, or confirm this person has none.");
       return;
     }
     mutation.mutate();
@@ -192,11 +198,20 @@ export default function AddPersonForm({ onDone }: { onDone: () => void }) {
       <label style={s.label} htmlFor="reportingManager">Reporting manager</label>
       <select
         id="reportingManager" style={s.field} value={reportingManagerId}
-        onChange={(e) => setReportingManagerId(e.target.value)}
+        onChange={(e) => { setReportingManagerId(e.target.value); if (e.target.value) setAcknowledgeNoManager(false); }}
       >
-        <option value="">No manager (approvals will have nowhere to go)</option>
+        <option value="">— Select a manager —</option>
         {employees?.map((e) => <option key={e.id} value={e.id}>{e.firstName} {e.lastName} — {e.jobTitleName}</option>)}
       </select>
+      {!reportingManagerId && (
+        <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13.5, margin: "-8px 0 12px" }}>
+          <input
+            type="checkbox" checked={acknowledgeNoManager}
+            onChange={(e) => setAcknowledgeNoManager(e.target.checked)}
+          />
+          This person has no manager — top of the org chart
+        </label>
+      )}
 
       {leaveTypes && leaveTypes.length > 0 && (
         <>

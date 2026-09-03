@@ -22,7 +22,7 @@ export default function ForcedPasswordChange() {
     setIsSubmitting(true);
     try {
       const { data } = await api.post("/auth/change-password", { currentPassword, newPassword });
-      completePasswordChange(data.accessToken, data.displayName, data.role, data.permissions);
+      completePasswordChange(data.accessToken, data.displayName, data.role, data.permissions, data.baseCurrencyCode);
     } catch (err: any) {
       setError(err?.response?.data ?? "Couldn't change your password. Check the current password and try again.");
     } finally {

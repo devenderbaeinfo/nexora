@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import { pageStyles as s, tag } from "../styles/pageKit";
 import Spinner from "../components/Spinner";
+import { formatCurrency } from "../lib/currency";
 
 interface ReimbursementRow {
   id: string;
@@ -48,7 +49,7 @@ export default function MyTeamExpenses() {
                 <tr key={r.id}>
                   <td style={s.td}>{r.employeeName}</td>
                   <td style={s.td}>{r.category}</td>
-                  <td style={s.td}>{r.amount.toLocaleString(undefined, { style: "currency", currency: "USD" })}</td>
+                  <td style={s.td}>{formatCurrency(r.amount)}</td>
                   <td style={s.td}>{r.incurredOn}</td>
                   <td style={s.td}><StatusTag status={r.status} /></td>
                 </tr>

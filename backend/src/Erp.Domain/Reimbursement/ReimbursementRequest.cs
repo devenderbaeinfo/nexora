@@ -19,7 +19,8 @@ public class ReimbursementRequest : TenantEntity
     public ReimbursementStatus Status { get; set; } = ReimbursementStatus.Pending;
     public Guid WorkflowInstanceId { get; set; }
 
-    // Set once Finance's approval also triggers the actual accounting entry (Accounting
-    // module lands later) — for now this just marks "money is owed and cleared to pay."
+    // Set once Finance's final approval posts the real accounting entry (see
+    // IAccountingPostingService) — "money is owed and cleared to pay."
     public bool PostedForPayment { get; set; }
+    public Guid? JournalEntryId { get; set; }
 }

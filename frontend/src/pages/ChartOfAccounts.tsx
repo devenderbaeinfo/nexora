@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 import { pageStyles as s, tag } from "../styles/pageKit";
+import { getBaseCurrencyCode } from "../lib/currency";
 import Spinner from "../components/Spinner";
 
 interface AccountRow {
@@ -10,6 +11,7 @@ interface AccountRow {
   code: string;
   name: string;
   type: string;
+  currency: string;
   isCashAccount: boolean;
   isActive: boolean;
 }
@@ -20,10 +22,12 @@ export default function ChartOfAccounts() {
   const { can } = useAuth();
   const canPost = can("accounting.post_entries");
   const queryClient = useQueryClient();
+  const baseCurrency = getBaseCurrencyCode();
 
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
   const [type, setType] = useState("Asset");
+  const [currency, setCurrency] = useState(baseCurrency);
   const [isCashAccount, setIsCashAccount] = useState(false);
 
   const { data, isLoading } = useQuery({
@@ -32,9 +36,9 @@ export default function ChartOfAccounts() {
   });
 
   const create = useMutation({
-    mutationFn: () => api.post("/accounting/accounts", { code, name, type, isCashAccount }),
+    mutationFn: () => api.post("/accounting/accounts", { code, name, type, currency: currency.trim().toUpperCase(), isCashAccount }),
     onSuccess: () => {
-      setCode(""); setName(""); setType("Asset"); setIsCashAccount(false);
+      setCode(""); setName(""); setType("Asset"); setCurrency(baseCurrency); setIsCashAccount(false);
       queryClient.invalidateQueries({ queryKey: ["accounts"] });
     },
   });
@@ -44,7 +48,7 @@ export default function ChartOfAccounts() {
       <header style={s.header}>
         <div>
           <h1 style={s.title}>Chart of Accounts</h1>
-          <p style={s.subtitle}>Every account journal entries can post to.</p>
+          <p style={s.subtitle}>Every account journal entries can post to. Base currency is {baseCurrency} — an account can be flagged in a different currency (e.g. a USD wallet used to pay foreign vendors).</p>
         </div>
       </header>
 
@@ -55,6 +59,11 @@ export default function ChartOfAccounts() {
           <select style={s.select} value={type} onChange={(e) => setType(e.target.value)}>
             {TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
           </select>
+          <input
+            style={{ ...s.input, width: 70 }} placeholder={baseCurrency} maxLength={3}
+            value={currency} onChange={(e) => setCurrency(e.target.value.toUpperCase())}
+            title="ISO currency code, e.g. USD, EUR"
+          />
           <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--muted)" }}>
             <input type="checkbox" checked={isCashAccount} onChange={(e) => setIsCashAccount(e.target.checked)} />
             Cash/bank account
@@ -81,6 +90,7 @@ export default function ChartOfAccounts() {
                 <th style={s.th}>Code</th>
                 <th style={s.th}>Name</th>
                 <th style={s.th}>Type</th>
+                <th style={s.th}>Currency</th>
                 <th style={s.th}>Cash?</th>
               </tr>
             </thead>
@@ -90,6 +100,10 @@ export default function ChartOfAccounts() {
                   <td style={s.td}>{a.code}</td>
                   <td style={s.td}>{a.name}</td>
                   <td style={s.td}>{a.type}</td>
+                  <td style={s.td}>
+                    {a.currency}
+                    {a.currency !== baseCurrency && <span style={{ ...tag("var(--warn-soft)", "var(--warn)"), marginLeft: 6 }}>foreign</span>}
+                  </td>
                   <td style={s.td}>{a.isCashAccount && <span style={tag("var(--teal-soft)", "var(--teal)")}>Cash</span>}</td>
                 </tr>
               ))}

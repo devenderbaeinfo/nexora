@@ -96,9 +96,10 @@ const MANAGER_MODULES: NavModule[] = [
 ];
 
 // The Finance role gets its own fixed nav too — expense verification, the accounting
-// core (Chart of Accounts/Journal Entries/Ledger/Trial Balance/Bank/Cash), project cost
-// views, and financial reports. No AP/AR vendor-bill workflows or tax reports yet —
-// those need business rules (payment terms, tax codes) that haven't been defined.
+// core (Chart of Accounts/Journal Entries/Ledger/Trial Balance/Bank/Cash, now including
+// AP vendor bills — see the "Vendor Bills" card on the Accounting hub page), project cost
+// views, and financial reports. No tax reports yet — those need tax-jurisdiction rules
+// that haven't been defined.
 const FINANCE_MODULES: NavModule[] = [
   { key: "dashboard", label: "Dashboard", to: "/finance/dashboard", sections: [] },
   {

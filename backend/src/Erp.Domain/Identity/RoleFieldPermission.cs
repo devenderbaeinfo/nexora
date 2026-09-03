@@ -22,5 +22,9 @@ public static class FieldPermissionCatalog
     public static readonly Dictionary<string, string[]> FieldsByResource = new()
     {
         ["Project"] = ["BudgetAmount"],
+        // IAM-11: lets a role that manages payroll structure (components, runs) be denied
+        // visibility into actual compensation amounts — only ever applied to someone ELSE's
+        // payslip; a viewer's own payslip always shows their own numbers regardless.
+        ["Payslip"] = ["GrossEarnings", "NetPay"],
     };
 }

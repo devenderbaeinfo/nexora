@@ -4,6 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import { pageStyles as s } from "../styles/pageKit";
 import BulkActionBar from "../components/BulkActionBar";
 import { useBulkDecision } from "../hooks/useBulkDecision";
+import { formatCurrency } from "../lib/currency";
 
 interface ExpenseRow {
   id: string;
@@ -105,7 +106,7 @@ function QueueSection({ queue, onDecided }: { queue: Queue; onDecided: () => voi
                 </td>
                 <td style={s.td}>{r.employeeName}</td>
                 <td style={s.td}>{r.category}</td>
-                <td style={s.td}>{r.amount.toLocaleString(undefined, { style: "currency", currency: "USD" })}</td>
+                <td style={s.td}>{formatCurrency(r.amount)}</td>
                 <td style={s.td}>{r.incurredOn}</td>
                 <td style={s.td}>
                   <div style={{ display: "flex", gap: 8 }}>

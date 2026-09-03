@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import { pageStyles as s } from "../styles/pageKit";
 import Spinner from "../components/Spinner";
+import { formatCurrency } from "../lib/currency";
 
 interface ProjectReportRow {
   projectId: string;
@@ -19,7 +20,7 @@ export default function ProjectReports() {
     queryFn: async () => (await api.get<ProjectReportRow[]>("/reports/projects")).data,
   });
 
-  const currency = (n: number) => n.toLocaleString(undefined, { style: "currency", currency: "USD" });
+  const currency = formatCurrency;
 
   return (
     <div>

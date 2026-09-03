@@ -4,6 +4,7 @@ import { api } from "../lib/api";
 import ProjectPicker from "../components/ProjectPicker";
 import { pageStyles as s, progressFill } from "../styles/pageKit";
 import Spinner from "../components/Spinner";
+import { formatCurrency } from "../lib/currency";
 
 interface ProjectBudgetData {
   budgetAmount: number;
@@ -22,7 +23,7 @@ export default function ProjectBudget() {
     enabled: !!projectId,
   });
 
-  const currency = (n: number) => n.toLocaleString(undefined, { style: "currency", currency: "USD" });
+  const currency = formatCurrency;
 
   return (
     <div>

@@ -1,10 +1,12 @@
 using System.Security.Claims;
 using Erp.Api.Authorization;
 using Erp.Api.Contracts;
+using Erp.Domain.Accounting;
 using Erp.Domain.Audit;
 using Erp.Domain.Identity;
 using Erp.Domain.Project;
 using Erp.Domain.Workflow;
+using Erp.Infrastructure.Accounting;
 using Erp.Infrastructure.Persistence;
 using Erp.Infrastructure.Workflow;
 using Microsoft.AspNetCore.Authorization;
@@ -24,11 +26,13 @@ public class ProjectExpensesController : ControllerBase
 {
     private readonly ErpDbContext _db;
     private readonly IApprovalWorkflowService _workflow;
+    private readonly IAccountingPostingService _accounting;
 
-    public ProjectExpensesController(ErpDbContext db, IApprovalWorkflowService workflow)
+    public ProjectExpensesController(ErpDbContext db, IApprovalWorkflowService workflow, IAccountingPostingService accounting)
     {
         _db = db;
         _workflow = workflow;
+        _accounting = accounting;
     }
 
     private Guid? CurrentEmployeeId =>
@@ -72,7 +76,7 @@ public class ProjectExpensesController : ControllerBase
             e.Id,
             projects.TryGetValue(e.ProjectId, out var pName) ? pName : "—",
             employees.TryGetValue(e.EmployeeId, out var eName) ? eName : "—",
-            e.Amount, e.Category, e.Description, e.IncurredOn, e.IsBillable, e.Status.ToString())).ToList();
+            e.Amount, e.Category, e.Description, e.IncurredOn, e.IsBillable, e.Status.ToString(), e.JournalEntryId)).ToList();
     }
 
     [HttpPost]
@@ -163,6 +167,30 @@ public class ProjectExpensesController : ControllerBase
         if (!outcome.Applied) return Conflict(outcome.Reason);
 
         expense.Status = outcome.IsRejected ? ProjectExpenseStatus.Rejected : ProjectExpenseStatus.Approved;
+
+        if (outcome.IsFullyApproved)
+        {
+            var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == expense.ProjectId);
+            var employee = await _db.Employees.FirstOrDefaultAsync(e => e.Id == expense.EmployeeId);
+            var employeeName = employee is null ? "—" : $"{employee.FirstName} {employee.LastName}";
+            var projectName = project?.Name ?? "—";
+
+            // Same shape as Reimbursement's posting — Debit the category's expense account,
+            // Credit Employee Payable. Project-level cost tracking already lives on the
+            // ProjectExpense row itself (see ProjectsController.Budget/Financials); the GL
+            // posting here is the company-wide financial record, not a per-project ledger.
+            var expenseAccount = await _accounting.FindOrCreateAccountAsync($"{expense.Category} Expense", AccountType.Expense);
+            var payableAccount = await _accounting.FindOrCreateAccountAsync("Employee Payable", AccountType.Liability);
+
+            var entry = await _accounting.PostAsync(
+                DateOnly.FromDateTime(DateTime.UtcNow),
+                $"Project expense approved — {projectName} — {employeeName} — {expense.Category}",
+                CurrentUserId,
+                (expenseAccount.Id, expense.Amount, 0),
+                (payableAccount.Id, 0, expense.Amount));
+
+            expense.JournalEntryId = entry.Id;
+        }
 
         _db.AuditLogs.Add(new AuditLog
         {

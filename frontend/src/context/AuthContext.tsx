@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { api, setAccessToken } from "../lib/api";
+import { setBaseCurrencyCode } from "../lib/currency";
 
 interface AuthUser {
   displayName: string;
@@ -16,7 +17,7 @@ interface AuthContextValue {
   login: (email: string, password: string) => Promise<string[]>;
   logout: () => void;
   can: (permission: string) => boolean;
-  completePasswordChange: (accessToken: string, displayName: string, role: string, permissions: string[]) => void;
+  completePasswordChange: (accessToken: string, displayName: string, role: string, permissions: string[], baseCurrencyCode: string) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -36,6 +37,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const { data } = await api.post("/auth/login", { email, password });
       setAccessToken(data.accessToken);
+      setBaseCurrencyCode(data.baseCurrencyCode);
       setUser({ displayName: data.displayName, role: data.role, permissions: data.permissions, mustChangePassword: data.mustChangePassword });
       return data.permissions as string[];
     } finally {
@@ -50,8 +52,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Called once /auth/change-password succeeds: swaps in the fresh token it returns
   // (the old one is permanently stamped mustChangePassword and can't be un-stamped).
-  const completePasswordChange = (accessToken: string, displayName: string, role: string, permissions: string[]) => {
+  const completePasswordChange = (accessToken: string, displayName: string, role: string, permissions: string[], baseCurrencyCode: string) => {
     setAccessToken(accessToken);
+    setBaseCurrencyCode(baseCurrencyCode);
     setUser({ displayName, role, permissions, mustChangePassword: false });
   };
 

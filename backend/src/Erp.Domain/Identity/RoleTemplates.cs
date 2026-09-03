@@ -38,6 +38,7 @@ public static class RoleTemplates
             Permission.Attendance.ViewAll,
             Permission.Fnf.View,
             Permission.Payroll.View,
+            Permission.AccountsPayable.View,
         ],
 
         Hr =>
@@ -75,6 +76,7 @@ public static class RoleTemplates
             Permission.Accounting.View, Permission.Accounting.PostEntries, Permission.Accounting.RunReimbursement,
             Permission.Attendance.ClockInOut,
             Permission.Payroll.View, Permission.Payroll.Approve,
+            Permission.AccountsPayable.View, Permission.AccountsPayable.Manage, Permission.AccountsPayable.Approve,
         ],
 
         Employee =>

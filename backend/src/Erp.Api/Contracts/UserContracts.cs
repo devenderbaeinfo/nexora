@@ -7,7 +7,11 @@ public record CreateUserRequest(
     // Which leave types this specific hire gets, and how many days of each — HR's per-person
     // call, not a blanket default. Null (not just empty) keeps the old "every type at its
     // configured default" behavior, so nothing already calling this endpoint breaks.
-    List<LeaveAllotmentInput>? LeaveAllotments = null);
+    List<LeaveAllotmentInput>? LeaveAllotments = null,
+    // Must be explicitly true when ReportingManagerId is null — forces a deliberate choice
+    // instead of a silently manager-less hire whose leave/timesheet/expense requests would
+    // have nowhere to route.
+    bool AcknowledgeNoManager = false);
 
 public record UserSummaryDto(Guid UserId, Guid EmployeeId, string DisplayName, string WorkEmail, string Role, bool CanDelete);
 public record ResetPasswordRequest(string NewPassword);

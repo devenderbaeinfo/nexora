@@ -1,5 +1,6 @@
 import { invoices } from "../../data/adminMockData";
 import StatusBadge from "../../components/admin/StatusBadge";
+import BillingProviderBanner from "../../components/admin/BillingProviderBanner";
 import { adminStyles as s } from "../../components/admin/adminStyles";
 
 export default function AdminInvoices() {
@@ -9,6 +10,8 @@ export default function AdminInvoices() {
         <h1 style={s.title}>Invoices</h1>
         <p style={s.subtitle}>Every invoice issued to a client, and whether it's been paid.</p>
       </header>
+
+      <BillingProviderBanner />
 
       <div style={s.tableWrap}>
         <table style={s.table}>

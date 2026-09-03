@@ -5,6 +5,7 @@ import Drawer from "../components/Drawer";
 import SubmitReimbursementForm from "./SubmitReimbursementForm";
 import SubmitProjectExpenseForm from "./SubmitProjectExpenseForm";
 import { pageStyles as s, tag } from "../styles/pageKit";
+import { formatCurrency } from "../lib/currency";
 
 interface ReimbursementRow {
   id: string;
@@ -13,6 +14,7 @@ interface ReimbursementRow {
   description: string | null;
   incurredOn: string;
   status: string;
+  journalEntryId: string | null;
 }
 
 interface ProjectExpenseRow {
@@ -22,6 +24,7 @@ interface ProjectExpenseRow {
   category: string;
   incurredOn: string;
   status: string;
+  journalEntryId: string | null;
 }
 
 export default function MyExpenses() {
@@ -77,9 +80,14 @@ export default function MyExpenses() {
               {reimbursements.data?.map((r) => (
                 <tr key={r.id}>
                   <td style={s.td}>{r.category}</td>
-                  <td style={s.td}>{r.amount.toLocaleString(undefined, { style: "currency", currency: "USD" })}</td>
+                  <td style={s.td}>{formatCurrency(r.amount)}</td>
                   <td style={s.td}>{r.incurredOn}</td>
-                  <td style={s.td}><StatusTag status={r.status} /></td>
+                  <td style={s.td}>
+                    <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                      <StatusTag status={r.status} />
+                      {r.journalEntryId && <span style={tag("var(--teal-soft)", "var(--teal)")} title="Posted to the General Ledger">Posted</span>}
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -108,9 +116,14 @@ export default function MyExpenses() {
                 <tr key={e.id}>
                   <td style={s.td}>{e.projectName}</td>
                   <td style={s.td}>{e.category}</td>
-                  <td style={s.td}>{e.amount.toLocaleString(undefined, { style: "currency", currency: "USD" })}</td>
+                  <td style={s.td}>{formatCurrency(e.amount)}</td>
                   <td style={s.td}>{e.incurredOn}</td>
-                  <td style={s.td}><StatusTag status={e.status} /></td>
+                  <td style={s.td}>
+                    <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                      <StatusTag status={e.status} />
+                      {e.journalEntryId && <span style={tag("var(--teal-soft)", "var(--teal)")} title="Posted to the General Ledger">Posted</span>}
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>

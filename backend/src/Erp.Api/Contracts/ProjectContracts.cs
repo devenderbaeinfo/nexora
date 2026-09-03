@@ -38,7 +38,7 @@ public record UpdateTaskStatusRequest(Erp.Domain.Project.ProjectTaskStatus Statu
 public record SubmitProjectExpenseRequest(Guid ProjectId, decimal Amount, string Category, string? Description, DateOnly IncurredOn, bool IsBillable);
 public record ProjectExpenseDto(
     Guid Id, string ProjectName, string EmployeeName, decimal Amount, string Category,
-    string? Description, DateOnly IncurredOn, bool IsBillable, string Status);
+    string? Description, DateOnly IncurredOn, bool IsBillable, string Status, Guid? JournalEntryId);
 public record DecideProjectExpenseRequest(bool Approve, string? Note);
 
 public record ProjectMilestoneDto(Guid Id, Guid ProjectId, string Name, DateOnly? DueDate, string Status);

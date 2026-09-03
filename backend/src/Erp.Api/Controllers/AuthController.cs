@@ -109,7 +109,7 @@ public class AuthController : ControllerBase
         });
         await _db.SaveChangesAsync();
 
-        return Ok(new LoginResponse(token, expires, user.Email ?? user.UserName ?? "", effectiveRole ?? "", permissions.ToArray(), mustChangePassword));
+        return Ok(new LoginResponse(token, expires, user.Email ?? user.UserName ?? "", effectiveRole ?? "", permissions.ToArray(), mustChangePassword, tenant.BaseCurrencyCode));
     }
 
     [HttpPost("change-password")]
@@ -154,7 +154,8 @@ public class AuthController : ControllerBase
             .ToListAsync();
 
         var (token, expires) = IssueToken(user, user.TenantId, roleIds, permissions, mustChangePassword: false);
-        return Ok(new LoginResponse(token, expires, user.Email ?? user.UserName ?? "", effectiveRole ?? "", permissions.ToArray(), false));
+        var currentTenant = await _db.Tenants.FirstOrDefaultAsync(t => t.Id == user.TenantId);
+        return Ok(new LoginResponse(token, expires, user.Email ?? user.UserName ?? "", effectiveRole ?? "", permissions.ToArray(), false, currentTenant?.BaseCurrencyCode ?? "INR"));
     }
 
     private async Task AuditLoginFailure(Guid? tenantId, string attemptedEmail, string reason)

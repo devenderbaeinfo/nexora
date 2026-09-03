@@ -5,6 +5,7 @@ import { api } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 import { pageStyles as s, tag } from "../styles/pageKit";
 import Spinner from "../components/Spinner";
+import { formatCurrency } from "../lib/currency";
 
 interface PayrollRunDto {
   id: string; periodMonth: number; periodYear: number; status: "Draft" | "Approved" | "Disbursed";
@@ -14,7 +15,7 @@ interface PayrollRunDto {
 }
 
 const MONTHS = ["", "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-const currency = (n: number) => n.toLocaleString(undefined, { style: "currency", currency: "USD" });
+const currency = formatCurrency;
 
 const STATUS_PALETTE: Record<string, [string, string]> = {
   Draft: ["var(--surface-sunken)", "var(--muted)"],

@@ -157,6 +157,16 @@ public class UsersController : ControllerBase
         var emailInUse = await _db.Employees.AnyAsync(e => e.WorkEmail == request.WorkEmail);
         if (emailInUse) return Conflict("An employee with this work email already exists.");
 
+        if (request.ReportingManagerId is null && !request.AcknowledgeNoManager)
+        {
+            return BadRequest("Pick a reporting manager, or confirm this person has none (top of the org chart).");
+        }
+        if (request.ReportingManagerId is { } newManagerId)
+        {
+            var managerExists = await _db.Employees.AnyAsync(e => e.Id == newManagerId);
+            if (!managerExists) return BadRequest("Unknown manager.");
+        }
+
         var employee = new Employee
         {
             FirstName = request.FirstName,

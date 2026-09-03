@@ -18,11 +18,12 @@ export default function NewClientForm({ onDone }: { onDone: () => void }) {
   const [adminDisplayName, setAdminDisplayName] = useState("");
   const [adminEmail, setAdminEmail] = useState("");
   const [adminPassword, setAdminPassword] = useState("");
+  const [baseCurrencyCode, setBaseCurrencyCode] = useState("INR");
   const [error, setError] = useState<string | null>(null);
   const [created, setCreated] = useState<CreatedClient | null>(null);
 
   const mutation = useMutation({
-    mutationFn: () => api.post("/platform/tenants", { tenantName, tenantSlug, adminEmail, adminPassword, adminDisplayName }),
+    mutationFn: () => api.post("/platform/tenants", { tenantName, tenantSlug, adminEmail, adminPassword, adminDisplayName, baseCurrencyCode }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["platformTenants"] });
       setCreated({ slug: tenantSlug, adminEmail, adminPassword });
@@ -88,6 +89,13 @@ export default function NewClientForm({ onDone }: { onDone: () => void }) {
 
       <label style={s.label} htmlFor="adminPassword">Admin's temporary password</label>
       <input id="adminPassword" type="password" style={s.field} value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} minLength={12} required />
+
+      <label style={s.label} htmlFor="baseCurrencyCode">Base currency</label>
+      <input
+        id="baseCurrencyCode" style={s.field} maxLength={3} value={baseCurrencyCode}
+        onChange={(e) => setBaseCurrencyCode(e.target.value.toUpperCase())}
+        placeholder="INR"
+      />
 
       {error && <div style={s.error} role="alert">{String(error)}</div>}
 

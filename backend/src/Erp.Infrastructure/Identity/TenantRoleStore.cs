@@ -34,7 +34,12 @@ public static class TenantRoleStore
         var alreadyAssigned = await db.UserRoles.AnyAsync(ur => ur.UserId == userId && ur.RoleId == role.Id);
         if (alreadyAssigned) return;
 
-        db.UserRoles.Add(new IdentityUserRole<Guid> { UserId = userId, RoleId = role.Id });
+        // EF's relationship-fixup pass on .Add() can get confused for a composite-key join
+        // entity whose properties are pure foreign keys with no independent Id — it sometimes
+        // treats UserId as "not yet known" and throws, even though both values are already
+        // real, saved keys. Setting the entry state directly bypasses that fixup and just
+        // inserts the row as given.
+        db.Entry(new IdentityUserRole<Guid> { UserId = userId, RoleId = role.Id }).State = EntityState.Added;
         await db.SaveChangesAsync();
     }
 }

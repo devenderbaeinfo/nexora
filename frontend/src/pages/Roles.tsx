@@ -46,6 +46,17 @@ interface RecordOption {
   label: string;
 }
 
+interface ApprovalSettings {
+  fallbackApproverEmployeeId: string | null;
+  fallbackApproverName: string | null;
+}
+
+interface EmployeeOption {
+  id: string;
+  firstName: string;
+  lastName: string;
+}
+
 export default function Roles() {
   const queryClient = useQueryClient();
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -76,12 +87,20 @@ export default function Roles() {
     onSuccess: () => {
       setNewName(""); setNewPermissions(new Set()); setDrawerOpen(false);
       queryClient.invalidateQueries({ queryKey: ["roles"] });
+      // A new custom role is also a new option in the "Select a role" dropdown on Job Titles
+      // and Add Person — without this, both keep showing whatever they'd already cached.
+      queryClient.invalidateQueries({ queryKey: ["assignableRoles"] });
+      queryClient.invalidateQueries({ queryKey: ["jobTitles", "assignableRoles"] });
     },
   });
 
   const deleteRole = useMutation({
     mutationFn: (id: string) => api.delete(`/roles/${id}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["roles"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["roles"] });
+      queryClient.invalidateQueries({ queryKey: ["jobTitles", "assignableRoles"] });
+      queryClient.invalidateQueries({ queryKey: ["assignableRoles"] });
+    },
   });
 
   return (
@@ -95,6 +114,9 @@ export default function Roles() {
         </div>
         <button style={s.addButton} onClick={() => setDrawerOpen(true)}>New role</button>
       </header>
+
+      <ApprovalSettingsSection />
+      <AttendanceSettingsSection />
 
       {roles.isLoading && <Spinner />}
 
@@ -139,6 +161,114 @@ export default function Roles() {
         </div>
       </Drawer>
     </div>
+  );
+}
+
+// PPL-10: who covers leave/timesheet approval for someone with no reporting manager at all
+// (the top of the org chart, or anyone PPL-7's "no manager" acknowledgment let through).
+// Silently hidden for a caller without admin.manage_org_structure rather than erroring.
+function ApprovalSettingsSection() {
+  const queryClient = useQueryClient();
+  const settings = useQuery({
+    queryKey: ["approval-settings"],
+    queryFn: async () => (await api.get<ApprovalSettings>("/approval-settings")).data,
+    retry: false,
+  });
+  const employees = useQuery({
+    queryKey: ["employees"],
+    queryFn: async () => (await api.get<EmployeeOption[]>("/employees")).data,
+    enabled: !settings.isError,
+  });
+
+  const [selected, setSelected] = useState("");
+  useEffect(() => {
+    setSelected(settings.data?.fallbackApproverEmployeeId ?? "");
+  }, [settings.data]);
+
+  const save = useMutation({
+    mutationFn: (fallbackApproverEmployeeId: string | null) =>
+      api.put("/approval-settings", { fallbackApproverEmployeeId }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["approval-settings"] }),
+  });
+
+  if (settings.isError) return null;
+
+  return (
+    <section style={{ ...s.card, marginBottom: 16 }}>
+      <h2 style={{ fontSize: 15.5, fontWeight: 700, margin: "0 0 6px" }}>Fallback approver</h2>
+      <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 12px" }}>
+        Covers leave and timesheet approval for anyone with no reporting manager set — otherwise
+        those requests have no one to route to.
+      </p>
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+        <select style={{ ...s.select, minWidth: 260 }} value={selected} onChange={(e) => setSelected(e.target.value)}>
+          <option value="">— None configured —</option>
+          {employees.data?.map((e) => <option key={e.id} value={e.id}>{e.firstName} {e.lastName}</option>)}
+        </select>
+        <button
+          style={s.addButton}
+          disabled={save.isPending || selected === (settings.data?.fallbackApproverEmployeeId ?? "")}
+          onClick={() => save.mutate(selected || null)}
+        >
+          Save
+        </button>
+      </div>
+    </section>
+  );
+}
+
+// The workday length attendance splits Regular vs. Overtime hours against — different
+// companies run 7/7.5/8/9-hour days, so this can't be a fixed number shared by every tenant.
+// Silently hidden for a caller without admin.manage_org_structure rather than erroring.
+function AttendanceSettingsSection() {
+  const queryClient = useQueryClient();
+  const settings = useQuery({
+    queryKey: ["attendance-settings"],
+    queryFn: async () => (await api.get<{ standardWorkDayHours: number }>("/attendance/settings")).data,
+    retry: false,
+  });
+
+  const [hours, setHours] = useState("8");
+  useEffect(() => {
+    if (settings.data) setHours(String(settings.data.standardWorkDayHours));
+  }, [settings.data]);
+
+  const save = useMutation({
+    mutationFn: (standardWorkDayHours: number) =>
+      api.put("/attendance/settings", { standardWorkDayHours }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["attendance-settings"] }),
+  });
+
+  if (settings.isError) return null;
+
+  const parsed = Number(hours);
+  const valid = hours.trim() !== "" && parsed > 0 && parsed <= 24;
+
+  return (
+    <section style={{ ...s.card, marginBottom: 16 }}>
+      <h2 style={{ fontSize: 15.5, fontWeight: 700, margin: "0 0 6px" }}>Standard workday</h2>
+      <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 12px" }}>
+        Hours worked beyond this in a day count as overtime on attendance records.
+      </p>
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+        <input
+          type="number" min={0.5} max={24} step={0.5}
+          style={{ ...s.input, width: 100 }}
+          value={hours} onChange={(e) => setHours(e.target.value)}
+        />
+        <span style={{ fontSize: 13, color: "var(--muted)" }}>hours</span>
+        <button
+          style={s.addButton}
+          disabled={!valid || save.isPending || parsed === settings.data?.standardWorkDayHours}
+          onClick={() => save.mutate(parsed)}
+        >
+          Save
+        </button>
+      </div>
+      {save.isError && (
+        <p style={{ color: "var(--danger)", fontSize: 13, marginTop: 10 }}>Couldn't save this setting.</p>
+      )}
+    </section>
   );
 }
 
@@ -247,14 +377,21 @@ function DataScopeSection({ roleId, selectedPermissions }: { roleId: string; sel
     queryKey: ["employees"],
     queryFn: async () => (await api.get<{ id: string; firstName: string; lastName: string }[]>("/employees")).data,
   });
+  const accounts = useQuery({
+    queryKey: ["accounting", "accounts"],
+    queryFn: async () => (await api.get<{ id: string; code: string; name: string }[]>("/accounting/accounts")).data,
+  });
 
   const applicable = (scopable.data ?? []).filter((p) => selectedPermissions.has(p.permissionKey));
   if (applicable.length === 0) return null;
 
-  const recordOptionsFor = (permissionKey: string): RecordOption[] =>
-    permissionKey === "project.view"
-      ? (projects.data ?? []).map((p) => ({ id: p.id, label: p.name }))
-      : (employees.data ?? []).map((e) => ({ id: e.id, label: `${e.firstName} ${e.lastName}` }));
+  // Accounts have no employee/department owner, so "Specific" for accounting.view picks from
+  // the Chart of Accounts instead of the employee list every other scopable permission uses.
+  const recordOptionsFor = (permissionKey: string): RecordOption[] => {
+    if (permissionKey === "project.view") return (projects.data ?? []).map((p) => ({ id: p.id, label: p.name }));
+    if (permissionKey === "accounting.view") return (accounts.data ?? []).map((a) => ({ id: a.id, label: `${a.code} — ${a.name}` }));
+    return (employees.data ?? []).map((e) => ({ id: e.id, label: `${e.firstName} ${e.lastName}` }));
+  };
 
   return (
     <div style={{ marginTop: 20 }}>

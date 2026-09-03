@@ -4,6 +4,7 @@ import { api } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 import { pageStyles as s } from "../styles/pageKit";
 import Spinner from "../components/Spinner";
+import { formatCurrency } from "../lib/currency";
 
 interface ProjectRow {
   id: string;
@@ -57,7 +58,7 @@ export default function AllProjects() {
                   <td style={s.td}>{p.customerName}</td>
                   <td style={s.td}>{p.projectManagerName}</td>
                   <td style={s.td}>{p.status}</td>
-                  <td style={s.td}>{p.budgetAmount === null ? "—" : p.budgetAmount.toLocaleString(undefined, { style: "currency", currency: "USD" })}</td>
+                  <td style={s.td}>{p.budgetAmount === null ? "—" : formatCurrency(p.budgetAmount)}</td>
                 </tr>
               ))}
             </tbody>

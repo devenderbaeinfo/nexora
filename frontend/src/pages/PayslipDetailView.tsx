@@ -2,16 +2,17 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import { pageStyles as s, tag } from "../styles/pageKit";
 import Spinner from "../components/Spinner";
+import { formatCurrency } from "../lib/currency";
 
 interface PayslipLineDto { componentName: string; type: "Earning" | "Deduction"; amount: number; }
 interface PayslipDetailDto {
   id: string; payrollRunId: string; periodMonth: number; periodYear: number; employeeName: string;
-  daysInMonth: number; lopDays: number; grossEarnings: number; lopDeduction: number;
-  otherDeductions: number; netPay: number; lines: PayslipLineDto[];
+  daysInMonth: number; lopDays: number; grossEarnings: number | null; lopDeduction: number;
+  otherDeductions: number; netPay: number | null; lines: PayslipLineDto[];
 }
 
 const MONTHS = ["", "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-const currency = (n: number) => n.toLocaleString(undefined, { style: "currency", currency: "USD" });
+const currency = formatCurrency;
 
 export default function PayslipDetailView({ payslipId }: { payslipId: string }) {
   const { data, isLoading, error } = useQuery({
@@ -49,18 +50,23 @@ export default function PayslipDetailView({ payslipId }: { payslipId: string }) 
 
         <div style={{ borderTop: "1px solid var(--border-strong)", marginTop: 14, paddingTop: 14, display: "flex", justifyContent: "space-between" }}>
           <span style={{ fontWeight: 700, fontSize: 14.5 }}>Net pay</span>
-          <span style={{ fontWeight: 700, fontSize: 16, color: "var(--accent)" }}>{currency(data.netPay)}</span>
+          <span style={{ fontWeight: 700, fontSize: 16, color: "var(--accent)" }}>
+            {data.netPay === null ? "Hidden" : currency(data.netPay)}
+          </span>
         </div>
       </div>
     </div>
   );
 }
 
-function LineRow({ label, amount, bold, negative }: { label: string; amount: number; bold?: boolean; negative?: boolean }) {
+// amount is null when this role's field access to it is Hidden (see FieldPermissionCatalog["Payslip"]).
+function LineRow({ label, amount, bold, negative }: { label: string; amount: number | null; bold?: boolean; negative?: boolean }) {
   return (
     <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", fontSize: 13.5, fontWeight: bold ? 700 : 400 }}>
       <span style={{ color: bold ? "var(--ink)" : "var(--muted)" }}>{label}</span>
-      <span style={{ color: negative ? "var(--danger)" : "var(--ink)" }}>{negative ? "-" : ""}{currency(amount)}</span>
+      <span style={{ color: negative ? "var(--danger)" : "var(--ink)" }}>
+        {amount === null ? "Hidden" : `${negative ? "-" : ""}${currency(amount)}`}
+      </span>
     </div>
   );
 }

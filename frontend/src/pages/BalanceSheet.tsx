@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import { pageStyles as s } from "../styles/pageKit";
 import Spinner from "../components/Spinner";
+import { formatCurrency } from "../lib/currency";
 
 interface BalanceSheetData {
   totalAssets: number;
@@ -19,7 +20,7 @@ export default function BalanceSheet() {
     queryFn: async () => (await api.get<BalanceSheetData>("/accounting/balance-sheet", { params: { asOf: asOf || undefined } })).data,
   });
 
-  const currency = (n: number) => n.toLocaleString(undefined, { style: "currency", currency: "USD" });
+  const currency = formatCurrency;
   const balances = data ? Math.abs(data.totalAssets - (data.totalLiabilities + data.totalEquity)) < 0.01 : true;
 
   return (

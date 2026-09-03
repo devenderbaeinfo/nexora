@@ -4,6 +4,7 @@ import { api } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 import Spinner from "../components/Spinner";
 import { pageStyles as s } from "../styles/pageKit";
+import { formatCurrency } from "../lib/currency";
 
 interface ProjectRow {
   id: string;
@@ -65,7 +66,7 @@ export default function ProjectsOverview() {
         {projects.isSuccess && totalBudget !== undefined && totalBudget > 0 && (
           <div style={s.statCard}>
             <div style={s.statLabel}>Total budget</div>
-            <div style={s.statValue}>{totalBudget.toLocaleString(undefined, { style: "currency", currency: "USD" })}</div>
+            <div style={s.statValue}>{formatCurrency(totalBudget)}</div>
           </div>
         )}
         {hasExpenseApprovals && (

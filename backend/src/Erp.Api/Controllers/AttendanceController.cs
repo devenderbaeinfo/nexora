@@ -16,7 +16,10 @@ namespace Erp.Api.Controllers;
 [Route("api/attendance")]
 public class AttendanceController : ControllerBase
 {
-    private const decimal StandardWorkDayHours = 8m;
+    // Fallback used only when a tenant has never set its own value — matches the default on
+    // TenantAttendanceSettings.StandardWorkDayHours so a tenant that never configures this sees
+    // no behavior change from before that setting existed.
+    private const decimal DefaultStandardWorkDayHours = 8m;
 
     private readonly ErpDbContext _db;
     public AttendanceController(ErpDbContext db) => _db = db;
@@ -25,6 +28,36 @@ public class AttendanceController : ControllerBase
         Guid.TryParse(User.FindFirstValue("employee_id"), out var id) ? id : null;
 
     private Guid CurrentUserId => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub")!);
+
+    private async Task<decimal> StandardWorkDayHoursAsync() =>
+        (await _db.TenantAttendanceSettings.FirstOrDefaultAsync())?.StandardWorkDayHours ?? DefaultStandardWorkDayHours;
+
+    // Tenant-wide operational config, same permission as the fallback-approver setting
+    // (Permission.Admin.ManageOrgStructure) — both configure "how this org's approvals/hours
+    // work" rather than any one person's own record.
+    [HttpGet("settings")]
+    [RequirePermission(Permission.Admin.ManageOrgStructure)]
+    public async Task<ActionResult<AttendanceSettingsDto>> GetSettings() =>
+        Ok(new AttendanceSettingsDto(await StandardWorkDayHoursAsync()));
+
+    [HttpPut("settings")]
+    [RequirePermission(Permission.Admin.ManageOrgStructure)]
+    public async Task<IActionResult> SetSettings(UpdateAttendanceSettingsRequest request)
+    {
+        if (request.StandardWorkDayHours is <= 0 or > 24)
+            return BadRequest("Standard workday hours must be between 0 and 24.");
+
+        var settings = await _db.TenantAttendanceSettings.FirstOrDefaultAsync();
+        if (settings is null)
+        {
+            settings = new TenantAttendanceSettings();
+            _db.TenantAttendanceSettings.Add(settings);
+        }
+        settings.StandardWorkDayHours = request.StandardWorkDayHours;
+
+        await _db.SaveChangesAsync();
+        return NoContent();
+    }
 
     [HttpGet("mine")]
     [RequirePermission(Permission.Attendance.ClockInOut)]
@@ -99,7 +132,7 @@ public class AttendanceController : ControllerBase
         if (entry.ClockOut is not null) return Conflict("Already clocked out today.");
 
         entry.ClockOut = DateTimeOffset.UtcNow;
-        ApplyHours(entry);
+        ApplyHours(entry, await StandardWorkDayHoursAsync());
         await _db.SaveChangesAsync();
 
         return NoContent();
@@ -116,7 +149,7 @@ public class AttendanceController : ControllerBase
 
         entry.ClockIn = request.ClockIn;
         entry.ClockOut = request.ClockOut;
-        ApplyHours(entry);
+        ApplyHours(entry, await StandardWorkDayHoursAsync());
 
         _db.AuditLogs.Add(new AuditLog
         {
@@ -130,7 +163,7 @@ public class AttendanceController : ControllerBase
         return NoContent();
     }
 
-    private static void ApplyHours(AttendanceEntry entry)
+    private static void ApplyHours(AttendanceEntry entry, decimal standardWorkDayHours)
     {
         if (entry.ClockOut is not { } clockOut)
         {
@@ -140,8 +173,8 @@ public class AttendanceController : ControllerBase
         }
 
         var hoursWorked = (decimal)(clockOut - entry.ClockIn).TotalHours;
-        entry.RegularHours = Math.Min(hoursWorked, StandardWorkDayHours);
-        entry.OvertimeHours = Math.Max(0, hoursWorked - StandardWorkDayHours);
+        entry.RegularHours = Math.Min(hoursWorked, standardWorkDayHours);
+        entry.OvertimeHours = Math.Max(0, hoursWorked - standardWorkDayHours);
     }
 
     private async Task<List<AttendanceEntryDto>> BuildDtos(IQueryable<AttendanceEntry> query)

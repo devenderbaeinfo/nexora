@@ -88,6 +88,13 @@ public static class Permission
         public const string RunReimbursement = "accounting.run_reimbursement";
     }
 
+    public static class AccountsPayable
+    {
+        public const string View = "accounts_payable.view";
+        public const string Manage = "accounts_payable.manage"; // vendors, submitting a bill
+        public const string Approve = "accounts_payable.approve"; // approve/reject a bill, record a payment
+    }
+
     public static class Project
     {
         public const string View = "project.view";

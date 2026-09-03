@@ -27,8 +27,10 @@ builder.Services.AddProblemDetails();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ITenantContext, JwtTenantContext>();
 builder.Services.AddScoped<Erp.Infrastructure.Workflow.IApprovalWorkflowService, Erp.Infrastructure.Workflow.ApprovalWorkflowService>();
+builder.Services.AddScoped<Erp.Infrastructure.Accounting.IAccountingPostingService, Erp.Infrastructure.Accounting.AccountingPostingService>();
 builder.Services.AddSingleton<Erp.Api.Services.EmployeeDocumentStorage>();
 builder.Services.AddScoped<Erp.Infrastructure.Authorization.DataScopeService>();
+builder.Services.AddScoped<Erp.Application.Billing.IBillingProviderGateway, Erp.Application.Billing.ManualBillingProviderGateway>();
 builder.Services.AddDbContext<ErpDbContext>(opt =>
     opt.UseSqlServer(builder.Configuration.GetConnectionString("Default")));
 
@@ -50,6 +52,22 @@ builder.Services
 // --- AuthN / AuthZ -----------------------------------------------------------------
 var jwtKey = builder.Configuration["Jwt:SigningKey"]
     ?? throw new InvalidOperationException("Jwt:SigningKey is not configured.");
+
+// IAM-13: presence alone isn't enough — the checked-in appsettings.json placeholder is a
+// syntactically valid, real string, so a deploy that forgets to override it via user-secrets/
+// env var would otherwise start up "successfully" while every token is signed with a key an
+// attacker can read straight out of source control. Development is exempt so `dotnet run`
+// against a fresh clone still works with zero setup.
+if (!builder.Environment.IsDevelopment())
+{
+    const string placeholder = "CHANGE_ME_USE_DOTNET_USER_SECRETS_OR_ENV_VAR_MIN_32_CHARS";
+    if (jwtKey == placeholder || jwtKey.Length < 32)
+    {
+        throw new InvalidOperationException(
+            "Jwt:SigningKey is missing, is the checked-in placeholder, or is too short (min 32 chars). " +
+            "Set a real value via an environment variable or a secrets manager before deploying.");
+    }
+}
 
 builder.Services.AddAuthentication(options =>
     {
@@ -112,6 +130,22 @@ builder.Services.AddRateLimiter(options =>
                 QueueLimit = 0
             }));
     options.RejectionStatusCode = 429;
+
+    // IAM-16: everything else was completely unthrottled — a single caller could otherwise
+    // hammer any authenticated endpoint (payroll runs, reports, exports) with no limit at all.
+    // This global limiter sits underneath the named policies above (an endpoint tagged
+    // [EnableRateLimiting("login")] etc. still gets its own tighter limit); it's sized to only
+    // ever catch abuse, not normal UI usage (dashboards firing a handful of parallel requests
+    // on load, polling every 30s, etc.).
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 300,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0
+            }));
 });
 
 builder.Services.AddCors(options =>
@@ -119,7 +153,13 @@ builder.Services.AddCors(options =>
     options.AddPolicy("frontend", policy =>
     {
         var origins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
-        policy.WithOrigins(origins).AllowAnyHeader().AllowAnyMethod().AllowCredentials();
+        // IAM-15: the frontend only ever sends Authorization + Content-Type, and only ever
+        // uses these five methods — AllowAnyHeader/AllowAnyMethod was strictly wider than
+        // anything the app actually needs, for no benefit.
+        policy.WithOrigins(origins)
+            .WithHeaders("Content-Type", "Authorization")
+            .WithMethods("GET", "POST", "PUT", "PATCH", "DELETE")
+            .AllowCredentials();
     });
 });
 
@@ -166,6 +206,7 @@ if (app.Environment.IsDevelopment())
     await Erp.Api.Seed.RolePermissionSync.RunAsync(app.Services);
     await Erp.Api.Seed.JobTitleSync.RunAsync(app.Services);
     await Erp.Api.Seed.AccountSync.RunAsync(app.Services);
+    await Erp.Api.Seed.DefaultDataScopeSync.RunAsync(app.Services);
 }
 
 app.Run();

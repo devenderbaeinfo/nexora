@@ -8,7 +8,11 @@ public record EmployeeListItem(
 public record CreateEmployeeRequest(
     string FirstName, string LastName, string WorkEmail,
     Guid JobTitleId, Guid DepartmentId, Guid? LocationId,
-    Guid? ReportingManagerId, DateOnly HireDate);
+    Guid? ReportingManagerId, DateOnly HireDate,
+    // Must be explicitly true when ReportingManagerId is null — forces a deliberate choice
+    // instead of a silently manager-less hire whose leave/timesheet/expense requests would
+    // have nowhere to route.
+    bool AcknowledgeNoManager = false);
 
 public record SetReportingManagerRequest(Guid? ReportingManagerId);
 

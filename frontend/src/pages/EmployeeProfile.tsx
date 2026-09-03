@@ -11,6 +11,7 @@ import AddEmployeeDocumentForm from "./AddEmployeeDocumentForm";
 import SetSalaryStructureForm from "./SetSalaryStructureForm";
 import PayslipDetailView from "./PayslipDetailView";
 import { pageStyles as s, tag } from "../styles/pageKit";
+import { formatCurrency } from "../lib/currency";
 
 interface EmployeeDetail {
   id: string;
@@ -225,7 +226,7 @@ export default function EmployeeProfile() {
                       key={c.id}
                       label={c.name + (c.isBasic ? " (Basic)" : "")}
                       value={c.calculationType === "FixedAmount"
-                        ? c.value.toLocaleString(undefined, { style: "currency", currency: "USD" })
+                        ? formatCurrency(c.value)
                         : `${c.value}% of Basic`}
                       last={i === salaryStructure.data!.components.length - 1}
                     />
@@ -244,10 +245,10 @@ export default function EmployeeProfile() {
                       {(!payslips.data || payslips.data.length === 0) && <tr><td style={s.td} colSpan={5}>No payslips yet.</td></tr>}
                       {payslips.data?.map((p) => (
                         <tr key={p.id}>
-                          <td style={s.td}>{p.grossEarnings.toLocaleString(undefined, { style: "currency", currency: "USD" })}</td>
+                          <td style={s.td}>{formatCurrency(p.grossEarnings)}</td>
                           <td style={s.td}>{p.lopDays || "—"}</td>
-                          <td style={s.td}>{(p.lopDeduction + p.otherDeductions).toLocaleString(undefined, { style: "currency", currency: "USD" })}</td>
-                          <td style={s.td}><strong>{p.netPay.toLocaleString(undefined, { style: "currency", currency: "USD" })}</strong></td>
+                          <td style={s.td}>{formatCurrency(p.lopDeduction + p.otherDeductions)}</td>
+                          <td style={s.td}><strong>{formatCurrency(p.netPay)}</strong></td>
                           <td style={s.td}><button style={s.secondary} onClick={() => setOpenPayslipId(p.id)}>View</button></td>
                         </tr>
                       ))}
@@ -315,7 +316,7 @@ export default function EmployeeProfile() {
                 {fnf.data?.map((c) => (
                   <tr key={c.id}>
                     <td style={s.td}><span style={tag("var(--surface-sunken)", "var(--muted)")}>{c.status}</span></td>
-                    <td style={s.td}>{c.finalPayoutAmount?.toLocaleString(undefined, { style: "currency", currency: "USD" }) ?? "—"}</td>
+                    <td style={s.td}>{c.finalPayoutAmount != null ? formatCurrency(c.finalPayoutAmount) : "—"}</td>
                     <td style={s.td}>{c.closedAtUtc ? new Date(c.closedAtUtc).toLocaleDateString() : "—"}</td>
                   </tr>
                 ))}

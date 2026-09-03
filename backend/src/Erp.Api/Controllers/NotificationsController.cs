@@ -155,6 +155,15 @@ public class NotificationsController : ControllerBase
                 .ToListAsync();
             items.AddRange(myProjectExpenses.Select(e => new NotificationItem(
                 "Project expense", $"Your project expense was {DecisionLabel(e.Status.ToString())}", e.Id, e.DecidedAt, "/projects/expenses", false)));
+
+            // PRJ-8: a task getting assigned to you isn't an approval queue, just something
+            // worth surfacing — same "recent, no read state" treatment as the FYI items above.
+            var myTasks = await _db.ProjectTasks
+                .Where(t => t.AssignedToEmployeeId == selfId && (t.UpdatedAtUtc ?? t.CreatedAtUtc) >= since)
+                .Select(t => new { t.Id, t.Title, AssignedAt = t.UpdatedAtUtc ?? t.CreatedAtUtc })
+                .ToListAsync();
+            items.AddRange(myTasks.Select(t => new NotificationItem(
+                "Task", $"Assigned to you: {t.Title}", t.Id, t.AssignedAt, "/projects/team", false)));
         }
 
         return Ok(items.OrderByDescending(i => i.CreatedAtUtc).ToList());

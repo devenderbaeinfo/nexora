@@ -4,6 +4,7 @@ import { api } from "../lib/api";
 import { pageStyles as s } from "../styles/pageKit";
 import TrendChart from "../components/TrendChart";
 import Spinner from "../components/Spinner";
+import { formatCurrency } from "../lib/currency";
 
 interface ReimbursementRow { id: string; }
 interface ProjectExpenseRow { id: string; }
@@ -35,8 +36,8 @@ export default function FinanceDashboard() {
     queryFn: async () => (await api.get<MonthlyTrendPoint[]>("/accounting/monthly-trend")).data,
   });
 
-  const currency = (n: number) => n.toLocaleString(undefined, { style: "currency", currency: "USD" });
-  const currencyCompact = (n: number) => n.toLocaleString(undefined, { style: "currency", currency: "USD", notation: "compact" });
+  const currency = formatCurrency;
+  const currencyCompact = (n: number) => formatCurrency(n, { notation: "compact" });
 
   return (
     <div>

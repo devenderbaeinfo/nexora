@@ -40,7 +40,7 @@ public class PlatformController : ControllerBase
             .IgnoreQueryFilters()
             .Where(t => t.Slug != "platform")
             .OrderBy(t => t.Name)
-            .Select(t => new TenantSummaryDto(t.Id, t.Name, t.Slug, t.Status.ToString(), t.CreatedAtUtc))
+            .Select(t => new TenantSummaryDto(t.Id, t.Name, t.Slug, t.Status.ToString(), t.BaseCurrencyCode, t.CreatedAtUtc))
             .ToListAsync();
         return Ok(tenants);
     }
@@ -55,7 +55,8 @@ public class PlatformController : ControllerBase
         var slugTaken = await _db.Tenants.IgnoreQueryFilters().AnyAsync(t => t.Slug == slug);
         if (slugTaken) return Conflict("That workspace name is already taken.");
 
-        var tenant = new Tenant { Name = request.TenantName.Trim(), Slug = slug };
+        var baseCurrency = string.IsNullOrWhiteSpace(request.BaseCurrencyCode) ? "INR" : request.BaseCurrencyCode.Trim().ToUpperInvariant();
+        var tenant = new Tenant { Name = request.TenantName.Trim(), Slug = slug, BaseCurrencyCode = baseCurrency };
         _db.Tenants.Add(tenant);
         await _db.SaveChangesAsync();
 
@@ -81,6 +82,15 @@ public class PlatformController : ControllerBase
         }
         await _db.SaveChangesAsync();
 
+        // JobTitleSync/AccountSync otherwise only ever run at app startup — a tenant provisioned
+        // while the app is already running (i.e. every real one, since this is the only way
+        // tenants get created) would sit with no default job titles or Chart of Accounts until
+        // the next deploy. Both are additive/idempotent, so running them here is safe even
+        // though they re-scan every tenant, not just this new one.
+        await Erp.Api.Seed.JobTitleSync.RunAsync(HttpContext.RequestServices);
+        await Erp.Api.Seed.AccountSync.RunAsync(HttpContext.RequestServices);
+        await Erp.Api.Seed.DefaultDataScopeSync.RunAsync(HttpContext.RequestServices);
+
         var adminUser = new AppUser
         {
             TenantId = tenant.Id,
@@ -95,7 +105,7 @@ public class PlatformController : ControllerBase
         }
         await TenantRoleStore.AssignRoleAsync(_db, tenant.Id, adminUser.Id, RoleTemplates.Admin);
 
-        return CreatedAtAction(nameof(List), new TenantSummaryDto(tenant.Id, tenant.Name, tenant.Slug, tenant.Status.ToString(), tenant.CreatedAtUtc));
+        return CreatedAtAction(nameof(List), new TenantSummaryDto(tenant.Id, tenant.Name, tenant.Slug, tenant.Status.ToString(), tenant.BaseCurrencyCode, tenant.CreatedAtUtc));
     }
 
     // Suspending a tenant here is what actually blocks every one of its users at login

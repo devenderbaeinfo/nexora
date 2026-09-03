@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 import Spinner from "../components/Spinner";
+import { formatCurrency } from "../lib/currency";
 
 interface FnfItemRow {
   id: string;
@@ -117,7 +118,7 @@ export default function FnfSettlement() {
               <h2 style={styles.sectionTitle}>{c.employeeName}</h2>
               {c.status === "Completed" ? (
                 <span style={styles.completedTag}>
-                  Settled · {c.finalPayoutAmount?.toLocaleString(undefined, { style: "currency", currency: "USD" })}
+                  Settled · {c.finalPayoutAmount != null ? formatCurrency(c.finalPayoutAmount) : ""}
                 </span>
               ) : (
                 canManage && (

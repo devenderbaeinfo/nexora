@@ -2,9 +2,9 @@ namespace Erp.Api.Contracts;
 
 public record CreateTenantRequest(
     string TenantName, string TenantSlug,
-    string AdminEmail, string AdminPassword, string AdminDisplayName);
+    string AdminEmail, string AdminPassword, string AdminDisplayName, string? BaseCurrencyCode);
 
-public record TenantSummaryDto(Guid Id, string Name, string Slug, string Status, DateTimeOffset CreatedAtUtc);
+public record TenantSummaryDto(Guid Id, string Name, string Slug, string Status, string BaseCurrencyCode, DateTimeOffset CreatedAtUtc);
 
 public record UpdateTenantStatusRequest(Erp.Domain.Tenancy.TenantStatus Status);
 

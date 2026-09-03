@@ -62,8 +62,10 @@ public class ProjectsController : ControllerBase
         }
     }
 
-    // The projects an employee is actually staffed on (ProjectMember), not the ones they
-    // merely have view rights to — "My Projects" for a plain Employee.
+    // The projects an employee is actually involved in — staffed on (ProjectMember) or
+    // managing (Projects.ProjectManagerId) — not just the ones they merely have view rights
+    // to. A Manager who manages a project but was never separately added as a ProjectMember
+    // used to be invisible here entirely; this is "My Projects"/"My Work" for everyone.
     [HttpGet("mine")]
     [RequirePermission(Permission.Project.View)]
     public async Task<ActionResult<List<MyProjectDto>>> Mine()
@@ -71,18 +73,20 @@ public class ProjectsController : ControllerBase
         if (CurrentEmployeeId is not { } employeeId) return Ok(new List<MyProjectDto>());
 
         var memberships = await _db.ProjectMembers.Where(m => m.EmployeeId == employeeId).ToListAsync();
-        var projectIds = memberships.Select(m => m.ProjectId).ToList();
+        var roleByProjectId = memberships.ToDictionary(m => m.ProjectId, m => m.RoleOnProject);
+        var managedProjectIds = await _db.Projects.Where(p => p.ProjectManagerId == employeeId).Select(p => p.Id).ToListAsync();
+
+        var projectIds = roleByProjectId.Keys.Union(managedProjectIds).ToList();
         var projects = await _db.Projects.Where(p => projectIds.Contains(p.Id)).ToListAsync();
         var customers = await _db.Customers.ToDictionaryAsync(c => c.Id, c => c.Name);
 
-        return Ok(memberships.Select(m =>
-        {
-            var project = projects.First(p => p.Id == m.ProjectId);
-            return new MyProjectDto(
-                project.Id, project.Name,
-                customers.TryGetValue(project.CustomerId, out var name) ? name : "—",
-                project.Status.ToString(), m.RoleOnProject);
-        }).ToList());
+        return Ok(projects.Select(project => new MyProjectDto(
+            project.Id, project.Name,
+            customers.TryGetValue(project.CustomerId, out var name) ? name : "—",
+            project.Status.ToString(),
+            // Their staffed role is more specific when both apply; otherwise they're here
+            // purely because they manage it.
+            roleByProjectId.TryGetValue(project.Id, out var role) ? role : "Project Manager")).ToList());
     }
 
     [HttpGet]
@@ -405,7 +409,7 @@ public class ProjectsController : ControllerBase
 
         return Ok(expenses.Select(e => new ProjectExpenseDto(
             e.Id, project?.Name ?? "—", employees.TryGetValue(e.EmployeeId, out var name) ? name : "—",
-            e.Amount, e.Category, e.Description, e.IncurredOn, e.IsBillable, e.Status.ToString())).ToList());
+            e.Amount, e.Category, e.Description, e.IncurredOn, e.IsBillable, e.Status.ToString(), e.JournalEntryId)).ToList());
     }
 
     // Every task assigned to the caller, across every project — nothing else in the app

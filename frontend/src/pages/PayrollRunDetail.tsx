@@ -7,6 +7,7 @@ import Spinner from "../components/Spinner";
 import Drawer from "../components/Drawer";
 import DataTable, { type DataTableColumn } from "../components/DataTable";
 import PayslipDetailView from "./PayslipDetailView";
+import { formatCurrency } from "../lib/currency";
 
 interface PayrollRunDto {
   id: string; periodMonth: number; periodYear: number; status: string;
@@ -14,11 +15,12 @@ interface PayrollRunDto {
 }
 interface PayslipListItemDto {
   id: string; employeeId: string; employeeName: string;
-  grossEarnings: number; lopDays: number; lopDeduction: number; otherDeductions: number; netPay: number;
+  // null when this role's field access to it is Hidden (see FieldPermissionCatalog["Payslip"]).
+  grossEarnings: number | null; lopDays: number; lopDeduction: number; otherDeductions: number; netPay: number | null;
 }
 
 const MONTHS = ["", "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-const currency = (n: number) => n.toLocaleString(undefined, { style: "currency", currency: "USD" });
+const currency = formatCurrency;
 
 export default function PayrollRunDetail() {
   const { runId } = useParams<{ runId: string }>();
@@ -41,10 +43,10 @@ export default function PayrollRunDetail() {
       key: "employee", header: "Employee", value: (p) => p.employeeName,
       render: (p) => <button style={linkButtonStyle} onClick={() => setOpenPayslipId(p.id)}>{p.employeeName}</button>,
     },
-    { key: "gross", header: "Gross", value: (p) => p.grossEarnings, render: (p) => currency(p.grossEarnings) },
+    { key: "gross", header: "Gross", value: (p) => p.grossEarnings ?? 0, render: (p) => p.grossEarnings === null ? "Hidden" : currency(p.grossEarnings) },
     { key: "lop", header: "LOP days", value: (p) => p.lopDays, render: (p) => p.lopDays || "—" },
     { key: "deductions", header: "Deductions", value: (p) => p.lopDeduction + p.otherDeductions, render: (p) => currency(p.lopDeduction + p.otherDeductions) },
-    { key: "net", header: "Net pay", value: (p) => p.netPay, render: (p) => <strong>{currency(p.netPay)}</strong> },
+    { key: "net", header: "Net pay", value: (p) => p.netPay ?? 0, render: (p) => <strong>{p.netPay === null ? "Hidden" : currency(p.netPay)}</strong> },
   ];
 
   if (run.isLoading) return <Spinner />;

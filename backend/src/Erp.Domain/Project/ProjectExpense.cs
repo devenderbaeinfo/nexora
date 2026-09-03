@@ -19,4 +19,8 @@ public class ProjectExpense : TenantEntity
 
     public ProjectExpenseStatus Status { get; set; } = ProjectExpenseStatus.Pending;
     public Guid WorkflowInstanceId { get; set; }
+
+    // Set once Finance's final approval posts the real accounting entry (see
+    // IAccountingPostingService).
+    public Guid? JournalEntryId { get; set; }
 }

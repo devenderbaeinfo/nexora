@@ -1,8 +1,27 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import { groupPendingItems, type NotificationItem } from "./ActionCenter";
+
+const SEEN_KEY = "nexora.notifications.seen";
+const itemKey = (i: NotificationItem) => `${i.kind}-${i.id}`;
+
+function loadSeen(): string[] {
+  try {
+    return JSON.parse(localStorage.getItem(SEEN_KEY) ?? "[]");
+  } catch {
+    return [];
+  }
+}
+
+function saveSeen(set: Set<string>) {
+  try {
+    localStorage.setItem(SEEN_KEY, JSON.stringify(Array.from(set).slice(-300)));
+  } catch {
+    // best-effort only — a toast repeating once after a private-browsing session isn't worth surfacing an error for
+  }
+}
 
 function timeAgo(iso: string): string {
   const ms = Date.now() - new Date(iso).getTime();
@@ -35,7 +54,48 @@ export default function NotificationsBell() {
   const recent = items.filter((i) => !i.requiresAction).slice(0, 8);
   const count = groups.reduce((sum, g) => sum + g.count, 0);
 
+  // LVA-13/PRJ-8: surface a fresh FYI item (a leave decision, a task assignment) as a toast
+  // the moment a poll turns it up, instead of making the employee open the bell to notice.
+  // Seen ids persist in localStorage so a reload doesn't replay the last 14 days of history —
+  // only genuinely new items after the first load ever toast.
+  const seenRef = useRef<Set<string> | null>(null);
+  const [toasts, setToasts] = useState<{ key: string; kind: string; label: string }[]>([]);
+
+  useEffect(() => {
+    if (!data) return;
+    if (seenRef.current === null) {
+      const stored = loadSeen();
+      seenRef.current = new Set(stored.length ? stored : data.map(itemKey));
+      if (!stored.length) saveSeen(seenRef.current);
+      return;
+    }
+
+    const fresh = data.filter((i) => !i.requiresAction && !seenRef.current!.has(itemKey(i)));
+    if (fresh.length === 0) return;
+
+    setToasts((prev) => [...prev, ...fresh.map((i) => ({ key: itemKey(i), kind: i.kind, label: i.label }))]);
+    for (const i of fresh) seenRef.current.add(itemKey(i));
+    saveSeen(seenRef.current);
+  }, [data]);
+
+  useEffect(() => {
+    if (toasts.length === 0) return;
+    const timer = setTimeout(() => setToasts((prev) => prev.slice(1)), 6000);
+    return () => clearTimeout(timer);
+  }, [toasts]);
+
   return (
+    <>
+    {toasts.length > 0 && (
+      <div style={styles.toastStack}>
+        {toasts.map((t) => (
+          <div key={t.key} style={styles.toast}>
+            <div style={styles.itemKind}>{t.kind}</div>
+            <div style={styles.itemLabel}>{t.label}</div>
+          </div>
+        ))}
+      </div>
+    )}
     <div
       style={styles.wrap}
       onMouseEnter={() => {
@@ -93,6 +153,7 @@ export default function NotificationsBell() {
         </div>
       )}
     </div>
+    </>
   );
 }
 
@@ -106,6 +167,14 @@ function BellIcon() {
 }
 
 const styles: Record<string, React.CSSProperties> = {
+  toastStack: {
+    position: "fixed", bottom: 20, right: 20, zIndex: 100,
+    display: "flex", flexDirection: "column", gap: 8, width: 300,
+  },
+  toast: {
+    background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius-lg)",
+    boxShadow: "var(--shadow)", padding: "12px 14px",
+  },
   wrap: { position: "relative" },
   bellButton: {
     position: "relative", background: "none", border: "none", color: "var(--muted)",

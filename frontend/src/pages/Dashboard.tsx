@@ -6,6 +6,7 @@ import { pageStyles as s } from "../styles/pageKit";
 import Spinner from "../components/Spinner";
 import TrendChart from "../components/TrendChart";
 import ActionCenter, { useActionGroups } from "../components/ActionCenter";
+import { formatCurrency } from "../lib/currency";
 
 interface DashboardSummary {
   teamSize: number;
@@ -66,7 +67,7 @@ export default function Dashboard() {
   });
   const hasOrgStats = orgEmployees.isSuccess || pendingHrLeave.isSuccess || onboardingInProgress.isSuccess || fnfInProgress.isSuccess;
 
-  const currency = (n: number) => n.toLocaleString(undefined, { style: "currency", currency: "USD" });
+  const currency = formatCurrency;
 
   return (
     <div>

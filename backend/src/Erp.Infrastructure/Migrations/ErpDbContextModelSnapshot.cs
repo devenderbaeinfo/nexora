@@ -35,6 +35,10 @@ namespace Erp.Infrastructure.Migrations
                     b.Property<DateTimeOffset>("CreatedAtUtc")
                         .HasColumnType("datetimeoffset");
 
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
 
@@ -65,6 +69,44 @@ namespace Erp.Infrastructure.Migrations
                     b.HasIndex("TenantId", "IsDeleted");
 
                     b.ToTable("Accounts");
+                });
+
+            modelBuilder.Entity("Erp.Domain.Accounting.ExchangeRate", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("CurrencyCode")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateOnly>("EffectiveDate")
+                        .HasColumnType("date");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<decimal>("RateToBase")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "IsDeleted");
+
+                    b.HasIndex("TenantId", "CurrencyCode", "EffectiveDate")
+                        .IsUnique();
+
+                    b.ToTable("ExchangeRates");
                 });
 
             modelBuilder.Entity("Erp.Domain.Accounting.JournalEntry", b =>
@@ -120,6 +162,9 @@ namespace Erp.Infrastructure.Migrations
                     b.Property<decimal>("Debit")
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<decimal>("ExchangeRateToBase")
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
@@ -137,6 +182,116 @@ namespace Erp.Infrastructure.Migrations
                     b.HasIndex("TenantId", "IsDeleted");
 
                     b.ToTable("JournalLines");
+                });
+
+            modelBuilder.Entity("Erp.Domain.Accounting.Vendor", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ContactEmail")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ContactPhone")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "IsDeleted");
+
+                    b.ToTable("Vendors");
+                });
+
+            modelBuilder.Entity("Erp.Domain.Accounting.VendorBill", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTimeOffset?>("ApprovedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("ApprovedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateOnly>("BillDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("BillNumber")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateOnly>("DueDate")
+                        .HasColumnType("date");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<Guid?>("JournalEntryId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("PaidAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("PaymentJournalEntryId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("RejectionReason")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("SubmittedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("VendorId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "IsDeleted");
+
+                    b.HasIndex("TenantId", "VendorId", "BillNumber")
+                        .IsUnique();
+
+                    b.ToTable("VendorBills");
                 });
 
             modelBuilder.Entity("Erp.Domain.Announcements.Announcement", b =>
@@ -1239,6 +1394,9 @@ namespace Erp.Infrastructure.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
+                    b.Property<Guid?>("JournalEntryId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<Guid>("ProjectId")
                         .HasColumnType("uniqueidentifier");
 
@@ -1415,6 +1573,9 @@ namespace Erp.Infrastructure.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
+                    b.Property<Guid?>("JournalEntryId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<bool>("PostedForPayment")
                         .HasColumnType("bit");
 
@@ -1445,6 +1606,10 @@ namespace Erp.Infrastructure.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("BaseCurrencyCode")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTimeOffset>("CreatedAtUtc")
                         .HasColumnType("datetimeoffset");
@@ -1680,6 +1845,37 @@ namespace Erp.Infrastructure.Migrations
                     b.ToTable("LeaveTypes");
                 });
 
+            modelBuilder.Entity("Erp.Domain.Timecard.TenantAttendanceSettings", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<decimal>("StandardWorkDayHours")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId")
+                        .IsUnique();
+
+                    b.HasIndex("TenantId", "IsDeleted");
+
+                    b.ToTable("TenantAttendanceSettings");
+                });
+
             modelBuilder.Entity("Erp.Domain.Timecard.TimesheetEntry", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1724,6 +1920,37 @@ namespace Erp.Infrastructure.Migrations
                     b.HasIndex("TenantId", "IsDeleted");
 
                     b.ToTable("TimesheetEntries");
+                });
+
+            modelBuilder.Entity("Erp.Domain.Workflow.TenantApprovalSettings", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("FallbackApproverEmployeeId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId")
+                        .IsUnique();
+
+                    b.HasIndex("TenantId", "IsDeleted");
+
+                    b.ToTable("TenantApprovalSettings");
                 });
 
             modelBuilder.Entity("Erp.Domain.Workflow.WorkflowDecision", b =>

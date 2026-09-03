@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import { pageStyles as s, tag, progressFill } from "../styles/pageKit";
 import Spinner from "../components/Spinner";
+import { formatCurrency } from "../lib/currency";
 
 interface ProjectRow {
   id: string;
@@ -52,7 +53,7 @@ function buildDummySeries(projectId: string, budget: number): MonthPoint[] {
   });
 }
 
-const currency = (n: number) => n.toLocaleString(undefined, { style: "currency", currency: "USD" });
+const currency = formatCurrency;
 
 // Finance's one-stop project view: pick a project from the list right here (no separate
 // picker control) and see budget, itemized cost, and a profitability preview together —

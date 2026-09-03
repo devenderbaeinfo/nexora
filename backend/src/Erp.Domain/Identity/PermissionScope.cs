@@ -31,15 +31,24 @@ public static class DataScopeCatalog
     [
         Permission.Project.View,
         Permission.People.View,
+        // IAM-11: only ever narrows what a Payroll.Manage/Approve or Accounting.View holder
+        // already sees broadly — a plain Employee's Payroll.View still means "my own payslips
+        // only" regardless of any row here (enforced in PayrollController, not by this catalog's
+        // "no row = All" default), so scoping this can't accidentally widen self-service access.
+        Permission.Payroll.View,
+        Permission.Accounting.View,
     ];
 
     // Which scope types are offered for a given permission — "Mine" only makes sense where
     // a record has a natural notion of "belongs to me" (a project you manage or are staffed
-    // on); a plain employee directory has no such concept.
+    // on); a plain employee directory has no such concept. Accounts have no employee/department
+    // owner at all, so Accounting.View only ever offers All/Specific.
     public static DataScopeType[] AllowedScopeTypesFor(string permissionKey) => permissionKey switch
     {
         Permission.Project.View => [DataScopeType.All, DataScopeType.Mine, DataScopeType.Department, DataScopeType.Specific],
         Permission.People.View => [DataScopeType.All, DataScopeType.Department, DataScopeType.Specific],
+        Permission.Payroll.View => [DataScopeType.All, DataScopeType.Department, DataScopeType.Specific],
+        Permission.Accounting.View => [DataScopeType.All, DataScopeType.Specific],
         _ => [DataScopeType.All],
     };
 }

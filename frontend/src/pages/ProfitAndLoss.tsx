@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import { pageStyles as s } from "../styles/pageKit";
 import Spinner from "../components/Spinner";
+import { formatCurrency } from "../lib/currency";
 
 interface ProfitAndLoss {
   totalRevenue: number;
@@ -19,7 +20,7 @@ export default function ProfitAndLoss() {
     queryFn: async () => (await api.get<ProfitAndLoss>("/accounting/profit-and-loss", { params: { from: from || undefined, to: to || undefined } })).data,
   });
 
-  const currency = (n: number) => n.toLocaleString(undefined, { style: "currency", currency: "USD" });
+  const currency = formatCurrency;
 
   return (
     <div>

@@ -32,6 +32,11 @@ public class LeaveRequestsController : ControllerBase
 
     private Guid CurrentUserId => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub")!);
 
+    // The Admin-configured catch-all approver for employees with no ReportingManagerId
+    // (see ApprovalSettingsController / PPL-10) — null when nothing's been configured.
+    private async Task<Guid?> FallbackApproverIdAsync() =>
+        (await _db.TenantApprovalSettings.FirstOrDefaultAsync())?.FallbackApproverEmployeeId;
+
     [HttpGet("mine")]
     [RequirePermission(Permission.Leave.View)]
     public async Task<ActionResult<List<LeaveRequestDto>>> Mine()
@@ -51,6 +56,17 @@ public class LeaveRequestsController : ControllerBase
             .Where(e => e.ReportingManagerId == managerId)
             .Select(e => e.Id)
             .ToListAsync();
+
+        // If this manager is also the tenant's configured fallback approver, their queue
+        // additionally covers anyone with no ReportingManagerId at all.
+        if (await FallbackApproverIdAsync() == managerId)
+        {
+            var managerlessIds = await _db.Employees
+                .Where(e => e.ReportingManagerId == null)
+                .Select(e => e.Id)
+                .ToListAsync();
+            directReportIds = directReportIds.Union(managerlessIds).ToList();
+        }
 
         return Ok(await BuildDtos(_db.LeaveRequests
             .Where(r => directReportIds.Contains(r.EmployeeId) && r.Status == LeaveRequestStatus.PendingManagerApproval)));
@@ -286,7 +302,9 @@ public class LeaveRequestsController : ControllerBase
         var employee = await _db.Employees.FirstOrDefaultAsync(e => e.Id == leaveRequest.EmployeeId);
         if (employee is null) return NotFound();
 
-        var isAssignedManager = User.HasClaim("perm", Permission.Leave.ApproveAsManager) && employee.ReportingManagerId == CurrentEmployeeId;
+        var isAssignedManager = User.HasClaim("perm", Permission.Leave.ApproveAsManager) &&
+            (employee.ReportingManagerId == CurrentEmployeeId ||
+             (employee.ReportingManagerId is null && await FallbackApproverIdAsync() == CurrentEmployeeId));
         var isHr = User.HasClaim("perm", Permission.Leave.ApproveAsHr);
         var isSelf = leaveRequest.EmployeeId == CurrentEmployeeId;
         if (!isAssignedManager && !isHr && !isSelf) return Forbid();
@@ -343,7 +361,9 @@ public class LeaveRequestsController : ControllerBase
         if (!User.HasClaim("perm", Permission.Leave.ApproveAsManager)) return Forbid();
 
         var employee = await _db.Employees.FirstOrDefaultAsync(e => e.Id == leaveRequest.EmployeeId);
-        if (employee?.ReportingManagerId != CurrentEmployeeId)
+        var isAssignedManager = employee?.ReportingManagerId == CurrentEmployeeId;
+        var isFallbackManager = employee?.ReportingManagerId is null && await FallbackApproverIdAsync() == CurrentEmployeeId;
+        if (!isAssignedManager && !isFallbackManager)
         {
             await LogDenied("leave.approve_as_manager", leaveRequest.Id);
             return Forbid();

@@ -72,3 +72,20 @@ export function progressFill(percent: number, danger = false): CSSProperties {
 export function tag(bg: string, fg: string): CSSProperties {
   return { fontFamily: "var(--font-mono)", fontSize: 11, background: bg, color: fg, padding: "3px 9px", borderRadius: 20 };
 }
+
+// Shared "pick a project" pattern: a grid of clickable cards (not a dropdown tucked in a
+// corner) with the selected project's detail rendered below. First established in
+// ProjectTeam.tsx, reused by Project Progress/Profitability so picking a project reads the
+// same way everywhere in the Projects area.
+export const projectCardGrid: CSSProperties = {
+  display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 14,
+};
+
+export const projectCard: CSSProperties = {
+  textAlign: "left", cursor: "pointer", background: "var(--surface)", border: "1px solid var(--border)",
+  borderRadius: "var(--radius-lg)", padding: 16, boxShadow: "var(--shadow)", font: "inherit",
+};
+
+export const projectCardActive: CSSProperties = {
+  borderColor: "var(--accent)", boxShadow: "var(--glow-accent), var(--shadow)",
+};

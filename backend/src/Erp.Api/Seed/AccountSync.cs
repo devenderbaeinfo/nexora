@@ -24,18 +24,18 @@ public static class AccountSync
         using var scope = services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<ErpDbContext>();
 
-        var tenantIds = await db.Tenants.IgnoreQueryFilters().Select(t => t.Id).ToListAsync();
+        var tenants = await db.Tenants.IgnoreQueryFilters().ToListAsync();
         var existingByTenant = (await db.Accounts.IgnoreQueryFilters().ToListAsync())
             .GroupBy(a => a.TenantId)
             .ToDictionary(g => g.Key, g => g.Select(a => a.Code).ToHashSet());
 
-        foreach (var tenantId in tenantIds)
+        foreach (var tenant in tenants)
         {
-            var existing = existingByTenant.GetValueOrDefault(tenantId, []);
+            var existing = existingByTenant.GetValueOrDefault(tenant.Id, []);
             foreach (var (code, name, type, isCash) in DefaultAccounts)
             {
                 if (existing.Contains(code)) continue;
-                db.Accounts.Add(new Account { TenantId = tenantId, Code = code, Name = name, Type = type, IsCashAccount = isCash });
+                db.Accounts.Add(new Account { TenantId = tenant.Id, Code = code, Name = name, Type = type, Currency = tenant.BaseCurrencyCode, IsCashAccount = isCash });
             }
         }
 

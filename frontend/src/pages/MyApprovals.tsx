@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { api } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 import { pageStyles as s } from "../styles/pageKit";
+import { formatCurrency } from "../lib/currency";
 
 interface ApprovalRow {
   id: string;
@@ -28,7 +29,7 @@ const mapLeave = (r: any): ApprovalRow => ({
 
 const mapExpense = (r: any): ApprovalRow => ({
   id: r.id, employeeName: r.employeeName, detail: r.category,
-  amount: r.amount.toLocaleString(undefined, { style: "currency", currency: "USD" }),
+  amount: formatCurrency(r.amount),
 });
 
 export default function MyApprovals() {

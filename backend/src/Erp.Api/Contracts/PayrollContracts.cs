@@ -16,13 +16,16 @@ public record PayrollRunDto(
     DateTimeOffset CreatedAtUtc, DateTimeOffset? ApprovedAtUtc, DateTimeOffset? DisbursedAtUtc,
     Guid? JournalEntryId, List<string> SkippedEmployeeNames);
 
+// GrossEarnings/NetPay are nullable so a role denied field access to them (see
+// FieldPermissionCatalog["Payslip"]) gets an explicit null rather than a real number — never
+// applied to the viewer's own payslip, only to someone else's.
 public record PayslipListItemDto(
     Guid Id, Guid EmployeeId, string EmployeeName,
-    decimal GrossEarnings, decimal LopDays, decimal LopDeduction, decimal OtherDeductions, decimal NetPay);
+    decimal? GrossEarnings, decimal LopDays, decimal LopDeduction, decimal OtherDeductions, decimal? NetPay);
 
 public record PayslipLineDto(string ComponentName, string Type, decimal Amount);
 
 public record PayslipDetailDto(
     Guid Id, Guid PayrollRunId, int PeriodMonth, int PeriodYear, string EmployeeName,
-    int DaysInMonth, decimal LopDays, decimal GrossEarnings, decimal LopDeduction,
-    decimal OtherDeductions, decimal NetPay, List<PayslipLineDto> Lines);
+    int DaysInMonth, decimal LopDays, decimal? GrossEarnings, decimal LopDeduction,
+    decimal OtherDeductions, decimal? NetPay, List<PayslipLineDto> Lines);

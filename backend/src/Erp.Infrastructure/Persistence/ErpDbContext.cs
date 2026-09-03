@@ -47,6 +47,7 @@ public class ErpDbContext : IdentityDbContext<AppUser, AppRole, Guid>
     public DbSet<LeaveBalance> LeaveBalances => Set<LeaveBalance>();
     public DbSet<AttendanceEntry> AttendanceEntries => Set<AttendanceEntry>();
     public DbSet<TimesheetEntry> TimesheetEntries => Set<TimesheetEntry>();
+    public DbSet<TenantAttendanceSettings> TenantAttendanceSettings => Set<TenantAttendanceSettings>();
 
     public DbSet<OnboardingTask> OnboardingTasks => Set<OnboardingTask>();
 
@@ -64,9 +65,13 @@ public class ErpDbContext : IdentityDbContext<AppUser, AppRole, Guid>
     public DbSet<Account> Accounts => Set<Account>();
     public DbSet<JournalEntry> JournalEntries => Set<JournalEntry>();
     public DbSet<JournalLine> JournalLines => Set<JournalLine>();
+    public DbSet<ExchangeRate> ExchangeRates => Set<ExchangeRate>();
+    public DbSet<Vendor> Vendors => Set<Vendor>();
+    public DbSet<VendorBill> VendorBills => Set<VendorBill>();
 
     public DbSet<WorkflowInstance> WorkflowInstances => Set<WorkflowInstance>();
     public DbSet<WorkflowDecision> WorkflowDecisions => Set<WorkflowDecision>();
+    public DbSet<TenantApprovalSettings> TenantApprovalSettings => Set<TenantApprovalSettings>();
 
     public DbSet<ReimbursementRequest> ReimbursementRequests => Set<ReimbursementRequest>();
 
@@ -102,8 +107,12 @@ public class ErpDbContext : IdentityDbContext<AppUser, AppRole, Guid>
         builder.Entity<Payslip>().HasIndex(p => new { p.TenantId, p.PayrollRunId, p.EmployeeId }).IsUnique();
         builder.Entity<JobTitle>().HasIndex(j => new { j.TenantId, j.Name }).IsUnique();
         builder.Entity<Account>().HasIndex(a => new { a.TenantId, a.Code }).IsUnique();
+        builder.Entity<ExchangeRate>().HasIndex(r => new { r.TenantId, r.CurrencyCode, r.EffectiveDate }).IsUnique();
         builder.Entity<PermissionScope>().HasIndex(s => new { s.TenantId, s.RoleId, s.PermissionKey }).IsUnique();
         builder.Entity<RoleFieldPermission>().HasIndex(f => new { f.TenantId, f.RoleId, f.Resource, f.FieldName }).IsUnique();
+        builder.Entity<TenantApprovalSettings>().HasIndex(s => s.TenantId).IsUnique();
+        builder.Entity<VendorBill>().HasIndex(b => new { b.TenantId, b.VendorId, b.BillNumber }).IsUnique();
+        builder.Entity<TenantAttendanceSettings>().HasIndex(s => s.TenantId).IsUnique();
 
         // Login no longer asks which workspace you're in — it looks the account up by email
         // alone and reads the tenant off of it. That only works if email is unique across the

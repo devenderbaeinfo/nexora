@@ -7,6 +7,7 @@ using Erp.Domain.Identity;
 using Erp.Domain.Payroll;
 using Erp.Domain.People;
 using Erp.Domain.Timecard;
+using Erp.Infrastructure.Authorization;
 using Erp.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -25,7 +26,12 @@ namespace Erp.Api.Controllers;
 public class PayrollController : ControllerBase
 {
     private readonly ErpDbContext _db;
-    public PayrollController(ErpDbContext db) => _db = db;
+    private readonly DataScopeService _scope;
+    public PayrollController(ErpDbContext db, DataScopeService scope)
+    {
+        _db = db;
+        _scope = scope;
+    }
 
     private Guid? CurrentEmployeeId =>
         Guid.TryParse(User.FindFirstValue("employee_id"), out var id) ? id : null;
@@ -35,13 +41,61 @@ public class PayrollController : ControllerBase
     private bool CanManage => User.HasClaim("perm", Permission.Payroll.Manage);
     private bool CanApprove => User.HasClaim("perm", Permission.Payroll.Approve);
 
+    // null = unrestricted. Shared by every endpoint below that has already decided the caller
+    // qualifies for broad (non-self-only) access — this only ever narrows that access further,
+    // never grants it.
+    private async Task<HashSet<Guid>?> ResolveIdsFromScopeAsync(ScopeDecision decision)
+    {
+        switch (decision.Type)
+        {
+            case DataScopeType.All:
+                return null;
+
+            case DataScopeType.Specific:
+                return decision.SpecificIds.ToHashSet();
+
+            case DataScopeType.Department:
+            {
+                if (CurrentEmployeeId is not { } employeeId) return [];
+                var me = await _db.Employees.FirstOrDefaultAsync(e => e.Id == employeeId);
+                if (me is null) return [];
+                var ids = await _db.Employees.Where(e => e.DepartmentId == me.DepartmentId).Select(e => e.Id).ToListAsync();
+                return ids.ToHashSet();
+            }
+
+            default:
+                return [];
+        }
+    }
+
+    // IAM-11: null = unrestricted. Only ever narrows CanManage/CanApprove's already-broad
+    // access — Payroll.View alone still means "my own payslips only," exactly as before this
+    // existed, so a role with no scope row configured sees exactly what it always saw.
+    private async Task<HashSet<Guid>?> ResolveAllowedPayrollEmployeeIdsAsync()
+    {
+        if (!CanManage && !CanApprove)
+            return CurrentEmployeeId is { } selfId ? [selfId] : [];
+
+        return await ResolveIdsFromScopeAsync(await _scope.ResolveAsync(User, Permission.Payroll.View));
+    }
+
+    // Never hides a viewer's own numbers — only ever applied when looking at someone else's payslip.
+    private async Task<(FieldAccessLevel Gross, FieldAccessLevel Net)> PayslipFieldAccessAsync() => (
+        await _scope.FieldAccessAsync(User, "Payslip", "GrossEarnings"),
+        await _scope.FieldAccessAsync(User, "Payslip", "NetPay"));
+
     // ---------- Salary structures ----------
 
     [HttpGet("salary-structures/{employeeId:guid}")]
     [RequirePermission(Permission.Payroll.View)]
     public async Task<ActionResult<SalaryStructureDto?>> GetSalaryStructure(Guid employeeId)
     {
-        if (!CanManage && employeeId != CurrentEmployeeId) return Forbid();
+        if (employeeId != CurrentEmployeeId)
+        {
+            if (!CanManage) return Forbid();
+            var allowed = await ResolveIdsFromScopeAsync(await _scope.ResolveAsync(User, Permission.Payroll.View));
+            if (allowed is not null && !allowed.Contains(employeeId)) return Forbid();
+        }
 
         var structure = await _db.SalaryStructures
             .Where(s => s.EmployeeId == employeeId && s.IsActive)
@@ -133,12 +187,23 @@ public class PayrollController : ControllerBase
         var runExists = await _db.PayrollRuns.AnyAsync(r => r.Id == id);
         if (!runExists) return NotFound();
 
-        var payslips = await _db.Payslips.Where(p => p.PayrollRunId == id).ToListAsync();
+        var allowed = await ResolveAllowedPayrollEmployeeIdsAsync();
+        var fieldAccess = await PayslipFieldAccessAsync();
+
+        var payslipsQuery = _db.Payslips.Where(p => p.PayrollRunId == id);
+        if (allowed is not null) payslipsQuery = payslipsQuery.Where(p => allowed.Contains(p.EmployeeId));
+        var payslips = await payslipsQuery.ToListAsync();
         var employees = await _db.Employees.ToDictionaryAsync(e => e.Id, e => $"{e.FirstName} {e.LastName}");
 
-        return Ok(payslips.OrderBy(p => employees.TryGetValue(p.EmployeeId, out var n) ? n : "").Select(p => new PayslipListItemDto(
-            p.Id, p.EmployeeId, employees.TryGetValue(p.EmployeeId, out var name) ? name : "—",
-            p.GrossEarnings, p.LopDays, p.LopDeduction, p.OtherDeductions, p.NetPay)).ToList());
+        return Ok(payslips.OrderBy(p => employees.TryGetValue(p.EmployeeId, out var n) ? n : "").Select(p =>
+        {
+            var hide = p.EmployeeId != CurrentEmployeeId;
+            return new PayslipListItemDto(
+                p.Id, p.EmployeeId, employees.TryGetValue(p.EmployeeId, out var name) ? name : "—",
+                hide && fieldAccess.Gross == FieldAccessLevel.Hidden ? null : p.GrossEarnings,
+                p.LopDays, p.LopDeduction, p.OtherDeductions,
+                hide && fieldAccess.Net == FieldAccessLevel.Hidden ? null : p.NetPay);
+        }).ToList());
     }
 
     // Computes every active employee's payslip for the given month in one pass. Employees
@@ -309,7 +374,10 @@ public class PayrollController : ControllerBase
         var existing = await _db.Accounts.FirstOrDefaultAsync(a => a.Name == name && a.Type == type);
         if (existing is not null) return existing;
 
-        var account = new Account { Code = code, Name = name, Type = type };
+        var tenantId = Guid.Parse(User.FindFirstValue("tenant_id")!);
+        var baseCurrency = (await _db.Tenants.FirstOrDefaultAsync(t => t.Id == tenantId))?.BaseCurrencyCode ?? "INR";
+
+        var account = new Account { Code = code, Name = name, Type = type, Currency = baseCurrency };
         _db.Accounts.Add(account);
         await _db.SaveChangesAsync();
         return account;
@@ -348,7 +416,12 @@ public class PayrollController : ControllerBase
     [RequirePermission(Permission.Payroll.View)]
     public async Task<ActionResult<List<PayslipListItemDto>>> PayslipsFor(Guid employeeId)
     {
-        if (!CanManage && !CanApprove && employeeId != CurrentEmployeeId) return Forbid();
+        if (employeeId != CurrentEmployeeId)
+        {
+            if (!CanManage && !CanApprove) return Forbid();
+            var allowed = await ResolveAllowedPayrollEmployeeIdsAsync();
+            if (allowed is not null && !allowed.Contains(employeeId)) return Forbid();
+        }
         return await PayslipsForEmployee(employeeId);
     }
 
@@ -361,9 +434,16 @@ public class PayrollController : ControllerBase
         var employeeName = await _db.Employees.Where(e => e.Id == employeeId)
             .Select(e => e.FirstName + " " + e.LastName).FirstOrDefaultAsync() ?? "—";
 
+        var hide = employeeId != CurrentEmployeeId;
+        var fieldAccess = hide ? await PayslipFieldAccessAsync() : default;
+
         return Ok(payslips
             .OrderByDescending(p => runs.TryGetValue(p.PayrollRunId, out var r) ? r.PeriodYear * 100 + r.PeriodMonth : 0)
-            .Select(p => new PayslipListItemDto(p.Id, employeeId, employeeName, p.GrossEarnings, p.LopDays, p.LopDeduction, p.OtherDeductions, p.NetPay))
+            .Select(p => new PayslipListItemDto(
+                p.Id, employeeId, employeeName,
+                hide && fieldAccess.Gross == FieldAccessLevel.Hidden ? null : p.GrossEarnings,
+                p.LopDays, p.LopDeduction, p.OtherDeductions,
+                hide && fieldAccess.Net == FieldAccessLevel.Hidden ? null : p.NetPay))
             .ToList());
     }
 
@@ -373,17 +453,27 @@ public class PayrollController : ControllerBase
     {
         var payslip = await _db.Payslips.FirstOrDefaultAsync(p => p.Id == id);
         if (payslip is null) return NotFound();
-        if (!CanManage && !CanApprove && payslip.EmployeeId != CurrentEmployeeId) return Forbid();
+
+        var hide = payslip.EmployeeId != CurrentEmployeeId;
+        if (hide)
+        {
+            if (!CanManage && !CanApprove) return Forbid();
+            var allowed = await ResolveAllowedPayrollEmployeeIdsAsync();
+            if (allowed is not null && !allowed.Contains(payslip.EmployeeId)) return Forbid();
+        }
 
         var run = await _db.PayrollRuns.FirstOrDefaultAsync(r => r.Id == payslip.PayrollRunId);
         var employeeName = await _db.Employees.Where(e => e.Id == payslip.EmployeeId)
             .Select(e => e.FirstName + " " + e.LastName).FirstOrDefaultAsync() ?? "—";
         var lines = await _db.PayslipLines.Where(l => l.PayslipId == id).OrderBy(l => l.SortOrder).ToListAsync();
+        var fieldAccess = hide ? await PayslipFieldAccessAsync() : default;
 
         return Ok(new PayslipDetailDto(
             payslip.Id, payslip.PayrollRunId, run?.PeriodMonth ?? 0, run?.PeriodYear ?? 0, employeeName,
-            payslip.DaysInMonth, payslip.LopDays, payslip.GrossEarnings, payslip.LopDeduction,
-            payslip.OtherDeductions, payslip.NetPay,
+            payslip.DaysInMonth, payslip.LopDays,
+            hide && fieldAccess.Gross == FieldAccessLevel.Hidden ? null : payslip.GrossEarnings,
+            payslip.LopDeduction, payslip.OtherDeductions,
+            hide && fieldAccess.Net == FieldAccessLevel.Hidden ? null : payslip.NetPay,
             lines.Select(l => new PayslipLineDto(l.ComponentName, l.Type.ToString(), l.Amount)).ToList()));
     }
 

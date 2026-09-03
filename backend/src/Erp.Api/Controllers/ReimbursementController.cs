@@ -1,10 +1,12 @@
 using System.Security.Claims;
 using Erp.Api.Authorization;
 using Erp.Api.Contracts;
+using Erp.Domain.Accounting;
 using Erp.Domain.Audit;
 using Erp.Domain.Identity;
 using Erp.Domain.Reimbursement;
 using Erp.Domain.Workflow;
+using Erp.Infrastructure.Accounting;
 using Erp.Infrastructure.Persistence;
 using Erp.Infrastructure.Workflow;
 using Microsoft.AspNetCore.Authorization;
@@ -23,11 +25,13 @@ public class ReimbursementController : ControllerBase
 {
     private readonly ErpDbContext _db;
     private readonly IApprovalWorkflowService _workflow;
+    private readonly IAccountingPostingService _accounting;
 
-    public ReimbursementController(ErpDbContext db, IApprovalWorkflowService workflow)
+    public ReimbursementController(ErpDbContext db, IApprovalWorkflowService workflow, IAccountingPostingService accounting)
     {
         _db = db;
         _workflow = workflow;
+        _accounting = accounting;
     }
 
     private Guid? CurrentEmployeeId =>
@@ -90,7 +94,7 @@ public class ReimbursementController : ControllerBase
         return requests.Select(r => new ReimbursementDto(
             r.Id,
             employees.TryGetValue(r.EmployeeId, out var name) ? name : "—",
-            r.Amount, r.Category, r.Description, r.IncurredOn, r.Status.ToString())).ToList();
+            r.Amount, r.Category, r.Description, r.IncurredOn, r.Status.ToString(), r.JournalEntryId)).ToList();
     }
 
     [HttpPost]
@@ -179,7 +183,24 @@ public class ReimbursementController : ControllerBase
         reimbursement.Status = outcome.IsRejected ? ReimbursementStatus.Rejected : ReimbursementStatus.Approved;
         if (outcome.IsFullyApproved)
         {
-            reimbursement.PostedForPayment = true; // stands in for a real accounting entry until that module exists
+            reimbursement.PostedForPayment = true;
+
+            var employee = await _db.Employees.FirstOrDefaultAsync(e => e.Id == reimbursement.EmployeeId);
+            var employeeName = employee is null ? "—" : $"{employee.FirstName} {employee.LastName}";
+
+            // Matches the product deck's own example exactly: Debit the category's expense
+            // account, Credit Employee Payable — the claim is now owed, not yet paid out.
+            var expenseAccount = await _accounting.FindOrCreateAccountAsync($"{reimbursement.Category} Expense", AccountType.Expense);
+            var payableAccount = await _accounting.FindOrCreateAccountAsync("Employee Payable", AccountType.Liability);
+
+            var entry = await _accounting.PostAsync(
+                DateOnly.FromDateTime(DateTime.UtcNow),
+                $"Reimbursement approved — {employeeName} — {reimbursement.Category}",
+                CurrentUserId,
+                (expenseAccount.Id, reimbursement.Amount, 0),
+                (payableAccount.Id, 0, reimbursement.Amount));
+
+            reimbursement.JournalEntryId = entry.Id;
         }
 
         _db.AuditLogs.Add(new AuditLog

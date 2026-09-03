@@ -4,6 +4,7 @@ import { api } from "../lib/api";
 import ProjectPicker from "../components/ProjectPicker";
 import { pageStyles as s, tag } from "../styles/pageKit";
 import Spinner from "../components/Spinner";
+import { formatCurrency } from "../lib/currency";
 
 interface ProjectExpenseRow {
   id: string;
@@ -44,7 +45,7 @@ export default function ProjectCost() {
         <>
           <div style={{ ...s.statCard, maxWidth: 240, marginBottom: 20 }}>
             <div style={s.statLabel}>Approved cost</div>
-            <div style={s.statValue}>{total.toLocaleString(undefined, { style: "currency", currency: "USD" })}</div>
+            <div style={s.statValue}>{formatCurrency(total)}</div>
           </div>
 
           <div style={s.tableWrap}>
@@ -64,7 +65,7 @@ export default function ProjectCost() {
                   <tr key={e.id}>
                     <td style={s.td}>{e.employeeName}</td>
                     <td style={s.td}>{e.category}</td>
-                    <td style={s.td}>{e.amount.toLocaleString(undefined, { style: "currency", currency: "USD" })}</td>
+                    <td style={s.td}>{formatCurrency(e.amount)}</td>
                     <td style={s.td}>{e.incurredOn}</td>
                     <td style={s.td}><StatusTag status={e.status} /></td>
                   </tr>
