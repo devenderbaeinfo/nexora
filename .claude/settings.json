@@ -49,7 +49,9 @@
       "Bash(taskkill //PID 28072 //F)",
       "Bash(node \"C:/Users/Deven/AppData/Local/Temp/claude/c--Users-Deven-Desktop-erp-nexora/d9d0c8d7-aea5-43bf-9c1e-ddb1bf678e73/scratchpad/jobtitle-role-smoke.js\")",
       "Bash(node \"C:/Users/Deven/AppData/Local/Temp/claude/c--Users-Deven-Desktop-erp-nexora/d9d0c8d7-aea5-43bf-9c1e-ddb1bf678e73/scratchpad/auth-verify.js\")",
-      "Bash(ASPNETCORE_URLS=\"https://localhost:7799\" ASPNETCORE_ENVIRONMENT=\"Development\" dotnet run --no-launch-profile)"
+      "Bash(ASPNETCORE_URLS=\"https://localhost:7799\" ASPNETCORE_ENVIRONMENT=\"Development\" dotnet run --no-launch-profile)",
+      "Bash(taskkill //PID 31648 //F)",
+      "Bash(node \"C:/Users/Deven/AppData/Local/Temp/claude/c--Users-Deven-Desktop-erp-nexora/d9d0c8d7-aea5-43bf-9c1e-ddb1bf678e73/scratchpad/temp-password-smoke.js\")"
     ]
   }
 }

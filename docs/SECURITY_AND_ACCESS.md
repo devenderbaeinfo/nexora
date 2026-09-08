@@ -19,7 +19,13 @@
 - **Password reset**: Identity's default token providers, exposed via `UsersController`.
 - **Forced password change**: a dedicated middleware
   (`RequirePasswordCurrentMiddleware`) runs after authentication and before authorization,
-  blocking any authenticated request until a required password change is completed.
+  blocking any authenticated request until a required password change is completed. Triggered by
+  three things: (1) an Admin/HR-triggered password reset (`UsersController.ResetPassword`),
+  (2) **every new account created with an admin-chosen temporary password** — a new hire
+  (`UsersController.Create`), a new tenant's first Admin (`PlatformController.Create`), or a new
+  SuperAdmin (`PlatformController.CreateSuperAdmin`) — so a temp password only ever gets someone
+  as far as setting their own, and (3) 180 days since the password was last set
+  (`AuthController.Login`'s `passwordExpired` check), independent of either of the above.
 - **JWT issuance**: on successful login, a signed JWT is issued carrying the user's identity,
   `tenant_id`, `role_id` claim(s), and every granted permission as `"perm"` claims — the token
   *is* the caller's authorization state for that session; nothing about permissions is

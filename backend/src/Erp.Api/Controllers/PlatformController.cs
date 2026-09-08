@@ -97,6 +97,9 @@ public class PlatformController : ControllerBase
             UserName = request.AdminEmail.Trim(),
             Email = request.AdminEmail.Trim(),
             EmailConfirmed = true,
+            // A SuperAdmin-chosen temporary password — force the tenant's first Admin to set
+            // their own on first login, same as any other new account (UsersController.Create).
+            MustChangePassword = true,
         };
         var createResult = await _userManager.CreateAsync(adminUser, request.AdminPassword);
         if (!createResult.Succeeded)
@@ -154,7 +157,11 @@ public class PlatformController : ControllerBase
         if (exists) return Conflict("An account with this email already exists.");
 
         var platformTenant = await _db.Tenants.IgnoreQueryFilters().FirstAsync(t => t.Slug == "platform");
-        var newSuperAdmin = new AppUser { TenantId = platformTenant.Id, UserName = email, Email = email, EmailConfirmed = true };
+        var newSuperAdmin = new AppUser
+        {
+            TenantId = platformTenant.Id, UserName = email, Email = email, EmailConfirmed = true,
+            MustChangePassword = true,
+        };
         var result = await _userManager.CreateAsync(newSuperAdmin, request.Password);
         if (!result.Succeeded) return BadRequest(string.Join(" ", result.Errors.Select(e => e.Description)));
 

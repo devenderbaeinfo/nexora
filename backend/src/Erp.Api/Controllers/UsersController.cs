@@ -217,6 +217,11 @@ public class UsersController : ControllerBase
             EmailConfirmed = true,
             EmployeeId = employee.Id,
             CreatedByUserId = CurrentUserId,
+            // The password just typed into this form is a temporary one HR/Admin chose on the
+            // new hire's behalf, not something the hire picked themselves — same as an
+            // Admin-triggered reset (see ResetPassword below), this forces a real password of
+            // their own on first login rather than leaving them on one someone else knows.
+            MustChangePassword = true,
         };
         var createResult = await _userManager.CreateAsync(appUser, request.Password);
         if (!createResult.Succeeded)
