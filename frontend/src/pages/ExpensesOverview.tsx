@@ -63,11 +63,15 @@ export default function ExpensesOverview() {
   const isLoading = myReimbursements.isFetching || myProjectExpenses.isFetching || pendingReview.isFetching;
 
   return (
-    <div>
-      <header style={s.header}>
+    <div style={{ width: "100%", minWidth: 0 }}>
+      <header style={{ ...s.header, marginBottom: 24 }}>
         <div>
+          <div style={{ fontFamily: "var(--font-mono)", letterSpacing: ".08em", textTransform: "uppercase", fontSize: 10.5, color: "var(--muted)" }}>Finance</div>
           <h1 style={s.title}>Expenses</h1>
           <p style={s.subtitle}>Manage employee and project expenses.</p>
+        </div>
+        <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+          {can("expense.submit") && <button style={primaryAction} onClick={() => setReimbursementOpen(true)}>+ New Expense</button>}
         </div>
       </header>
 
@@ -88,7 +92,7 @@ export default function ExpensesOverview() {
         )}
         {(myReimbursements.isSuccess || myProjectExpenses.isSuccess) && (
           <div style={s.statCard}>
-            <div style={s.statLabel}>My approved reimbursements</div>
+            <div style={s.statLabel}>Approved reimbursements</div>
             <div style={s.statValue}>{currency(myApprovedTotal)}</div>
           </div>
         )}
@@ -96,8 +100,8 @@ export default function ExpensesOverview() {
 
       <section style={{ ...s.section, marginTop: 28 }}>
         <h2 style={s.sectionTitle}>Quick actions</h2>
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-          {can("expense.submit") && <button style={linkButton} onClick={() => setReimbursementOpen(true)}>+ New expense</button>}
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+          {can("expense.submit") && <button style={linkButton} onClick={() => setReimbursementOpen(true)}>+ New Expense</button>}
           {can("project.submit_expense") && <button style={linkButtonSecondary} onClick={() => setProjectExpenseOpen(true)}>Project expense</button>}
           {queues.length > 0 && <Link to="/expenses/approvals" style={linkButtonSecondary}>Review approvals</Link>}
         </div>
@@ -106,8 +110,8 @@ export default function ExpensesOverview() {
       <section style={{ ...s.section, marginTop: 28 }}>
         <h2 style={s.sectionTitle}>Expense management</h2>
         <div style={cardGrid}>
-          <ModuleCard to="/my-expenses" title="My Expenses" description="Everything you've submitted, any status." />
-          {queues.length > 0 && <ModuleCard to="/expenses/approvals" title="Approvals" description="Reimbursements and project expenses waiting on you." />}
+          <ModuleCard to="/my-expenses" title="My Expenses" description="Submitted expenses and their status." />
+          {queues.length > 0 && <ModuleCard to="/expenses/approvals" title="Reimbursements" description="Personal claims and approvals waiting on you." />}
           {can("expense.view") && <ModuleCard to="/reimbursement" title="Reimbursement" description="Personal reimbursement claims and approval history." />}
           {can("project.view") && <ModuleCard to="/projects/expenses" title="Project Expenses" description="Costs tagged to a specific project." />}
         </div>
@@ -133,13 +137,19 @@ function ModuleCard({ to, title, description }: { to: string; title: string; des
 }
 
 const cardGrid: React.CSSProperties = {
-  display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 14,
+  display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 16, width: "100%", minWidth: 0,
 };
 
 const moduleCard: React.CSSProperties = {
   textDecoration: "none", display: "block", background: "var(--surface)",
   border: "1px solid var(--border)", borderRadius: "var(--radius-lg)",
-  padding: 16, boxShadow: "var(--shadow)",
+  padding: 20, boxShadow: "var(--shadow)", minWidth: 0,
+};
+
+const primaryAction: React.CSSProperties = {
+  background: "var(--accent)", color: "var(--accent-ink)", border: "none",
+  fontWeight: 700, fontSize: 13, height: 40, padding: "0 16px", borderRadius: "var(--radius)",
+  cursor: "pointer", font: "inherit", whiteSpace: "nowrap",
 };
 
 const linkButton: React.CSSProperties = {

@@ -34,16 +34,22 @@ is an inline script a strict CSP would block) — see Security doc §7.
 
 ## 3. Application Shell & Navigation
 
-`components/AppShell.tsx` renders **role-driven navigation**, not one static sidebar with
-client-side hiding of irrelevant links. Distinct module trees exist per role context, e.g.
-`MANAGER_MODULES`, `FINANCE_MODULES`, `EMPLOYEE_MODULES`, `DEFAULT_MODULES` — each an array of
-`NavModule` objects (a top-level module with a `label`, a `to`/`landingTo` route, and a list of
-`sections` for nested links). A module with no direct route renders as an accordion `<button>`
-that expands to reveal its sections; a module with a direct route renders as a plain link.
+`components/AppShell.tsx` renders **one flat, unified nav tree** (`NAV_MODULES`) shared by every
+tenant role — a monolithic app gets one coherent IA (Overview / Approvals / People / Finance /
+Work / Payroll / Reports / Settings), not a hand-curated tree per role. Each `NavModule` is a
+top-level module with a `label`, a `to`/`landingTo` route, and a list of `sections` for nested
+links; a module with no direct route renders as an accordion `<button>` that expands to reveal
+its sections, a module with a direct route renders as a plain link.
 
-This means the nav a given user sees is assembled from **what their role can reach**, not from
-one shared tree with items conditionally hidden — adding a new role-specific landing page means
-adding an entry to that role's own module array.
+This means the nav a given user sees is assembled by **filtering one shared tree down to what
+their permissions allow** (`NavItem.show(can)`), not by picking a different tree per role —
+adding a new page means adding one entry to `NAV_MODULES` with the right permission gate, and it
+surfaces for whichever roles happen to hold that permission. This is a UX convenience only, same
+as every other client-side `can()` check in this codebase — the backend still enforces every
+permission via `[RequirePermission(...)]` regardless of what the sidebar shows (see Security
+doc §6/§7). A previous revision of this app used four separate role-specific trees
+(`MANAGER_MODULES`/`FINANCE_MODULES`/`EMPLOYEE_MODULES`/`DEFAULT_MODULES`); that was replaced by
+the single `NAV_MODULES` tree once the product direction settled on one flat IA everyone shares.
 
 ## 4. Routing Table
 

@@ -86,29 +86,46 @@ export const LayersIcon = (p: IconProps) => (
 export const CircleIcon = (p: IconProps) => (
   <Svg {...p}><circle cx="12" cy="12" r="8" /></Svg>
 );
+export const GearIcon = (p: IconProps) => (
+  <Svg {...p}><circle cx="12" cy="12" r="3.2" /><path d="M12 3.5v2.4M12 18.1v2.4M3.5 12h2.4M18.1 12h2.4M6.1 6.1l1.7 1.7M16.2 16.2l1.7 1.7M17.9 6.1l-1.7 1.7M7.8 16.2l-1.7 1.7" /></Svg>
+);
 
+// Ordered by specificity, not alphabetically — the first regex that matches wins, so a
+// narrow rule (e.g. "settlement") must sit above a broad one (e.g. bare "work") that would
+// otherwise swallow it. Covers both the sidebar's NAV_MODULES labels (top-level module names
+// like "Overview"/"Finance"/"Work"/"Settings" as well as every nested item label) and the
+// Dashboard page's KPI/quick-action labels — both call iconForLabel with real, current label
+// strings, not a fixed enum, so this list has to be kept in sync by hand when a label changes.
 const RULES: [RegExp, (p: IconProps) => ReactElement][] = [
-  [/dashboard/i, GridIcon],
-  [/my team|^team$|assign employee/i, UsersIcon],
+  [/dashboard|^overview$/i, GridIcon],
+  [/my team|^team$|team size|assign employee/i, UsersIcon],
+  [/employee/i, UsersIcon],
   [/my profile|^people$/i, UserIcon],
   [/onboarding/i, UserPlusIcon],
-  [/attendance|my time/i, ClockIcon],
+  [/attendance|my time|time card/i, ClockIcon],
   [/leave/i, CalendarIcon],
+  [/settlement/i, BriefcaseIcon],
   [/all projects|project team|^projects$/i, FolderIcon],
   [/^create|new /i, PlusCircleIcon],
   [/task/i, CheckSquareIcon],
   [/progress|profitability/i, TrendingUpIcon],
   [/budget|my expenses|team expenses|payroll|payslip/i, WalletIcon],
   [/project expense|reimbursement|expense/i, CreditCardIcon],
-  [/approv|verification/i, ShieldCheckIcon],
+  [/approv|verification|roles & permissions/i, ShieldCheckIcon],
   [/report|p&l|balance sheet|cash flow/i, BarChartIcon],
   [/chart of accounts|journal|ledger|trial balance/i, BookIcon],
   [/bank/i, LandmarkIcon],
+  [/audit log/i, FileTextIcon],
   [/documents/i, FileTextIcon],
   [/announcement/i, MegaphoneIcon],
-  [/settlement/i, BriefcaseIcon],
+  [/^work$/i, BriefcaseIcon],
   [/job titles/i, TagIcon],
-  [/accounting|payment/i, LayersIcon],
+  [/accounting|payment|^finance$/i, LayersIcon],
+  [/^settings$/i, GearIcon],
+  // Broad fallback for any other project-flavored label (e.g. "Projects you manage",
+  // "Project Planning", "My Projects", "Project Finance") — sits after every more specific
+  // project rule above so those still win first.
+  [/project/i, FolderIcon],
 ];
 
 export function iconForLabel(label: string, size = 17): ReactElement {

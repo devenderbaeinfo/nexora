@@ -1,0 +1,185 @@
+/*
+  Scoped atmosphere + glassmorphism system for the Dashboard/home page ONLY. Every other
+  page in the app keeps the flat, dense "operational command center" look from tokens.css —
+  this file is deliberately not imported anywhere else. Decorative-only tokens (blooms,
+  ribbons, glass) live here rather than in tokens.css for exactly that reason: nothing here
+  should leak into a data table or a form.
+
+  All *functional* colors (text, brand navy/teal/gold/coral, borders used for real
+  hierarchy) still come from the global tokens in tokens.css — this file only adds the
+  atmosphere and the glass surface treatment on top.
+*/
+
+.dashboard-glass {
+  position: relative;
+  isolation: isolate; /* keeps the atmosphere layer's stacking contained to this page */
+
+  --bloom-mint: #CFEFEA;
+  --bloom-blue: #E3EEFC;
+  --bloom-teal-haze: #D9F2EE;
+  --bloom-blush: #FBE7EC;
+  --bloom-lavender: #EAE6FA;
+  --bloom-peach: #FBE9DA;
+
+  --glass-bg: rgba(255, 255, 255, 0.72);
+  --glass-bg-strong: rgba(255, 255, 255, 0.85);
+  --glass-border: rgba(255, 255, 255, 0.65);
+  --glass-shadow: 0 8px 32px rgba(19, 43, 70, 0.08);
+  --glass-blur: 20px;
+
+  --ribbon-teal: rgba(22, 184, 166, 0.32);
+  --ribbon-mint: rgba(150, 220, 205, 0.28);
+  --ribbon-blue: rgba(120, 170, 230, 0.26);
+  --ribbon-lavender: rgba(190, 175, 235, 0.26);
+  --orb-fill: rgba(255, 255, 255, 0.55);
+  --orb-edge: rgba(22, 184, 166, 0.22);
+  --orb-highlight: rgba(255, 255, 255, 0.85);
+  --arch-fill: rgba(255, 255, 255, 0.4);
+  --node-color: rgba(22, 184, 166, 0.45);
+  --network-line: rgba(70, 120, 180, 0.16);
+}
+
+:root[data-theme="dark"] .dashboard-glass,
+:root:not([data-theme="light"]) .dashboard-glass {
+  --bloom-mint: #16302c;
+  --bloom-blue: #16222e;
+  --bloom-teal-haze: #14302b;
+  --bloom-blush: #2a1f26;
+  --bloom-lavender: #221f30;
+  --bloom-peach: #2e2620;
+
+  --glass-bg: rgba(23, 34, 45, 0.62);
+  --glass-bg-strong: rgba(23, 34, 45, 0.78);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-shadow: 0 12px 36px rgba(0, 0, 0, 0.45);
+
+  --ribbon-teal: rgba(45, 212, 192, 0.16);
+  --ribbon-mint: rgba(45, 180, 160, 0.13);
+  --ribbon-blue: rgba(91, 155, 224, 0.15);
+  --ribbon-lavender: rgba(160, 140, 220, 0.13);
+  --orb-fill: rgba(255, 255, 255, 0.06);
+  --orb-edge: rgba(45, 212, 192, 0.16);
+  --orb-highlight: rgba(255, 255, 255, 0.14);
+  --arch-fill: rgba(255, 255, 255, 0.04);
+  --node-color: rgba(45, 212, 192, 0.35);
+  --network-line: rgba(120, 160, 210, 0.14);
+}
+
+/* The atmosphere is pure CSS gradients (no image assets) positioned at the five corners the
+   brief calls out, fading out well before the center — content always stays fully legible. */
+.dashboard-atmosphere {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+  border-radius: inherit;
+  background:
+    radial-gradient(480px 380px at 4% 4%, var(--bloom-mint) 0%, transparent 68%),
+    radial-gradient(560px 420px at 48% -4%, var(--bloom-blue) 0%, transparent 70%),
+    radial-gradient(460px 380px at 96% 6%, var(--bloom-teal-haze) 0%, transparent 68%);
+  opacity: 0.65;
+}
+
+.dashboard-atmosphere svg {
+  position: absolute;
+  overflow: visible;
+}
+
+.dashboard-atmosphere .drift {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .dashboard-atmosphere .drift-a { animation: dashboard-drift-a 46s ease-in-out infinite alternate; }
+  .dashboard-atmosphere .drift-b { animation: dashboard-drift-b 52s ease-in-out infinite alternate; }
+}
+@keyframes dashboard-drift-a { from { transform: translate(0, 0); } to { transform: translate(10px, -8px); } }
+@keyframes dashboard-drift-b { from { transform: translate(0, 0); } to { transform: translate(-8px, 10px); } }
+
+.dashboard-content {
+  position: relative;
+  z-index: 1;
+}
+
+/* Frosted glass surface — applied to KPI cards, chart panels, the action-center cards and
+   the two brand cards. backdrop-filter is the whole point of "glass"; text stays at full
+   ink contrast regardless (only the surface behind it is translucent, never the type). */
+.glass-panel {
+  position: relative;
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--glass-shadow);
+}
+
+.kpi-glass {
+  position: relative;
+  overflow: hidden;
+  padding: 20px;
+  display: block;
+  text-decoration: none;
+}
+.kpi-glass::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  opacity: 0.6;
+  pointer-events: none;
+}
+.kpi-glass.tint-mint::before { background: radial-gradient(140px 100px at 12% -10%, var(--bloom-mint), transparent 72%); }
+.kpi-glass.tint-peach::before { background: radial-gradient(140px 100px at 12% -10%, var(--bloom-peach), transparent 72%); }
+.kpi-glass.tint-blush::before { background: radial-gradient(140px 100px at 12% -10%, var(--bloom-blush), transparent 72%); }
+.kpi-glass.tint-lavender::before { background: radial-gradient(140px 100px at 12% -10%, var(--bloom-lavender), transparent 72%); }
+
+.kpi-glass-inner { position: relative; z-index: 1; }
+.kpi-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; border-radius: 10px;
+  background: var(--glass-bg-strong); color: var(--accent);
+  margin-bottom: 12px;
+}
+
+/* Brand cards: the "Smarter Operations" / "Operational Clarity" replacements for whatever
+   botanical illustration the reference used. Text sits above the art via z-index; the art
+   itself is pointer-events:none so it never intercepts a click. */
+.brand-card {
+  position: relative;
+  overflow: hidden;
+  min-height: 190px;
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+.brand-card .brand-visual {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+.brand-card .brand-content {
+  position: relative;
+  z-index: 1;
+  max-width: 60%;
+}
+.brand-card h3 {
+  font-family: var(--font-display);
+  font-size: 21px;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--ink);
+  margin: 0 0 6px;
+}
+.brand-card p {
+  font-size: 13px;
+  color: var(--muted);
+  margin: 0;
+}
+
+@media (max-width: 900px) {
+  .brand-card .brand-content { max-width: 100%; }
+}

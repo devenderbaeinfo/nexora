@@ -71,6 +71,7 @@ public class ApprovalWorkflowService : IApprovalWorkflowService
         if (isLastStage)
         {
             instance.Status = WorkflowStatus.Approved;
+            instance.AddDomainEvent(new WorkflowApprovalCompletedEvent(instance.EntityType, instance.EntityId, instance.Id));
         }
         await _db.SaveChangesAsync();
 

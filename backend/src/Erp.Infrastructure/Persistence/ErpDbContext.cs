@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Erp.Domain.Accounting;
 using Erp.Domain.Announcements;
 using Erp.Domain.Audit;
@@ -12,6 +13,7 @@ using Erp.Domain.Project;
 using Erp.Domain.Reimbursement;
 using Erp.Domain.Timecard;
 using Erp.Domain.Workflow;
+using Erp.Infrastructure.Events;
 using Erp.Infrastructure.Tenancy;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
@@ -75,6 +77,8 @@ public class ErpDbContext : IdentityDbContext<AppUser, AppRole, Guid>
 
     public DbSet<ReimbursementRequest> ReimbursementRequests => Set<ReimbursementRequest>();
 
+    public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
+
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<ProjectEntity> Projects => Set<ProjectEntity>();
     public DbSet<ProjectExpense> ProjectExpenses => Set<ProjectExpense>();
@@ -97,6 +101,10 @@ public class ErpDbContext : IdentityDbContext<AppUser, AppRole, Guid>
                 .GetMethod(nameof(ApplyTenantFilter), System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
                 .MakeGenericMethod(entityType.ClrType);
             method.Invoke(this, new object[] { builder });
+
+            // Transient in-memory queue, not a column — see TenantEntity.DomainEvents. Every
+            // TenantEntity subtype gets this ignored the same way it gets the filter above.
+            builder.Entity(entityType.ClrType).Ignore(nameof(TenantEntity.DomainEvents));
         }
 
         builder.Entity<Employee>().HasIndex(e => new { e.TenantId, e.WorkEmail }).IsUnique();
@@ -135,12 +143,14 @@ public class ErpDbContext : IdentityDbContext<AppUser, AppRole, Guid>
     public override int SaveChanges(bool acceptAllChangesOnSuccess)
     {
         StampTenantAndTimestamps();
+        EnqueueOutboxMessages();
         return base.SaveChanges(acceptAllChangesOnSuccess);
     }
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         StampTenantAndTimestamps();
+        EnqueueOutboxMessages();
         return base.SaveChangesAsync(cancellationToken);
     }
 
@@ -192,6 +202,32 @@ public class ErpDbContext : IdentityDbContext<AppUser, AppRole, Guid>
             {
                 entry.Entity.TenantId = _tenant.TenantId;
             }
+        }
+    }
+
+    // Runs after StampTenantAndTimestamps (so entry.Entity.TenantId is already correct) and
+    // before base.SaveChanges (so the resulting Outbox rows are part of the exact same
+    // transaction as whatever business data the event describes) — that ordering is the
+    // entire point of the Outbox pattern: the business write and the event write either both
+    // commit or neither does, so a crash between them can't lose the event.
+    private void EnqueueOutboxMessages()
+    {
+        foreach (var entry in ChangeTracker.Entries<TenantEntity>())
+        {
+            if (entry.Entity.DomainEvents.Count == 0) continue;
+
+            foreach (var domainEvent in entry.Entity.DomainEvents)
+            {
+                Set<OutboxMessage>().Add(new OutboxMessage
+                {
+                    TenantId = entry.Entity.TenantId,
+                    AggregateId = entry.Entity.Id,
+                    EventType = domainEvent.GetType().AssemblyQualifiedName!,
+                    PayloadJson = JsonSerializer.Serialize(domainEvent, domainEvent.GetType()),
+                    OccurredAtUtc = domainEvent.OccurredAtUtc,
+                });
+            }
+            entry.Entity.ClearDomainEvents();
         }
     }
 }

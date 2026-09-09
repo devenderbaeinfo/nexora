@@ -211,11 +211,11 @@ const styles: Record<string, React.CSSProperties> = {
   toolbar: { display: "flex", justifyContent: "space-between", gap: 12, marginBottom: 12, flexWrap: "wrap" },
   search: {
     background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius)",
-    padding: "9px 12px", fontSize: 13, color: "var(--ink)", minWidth: 240,
+    height: 40, padding: "0 12px", fontSize: 13, color: "var(--ink)", minWidth: 240,
   },
   exportButton: {
     background: "var(--surface-2)", color: "var(--ink)", border: "1px solid var(--border)",
-    fontSize: 12.5, fontWeight: 600, padding: "9px 14px", borderRadius: "var(--radius)", cursor: "pointer",
+    fontSize: 12.5, fontWeight: 600, height: 32, padding: "0 14px", borderRadius: "var(--radius)", cursor: "pointer",
   },
   bulkBar: {
     display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12,
@@ -227,14 +227,16 @@ const styles: Record<string, React.CSSProperties> = {
     background: "var(--surface)", border: "1px solid var(--border)",
     borderRadius: "var(--radius-lg)", overflow: "auto", boxShadow: "var(--shadow)",
   },
-  table: { width: "100%", borderCollapse: "collapse", fontSize: 13.5 },
+  table: { width: "100%", borderCollapse: "collapse", fontSize: 13 },
   th: {
-    textAlign: "left", fontFamily: "var(--font-mono)", fontSize: 10.5,
-    letterSpacing: ".06em", textTransform: "uppercase", color: "var(--muted)",
-    padding: "12px 16px", borderBottom: "1px solid var(--border-strong)", background: "var(--surface-2)",
+    textAlign: "left", fontFamily: "var(--font-mono)", fontSize: 10.5, fontWeight: 700,
+    letterSpacing: ".08em", textTransform: "uppercase", color: "var(--muted)",
+    padding: "10px 16px", borderBottom: "1px solid var(--border-strong)", background: "var(--surface-2)",
     userSelect: "none",
   },
   sortArrow: { color: "var(--accent)" },
+  // ~13px vertical padding lands each row at 44-48px total — dense enough to scan a long
+  // list, generous enough that status chips don't feel cramped.
   td: { padding: "13px 16px", borderBottom: "1px solid var(--border)" },
   pagination: {
     display: "flex", justifyContent: "space-between", alignItems: "center",
@@ -243,7 +245,7 @@ const styles: Record<string, React.CSSProperties> = {
   pageInfo: { color: "var(--muted)" },
   pageButton: {
     background: "var(--surface-2)", color: "var(--ink)", border: "1px solid var(--border)",
-    fontSize: 12.5, fontWeight: 600, padding: "6px 12px", borderRadius: "var(--radius)", cursor: "pointer",
+    fontSize: 12.5, fontWeight: 600, height: 32, padding: "0 12px", borderRadius: "var(--radius)", cursor: "pointer",
   },
   pageButtonDisabled: { opacity: 0.5, cursor: "not-allowed" },
 };

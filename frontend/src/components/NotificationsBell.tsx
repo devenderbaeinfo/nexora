@@ -23,7 +23,7 @@ function saveSeen(set: Set<string>) {
   }
 }
 
-function timeAgo(iso: string): string {
+export function timeAgo(iso: string): string {
   const ms = Date.now() - new Date(iso).getTime();
   const mins = Math.round(ms / 60000);
   if (mins < 1) return "just now";

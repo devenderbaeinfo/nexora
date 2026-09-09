@@ -46,7 +46,7 @@ export default function ActionCenter({ groups }: { groups: ActionGroup[] }) {
       <h2 style={styles.title}>Requires your attention</h2>
       <div style={styles.grid}>
         {groups.map((g) => (
-          <div key={g.kind} style={styles.card}>
+          <div key={g.kind} className="glass-panel" style={styles.card}>
             <div>
               <div style={styles.count}>{g.count}</div>
               <div style={styles.label}>{g.kind} {g.count === 1 ? "item" : "items"}</div>
@@ -62,9 +62,11 @@ export default function ActionCenter({ groups }: { groups: ActionGroup[] }) {
 const styles: Record<string, React.CSSProperties> = {
   title: { fontSize: 15, fontWeight: 700, marginBottom: 12, color: "var(--ink)" },
   grid: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 14 },
+  // background/border/boxShadow are intentionally absent here — the .glass-panel class
+  // applied alongside this style provides them. This component is only ever rendered from
+  // Dashboard.tsx, which is the one page using that glass treatment.
   card: {
-    background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius-lg)",
-    padding: 16, boxShadow: "var(--shadow)", display: "flex",
+    padding: 16, display: "flex",
     alignItems: "center", justifyContent: "space-between", gap: 12,
   },
   count: { fontFamily: "var(--font-display)", fontSize: 26, fontWeight: 600, color: "var(--accent)" },

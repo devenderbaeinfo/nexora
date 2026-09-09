@@ -192,6 +192,7 @@ public class EmployeesController : ControllerBase
         };
 
         _db.Employees.Add(employee);
+        employee.AddDomainEvent(new EmployeeCreatedEvent(employee.Id, $"{employee.FirstName} {employee.LastName}"));
         _db.EmployeeAssignmentHistories.Add(new EmployeeAssignmentHistory
         {
             EmployeeId = employee.Id,

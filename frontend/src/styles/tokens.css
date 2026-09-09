@@ -2,130 +2,189 @@
 
 /*
   NEXORA design system — one token set, two premium themes.
-  Nexora Navy carries headings, navigation state, and primary actions (the purple/teal
-  system this replaced used purple in that role). Aurora Gold is a deliberately minor
-  secondary accent — featured/premium highlights, never a primary action. Signal Teal
-  marks approvals and success states. Alert Coral replaces a generic red for danger/alerts.
+  Nexora Navy is the structural/primary identity (text emphasis, active nav, primary CTAs).
+  Teal is the secondary identity color AND the default positive/approved state — used more
+  often than plain "success" green, which is reserved for the rare case that needs a visibly
+  distinct positive signal from teal. Gold stays sparing (warnings, financial highlights,
+  premium). Coral is the only red in the system, used for errors/rejection only.
+
+  Every color name below has two spellings: the original token this codebase already uses
+  everywhere (--ink, --accent, --good, --warn, --radius, --radius-lg, --shadow …) and a
+  semantic alias (--text, --primary, --success, --warning, --radius-sm/md/lg, --shadow-sm/md)
+  that resolves to the exact same value. Existing components keep working unchanged; new
+  code can reach for either name.
 */
 
 :root {
-  --bg: #F6F7FA;
+  --bg: #F3F8F8;               /* very subtle cool teal tint — must read as near-white, never green */
   --surface: #FFFFFF;
-  --surface-2: #E9EDF4;       /* soft navy — table headers, active nav bg */
-  --surface-sunken: #F1F3F8;  /* ultra-soft navy — sidebar bg, ghost hover */
-  --input-bg: #FFFFFF;        /* inputs stay white in light mode */
-  --ink: #141B2E;
-  --muted: #5B6478;
-  --faint: #8890A0;
-  --border: #DDE2EA;
-  --border-strong: #C7CEDC;
+  --surface-2: #EEF5F5;        /* table headers */
+  --surface-sunken: #F7FAFA;   /* secondary surface */
+  --input-bg: #FFFFFF;
+  --ink: #132B46;
+  --muted: #607086;
+  --faint: #8793A3;
+  --border: #DCE7E7;
+  --border-strong: #C5D8D8;
 
-  --accent: #1F3A63;
-  --accent-strong: #16294A;
-  --accent-light: #4A6FA5;
-  --accent-soft: #E7ECF4;
+  --accent: #163A63;                 /* Nexora Navy */
+  --accent-strong: #0E2948;
+  --accent-light: #1769C2;           /* Royal Blue — brighter, used for CTAs/links/focus */
+  --accent-soft: #EAF3FB;            /* Blue Light — exact spec value in light mode */
   --accent-ink: #FFFFFF;
 
-  --gold: #C6941C;
-  --gold-soft: #FBF1DC;
+  --gold: #D9A52E;
+  --gold-soft: color-mix(in srgb, var(--gold) 16%, var(--surface));
 
-  --teal: #0FB8A6;
-  --teal-soft: #E1F7F4;
+  --teal: #16B8A6;
+  --teal-strong: #0D9488;
+  --teal-soft: color-mix(in srgb, var(--teal) 15%, var(--surface));
 
-  --good: #0FB8A6;
-  --good-soft: #E1F7F4;
-  --warn: #D3900F;
-  --warn-soft: #FBF0DC;
-  --danger: #E15142;
-  --danger-soft: #FBE7E3;
-  --info: #3B72B7;
+  --good: var(--teal);                /* approved/paid defaults to teal, not green */
+  --good-soft: var(--teal-soft);
+  --success: #22A06B;                 /* distinct green — only for the rare case teal isn't enough */
+  --success-soft: color-mix(in srgb, var(--success) 15%, var(--surface));
 
-  --shadow: 0 1px 2px rgba(20,27,46,.05), 0 8px 22px rgba(20,27,46,.06);
+  --warn: var(--gold);
+  --warn-soft: var(--gold-soft);
+  --danger: #D95B50;                  /* Coral — errors/rejection only */
+  --danger-soft: color-mix(in srgb, var(--danger) 14%, var(--surface));
+  --info: #1769C2;                    /* Royal Blue */
+  --info-soft: color-mix(in srgb, var(--info) 14%, var(--surface));
+
+  --shadow: 0 1px 2px rgb(19 43 70 / 0.05), 0 6px 18px rgb(19 43 70 / 0.05);
+  --shadow-hover: 0 10px 26px rgb(19 43 70 / 0.10);
   --glow-accent: none;
-  /* Sky-blue hover glow in light mode; redefined to a white glow for dark (below). */
-  --hover-glow: 0 0 0 1px rgba(56,189,248,.45), 0 6px 20px rgba(56,189,248,.35);
+  --hover-glow: 0 0 0 1px rgba(56,189,248,.35), 0 6px 20px rgba(56,189,248,.28);
+
+  /* Sidebar background follows the theme (white in light, deep slate in dark) — its own
+     token because it's distinct from card surface in dark mode, even though the two
+     coincide in light mode. */
+  --sidebar-bg: #FFFFFF;
+
   --radius: 10px;
-  --radius-lg: 14px;
+  --radius-lg: 16px;
+  --radius-md: 12px;
+  --radius-sm: var(--radius);
+
+  /* A deliberate near-4px rhythm rather than a rigid 8pt grid. */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 28px;
+  --space-8: 32px;
+  --space-9: 40px;
 
   --font-display: "Playfair Display", Georgia, serif;
   --font-body: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "Inter", ui-sans-serif, system-ui, sans-serif; /* labels/tags stay Inter, styled via letter-spacing */
+
+  /* Semantic aliases — same values as above, spelled the way a fresh component would expect. */
+  --text: var(--ink);
+  --text-muted: var(--muted);
+  --text-faint: var(--faint);
+  --primary: var(--accent);
+  --primary-strong: var(--accent-strong);
+  --primary-soft: var(--accent-soft);
+  --warning: var(--warn);
+  --warning-soft: var(--warn-soft);
+  --shadow-sm: var(--shadow);
+  --shadow-md: var(--shadow-hover);
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #0A0F1C;
-    --surface: #121826;
-    --surface-2: #1A2233;       /* elevated card / table header */
-    --surface-sunken: #0E1420;  /* sidebar bg */
-    --input-bg: #0E1420;        /* inputs share the sunken tone in dark mode */
-    --ink: #EDF1F7;
-    --muted: #A3ACC2;
-    --faint: #6E7891;
-    --border: #2A3348;
-    --border-strong: #3A4560;
+    --bg: #111820;              /* subtle slate atmosphere — never pure black */
+    --surface: #17222D;
+    --surface-2: #202F3C;
+    --surface-sunken: #1C2935;
+    --input-bg: #1C2935;
+    --ink: #F1F5F7;
+    --muted: #A9B7C4;
+    --faint: #748392;
+    --border: #2D3C49;
+    --border-strong: #3E4F5C;
 
-    --accent: #6E9BFF;
-    --accent-strong: #5583EE;
-    --accent-light: #A7C1FF;
-    --accent-soft: #1C2A47;
-    --accent-ink: #0A0F1C;
+    --accent: #5B9BE0;
+    --accent-strong: #7BB2EA;
+    --accent-light: #A9CDF2;
+    --accent-soft: color-mix(in srgb, var(--accent) 16%, var(--surface));
+    --accent-ink: #0B111B;
 
-    --gold: #F0C25B;
-    --gold-soft: rgba(240,194,91,.14);
+    --gold: #F0C15A;
+    --gold-soft: color-mix(in srgb, var(--gold) 16%, var(--surface));
 
-    --teal: #2FE0C8;
-    --teal-soft: rgba(47,224,200,.14);
+    --teal: #2DD4C0;
+    --teal-strong: #35C8B5;
+    --teal-soft: color-mix(in srgb, var(--teal) 16%, var(--surface));
 
-    --good: #2FE0C8;
-    --good-soft: rgba(47,224,200,.14);
-    --warn: #F5B94D;
-    --warn-soft: rgba(245,185,77,.14);
-    --danger: #FF8271;
-    --danger-soft: rgba(255,130,113,.14);
-    --info: #6E9BFF;
+    --good: var(--teal);
+    --good-soft: var(--teal-soft);
+    --success: #3ECF8E;
+    --success-soft: color-mix(in srgb, var(--success) 16%, var(--surface));
 
-    --shadow: 0 1px 2px rgba(0,0,0,.35), 0 10px 26px rgba(0,0,0,.4);
-    --glow-accent: 0 0 0 1px rgba(110,155,255,.25), 0 0 24px rgba(110,155,255,.12);
-    --hover-glow: 0 0 0 1px rgba(255,255,255,.35), 0 6px 22px rgba(255,255,255,.18);
+    --warn: var(--gold);
+    --warn-soft: var(--gold-soft);
+    --danger: #FF8F82;
+    --danger-soft: color-mix(in srgb, var(--danger) 15%, var(--surface));
+    --info: #7BB2EA;
+    --info-soft: color-mix(in srgb, var(--info) 15%, var(--surface));
+
+    --shadow: 0 1px 2px rgb(0 0 0 / 0.35), 0 10px 26px rgb(0 0 0 / 0.4);
+    --shadow-hover: 0 14px 34px rgb(0 0 0 / 0.5), 0 0 0 1px rgb(255 255 255 / 0.05);
+    --glow-accent: 0 0 0 1px rgba(91,155,224,.25), 0 0 24px rgba(91,155,224,.12);
+    --hover-glow: 0 0 0 1px rgba(255,255,255,.30), 0 6px 22px rgba(255,255,255,.15);
+
+    --sidebar-bg: #0D151D;
   }
 }
 
 :root[data-theme="dark"] {
-  --bg: #0A0F1C;
-  --surface: #121826;
-  --surface-2: #1A2233;
-  --surface-sunken: #0E1420;
-  --input-bg: #0E1420;
-  --ink: #EDF1F7;
-  --muted: #A3ACC2;
-  --faint: #6E7891;
-  --border: #2A3348;
-  --border-strong: #3A4560;
+  --bg: #111820;
+  --surface: #17222D;
+  --surface-2: #202F3C;
+  --surface-sunken: #1C2935;
+  --input-bg: #1C2935;
+  --ink: #F1F5F7;
+  --muted: #A9B7C4;
+  --faint: #748392;
+  --border: #2D3C49;
+  --border-strong: #3E4F5C;
 
-  --accent: #6E9BFF;
-  --accent-strong: #5583EE;
-  --accent-light: #A7C1FF;
-  --accent-soft: #1C2A47;
-  --accent-ink: #0A0F1C;
+  --accent: #5B9BE0;
+  --accent-strong: #7BB2EA;
+  --accent-light: #A9CDF2;
+  --accent-soft: color-mix(in srgb, var(--accent) 16%, var(--surface));
+  --accent-ink: #0B111B;
 
-  --gold: #F0C25B;
-  --gold-soft: rgba(240,194,91,.14);
+  --gold: #F0C15A;
+  --gold-soft: color-mix(in srgb, var(--gold) 16%, var(--surface));
 
-  --teal: #2FE0C8;
-  --teal-soft: rgba(47,224,200,.14);
+  --teal: #2DD4C0;
+  --teal-strong: #35C8B5;
+  --teal-soft: color-mix(in srgb, var(--teal) 16%, var(--surface));
 
-  --good: #2FE0C8;
-  --good-soft: rgba(47,224,200,.14);
-  --warn: #F5B94D;
-  --warn-soft: rgba(245,185,77,.14);
-  --danger: #FF8271;
-  --danger-soft: rgba(255,130,113,.14);
-  --info: #6E9BFF;
+  --good: var(--teal);
+  --good-soft: var(--teal-soft);
+  --success: #3ECF8E;
+  --success-soft: color-mix(in srgb, var(--success) 16%, var(--surface));
 
-  --shadow: 0 1px 2px rgba(0,0,0,.35), 0 10px 26px rgba(0,0,0,.4);
-  --glow-accent: 0 0 0 1px rgba(110,155,255,.25), 0 0 24px rgba(110,155,255,.12);
-  --hover-glow: 0 0 0 1px rgba(255,255,255,.35), 0 6px 22px rgba(255,255,255,.18);
+  --warn: var(--gold);
+  --warn-soft: var(--gold-soft);
+  --danger: #FF8F82;
+  --danger-soft: color-mix(in srgb, var(--danger) 15%, var(--surface));
+  --info: #7BB2EA;
+  --info-soft: color-mix(in srgb, var(--info) 15%, var(--surface));
+
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.35), 0 10px 26px rgb(0 0 0 / 0.4);
+  --shadow-hover: 0 14px 34px rgb(0 0 0 / 0.5), 0 0 0 1px rgb(255 255 255 / 0.05);
+  --glow-accent: 0 0 0 1px rgba(91,155,224,.25), 0 0 24px rgba(91,155,224,.12);
+  --hover-glow: 0 0 0 1px rgba(255,255,255,.30), 0 6px 22px rgba(255,255,255,.15);
+
+  --sidebar-bg: #0D151D;
 }
 
 * { box-sizing: border-box; }
@@ -149,53 +208,54 @@ button, a, input, select, textarea, .nav-link, .card-surface {
   transition: background-color .2s ease, border-color .2s ease, color .2s ease, transform .2s ease, box-shadow .2s ease;
 }
 
-/* Navy focus ring + soft focus background on every form control, overriding each
-   component's inline resting background — the one place !important is warranted since
-   inline styles otherwise always win over a stylesheet rule. */
+/* A faint architectural grid across the app canvas (not the login screen), pitched to the
+   --space-8 (32px) unit. Opacity is baked into the color via color-mix so one rule covers
+   both themes without a separate dark-mode override. */
+.app-canvas {
+  width: 100vw;
+  min-height: 100vh;
+  background: var(--bg);
+  background-image: radial-gradient(circle at top left, color-mix(in srgb, var(--teal) 10%, transparent), transparent 30%);
+}
+
+/* Focus ring + soft focus background on every form control, overriding each component's
+   inline resting background — the one place !important is warranted since inline styles
+   otherwise always win over a stylesheet rule. Derived from --accent-light (Royal Blue)
+   via color-mix so light/dark need only this one rule, and the ring stays a restrained
+   1px + soft halo rather than a heavy glow. */
 input:focus, select:focus, textarea:focus {
   outline: none;
-  border-color: var(--accent) !important;
+  border-color: var(--accent-light) !important;
   background: var(--accent-soft) !important;
-  box-shadow: 0 0 0 3px rgba(31,58,99,.14);
-}
-:root[data-theme="dark"] input:focus,
-:root[data-theme="dark"] select:focus,
-:root[data-theme="dark"] textarea:focus {
-  box-shadow: 0 0 0 3px rgba(110,155,255,.18);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-light) 18%, transparent);
 }
 
-/* Restrained hover feedback for every clickable control, regardless of which button
-   variant's inline styles set its resting colors. Darkening reads as basically invisible
-   against an already-dark surface, so dark mode brightens instead — same idea, opposite direction. */
-button:not(:disabled):hover { filter: brightness(0.96); }
-:root:not([data-theme="light"]) button:not(:disabled):hover { filter: brightness(1.22); }
+/* Restrained hover + pressed feedback for every clickable control, regardless of which
+   button variant's inline styles set its resting colors. Darkening reads as basically
+   invisible against an already-dark surface, so dark mode brightens instead. */
+button:not(:disabled):hover { filter: brightness(0.97); }
+:root:not([data-theme="light"]) button:not(:disabled):hover { filter: brightness(1.18); }
+button:not(:disabled):active { filter: brightness(0.92); transform: translateY(1px); }
+:root:not([data-theme="light"]) button:not(:disabled):active { filter: brightness(1.3); }
 button:disabled { opacity: .6; cursor: not-allowed; }
 
-/* Sidebar nav links: a soft circular glow that grows in from the icon on hover, rather
-   than a flat color swap — noticeably more visible in dark mode, where a flat highlight
-   tends to disappear against the sunken sidebar background. */
+/* Sidebar nav links: a soft circular glow that grows in from the icon on hover, using the
+   identity teal so the sidebar always reads as distinctly "Nexora" regardless of theme. */
 .sidebar-nav-link {
-  background-image: radial-gradient(circle at 26px 50%, var(--accent-soft) 0%, transparent 68%);
+  background-image: radial-gradient(circle at 26px 50%, var(--teal-soft) 0%, transparent 68%);
   background-repeat: no-repeat;
   background-size: 0% 0%;
   background-position: center;
-  transition: background-size .32s ease, transform .18s ease, box-shadow .18s ease;
+  transition: background-size .32s ease, box-shadow .18s ease, color .2s ease;
 }
 .sidebar-nav-link:hover {
   background-size: 260% 420%;
-  transform: scale(1.025);
-  box-shadow: var(--hover-glow);
-}
-:root:not([data-theme="light"]) .sidebar-nav-link {
-  background-image: radial-gradient(circle at 26px 50%, rgba(110,155,255,.30) 0%, transparent 68%);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--teal) 35%, transparent), 0 6px 20px color-mix(in srgb, var(--teal) 20%, transparent);
 }
 
-/* A cursor-tracking spotlight across the entire screen, dark mode only — sidebar and main
-   content alike, in every shell that includes it (client app, admin/platform layout). Fixed
-   to the viewport since it spans everything; position is written directly to this element's
-   background by whichever shell mounts it, on pointer move. This rule only controls whether
-   it's ever visible, and where it sits in the stack (above surfaces, below real content via
-   a low, deliberately inert opacity + pointer-events: none). */
+/* A cursor-tracking spotlight across the entire screen, dark mode only. Fixed to the
+   viewport since it spans everything; position is written directly to this element's
+   background by whichever shell mounts it, on pointer move. */
 .app-spotlight {
   position: fixed; inset: 0; z-index: 40; pointer-events: none;
   transition: opacity .25s ease;
@@ -205,22 +265,25 @@ button:disabled { opacity: .6; cursor: not-allowed; }
 
 .card-surface { will-change: transform; }
 /* !important: most callers set box-shadow inline (var(--shadow), at rest) — an inline style
-   otherwise always beats a stylesheet rule regardless of :hover, same reason the focus-ring
-   rule above needs it. */
+   otherwise always beats a stylesheet rule regardless of :hover. A restrained 2px lift with
+   a soft identity-colored glow (teal in light mode, navy-light in dark) plus the elevated
+   shadow — no scale, nothing aggressive. */
 .card-surface:hover {
-  transform: translateY(-2px) scale(1.02);
-  box-shadow: var(--hover-glow), var(--shadow) !important;
+  transform: translateY(-2px);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--teal) 20%, transparent), var(--shadow-hover) !important;
+}
+:root[data-theme="dark"] .card-surface:hover {
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 25%, transparent), var(--shadow-hover) !important;
 }
 
 ::selection { background: var(--accent-soft); }
 
 :focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--accent-light);
   outline-offset: 2px;
 }
 
-/* Themed scrollbars everywhere, instead of the raw OS default — thin, quiet, and only
-   darkens on hover so it doesn't compete with page content at rest. */
+/* Themed scrollbars everywhere, instead of the raw OS default. */
 html { scroll-behavior: smooth; }
 * { scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
 *::-webkit-scrollbar { width: 10px; height: 10px; }
@@ -228,9 +291,8 @@ html { scroll-behavior: smooth; }
 *::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 20px; }
 *::-webkit-scrollbar-thumb:hover { background: var(--faint); }
 
-/* Every data table in the app shares this markup shape (table > tbody > tr > td) even
-   though each page owns its own inline cell styles, so one rule here makes scanning a
-   row easier everywhere at once. */
+/* Every data table in the app shares this markup shape (table > tbody > tr > td). Tint
+   only appears on hover — no persistent zebra rows. */
 tbody tr { transition: background-color .12s ease; }
 tbody tr:hover > td { background: var(--surface-2); }
 
@@ -256,8 +318,56 @@ tbody tr:hover > td { background: var(--surface-2); }
 @keyframes spin { to { transform: rotate(360deg); } }
 .spinner {
   display: inline-block; width: 16px; height: 16px; border-radius: 50%;
-  border: 2px solid var(--border-strong); border-top-color: var(--accent);
+  border: 2px solid var(--border-strong); border-top-color: var(--accent-light);
   animation: spin .7s linear infinite; vertical-align: -3px; margin-right: 8px;
+}
+
+/* ---------------------------------------------------------------------------------------
+   App shell: fixed sidebar with a collapsible icon rail, plus responsive behavior. The
+   rail/expanded toggle is driven from React state (AppShell.tsx persists it to
+   localStorage); these rules just react to the class it sets. Below 760px the same
+   element becomes a fixed off-canvas drawer instead of a rail, since an icon-only strip
+   doesn't give a touch-sized nav enough room. */
+.app-shell-sidebar {
+  width: 248px;
+  flex: 0 0 248px;
+  flex-shrink: 0;
+  transition: width .22s ease, transform .22s ease;
+}
+.app-shell-sidebar.is-collapsed { width: 72px; flex-basis: 72px; }
+.app-shell-sidebar.is-collapsed .app-shell-hide-collapsed { display: none; }
+.app-shell-sidebar.is-collapsed .app-shell-navlink-inner { justify-content: center; }
+/* The logo mark and collapse toggle don't fit side by side in a 72px rail (minus its own
+   padding) — stack them instead of letting them overflow/wrap. */
+.app-shell-sidebar.is-collapsed .app-shell-brand-row { flex-direction: column; gap: 10px; }
+
+/* display is set here (not inline) so the media query below can win over it — an inline
+   style's display would otherwise always beat a class rule, breakpoint or not. */
+.app-shell-collapse-btn { display: inline-flex; }
+.app-shell-menu-btn { display: none; }
+
+@media (max-width: 760px) {
+  .app-shell-grid { grid-template-columns: 1fr !important; }
+  .app-shell-sidebar {
+    position: fixed; inset: 0 auto 0 0; z-index: 60;
+    width: 272px !important;
+    transform: translateX(-100%);
+    box-shadow: var(--shadow-hover);
+  }
+  .app-shell-sidebar.is-mobile-open { transform: translateX(0); }
+  .app-shell-collapse-btn { display: none; }
+  .app-shell-menu-btn { display: inline-flex; }
+}
+
+.app-shell-scrim {
+  display: none;
+}
+@media (max-width: 760px) {
+  .app-shell-scrim.is-visible {
+    display: block; position: fixed; inset: 0; z-index: 55;
+    background: rgba(6,10,18,.5);
+    animation: overlay-fade-in .18s ease;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

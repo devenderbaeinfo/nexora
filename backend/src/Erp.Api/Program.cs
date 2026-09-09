@@ -34,6 +34,17 @@ builder.Services.AddScoped<Erp.Application.Billing.IBillingProviderGateway, Erp.
 builder.Services.AddDbContext<ErpDbContext>(opt =>
     opt.UseSqlServer(builder.Configuration.GetConnectionString("Default")));
 
+// --- Domain events / Outbox --------------------------------------------------------
+// Scoped (not Singleton): it's only ever resolved from inside the per-poll scope that
+// OutboxDispatcherService creates, so it should share that scope's ErpDbContext-dependent
+// handlers rather than capture the root provider.
+builder.Services.AddScoped<Erp.Infrastructure.Events.IEventDispatcher, Erp.Infrastructure.Events.EventDispatcher>();
+builder.Services.AddScoped<Erp.Domain.Common.IDomainEventHandler<Erp.Domain.Workflow.WorkflowApprovalCompletedEvent>,
+    Erp.Infrastructure.Events.Handlers.WorkflowApprovalAuditHandler>();
+builder.Services.AddScoped<Erp.Domain.Common.IDomainEventHandler<Erp.Domain.People.EmployeeCreatedEvent>,
+    Erp.Infrastructure.Events.Handlers.EmployeeCreatedAuditHandler>();
+builder.Services.AddHostedService<Erp.Infrastructure.Events.OutboxDispatcherService>();
+
 builder.Services
     .AddIdentityCore<AppUser>(opt =>
     {
