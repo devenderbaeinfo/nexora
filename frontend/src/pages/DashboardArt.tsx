@@ -1,10 +1,12 @@
 import { useId } from "react";
 
-// Hand-authored abstract decorative art for the Dashboard page only — flowing ribbons, a
-// glass orb, layered architectural arches, and a small connected-node cluster. Deliberately
-// soft/low-contrast and non-literal: no leaves, no circuit boards, no 3D rendering. Every
-// piece is pointer-events:none and purely decorative; removing this file changes nothing
-// about how the dashboard functions.
+// Hand-authored decorative art for the Dashboard page only — flowing ribbons, a glass orb,
+// layered architectural arches, a connected-node cluster, and (per the reference theme this
+// page now targets) a simple original leaf sprig. Every shape uses Nexora's own brand colors
+// (via the --leaf-fill/--ribbon-*/etc. tokens in dashboard.css, themselves color-mix()'d from
+// --teal/--gold in tokens.css) rather than the reference's own pink/lavender pastels or its
+// specific artwork — same motif, Nexora's palette. Every piece is pointer-events:none and
+// purely decorative; removing this file changes nothing about how the dashboard functions.
 
 function Ribbon({ gid, className, d, colorA, colorB }: { gid: string; className?: string; d: string; colorA: string; colorB: string }) {
   return (
@@ -79,6 +81,32 @@ function NetworkCluster({ x, y, scale = 1 }: { x: number; y: number; scale?: num
   );
 }
 
+// A simple original leaf sprig — a stem with a handful of soft almond-shaped leaves,
+// alternating between the two brand-derived leaf tones. Not a copy of any specific
+// illustration, just the same "organic growth" motif rendered in Nexora's own colors.
+function LeafSprig({ x, y, scale = 1, flip = false }: { x: number; y: number; scale?: number; flip?: boolean }) {
+  const mirror = flip ? -1 : 1;
+  const leaves = [
+    { dx: 4, dy: -6, size: 26, angle: 25 },
+    { dx: 24, dy: -24, size: 23, angle: -8 },
+    { dx: 40, dy: -46, size: 21, angle: -32 },
+    { dx: -14, dy: -26, size: 19, angle: 60 },
+    { dx: 10, dy: -50, size: 17, angle: 2 },
+  ];
+  return (
+    <g transform={`translate(${x} ${y}) scale(${scale * mirror} ${scale})`}>
+      <path d="M0,0 C 10,-20 20,-40 44,-56" stroke="var(--leaf-fill)" strokeWidth={1.5} fill="none" opacity={0.55} />
+      {leaves.map((l, i) => (
+        <ellipse
+          key={i} cx={l.dx} cy={l.dy} rx={l.size} ry={l.size * 0.4}
+          fill={i % 2 === 0 ? "var(--leaf-fill)" : "var(--leaf-fill-2)"}
+          transform={`rotate(${l.angle} ${l.dx} ${l.dy})`}
+        />
+      ))}
+    </g>
+  );
+}
+
 // The full-page background layer. Sits behind .dashboard-content (z-index:0), pointer-events
 // none, sized to the scrollable content column rather than the viewport. The CSS gradient
 // blooms (top corners) live in dashboard.css; this SVG only adds the two bottom clusters the
@@ -113,13 +141,14 @@ export function DashboardAtmosphere() {
   );
 }
 
-// Compact ribbon + orb + node composition for a brand card. Two variants share the same
-// primitives with a different color lean (teal/mint vs. lavender/blue) so the two cards
-// read as a pair, not identical twins.
+// Brand-card visual: a leaf sprig anchored in the corner (the reference's core motif,
+// rendered in Nexora's own palette) plus a soft ribbon wash beneath the text for depth.
+// Two variants mirror the sprig and lean the ribbon teal vs. blue so the pair reads as
+// siblings, not identical twins.
 export function BrandVisual({ variant }: { variant: "a" | "b" }) {
   const uid = useId();
-  const primary = variant === "a" ? "var(--ribbon-teal)" : "var(--ribbon-lavender)";
-  const secondary = variant === "a" ? "var(--ribbon-mint)" : "var(--ribbon-blue)";
+  const primary = variant === "a" ? "var(--ribbon-teal)" : "var(--ribbon-blue)";
+  const secondary = variant === "a" ? "var(--ribbon-mint)" : "var(--ribbon-lavender)";
 
   return (
     <svg className="brand-visual" viewBox="0 0 420 220" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
@@ -128,8 +157,8 @@ export function BrandVisual({ variant }: { variant: "a" | "b" }) {
         d="M -20,150 C 60,90 120,190 200,140 C 280,90 320,180 460,130 L 460,190 C 340,220 300,150 210,190 C 120,230 60,170 -20,210 Z"
         colorA={primary} colorB={secondary}
       />
-      <GlassOrb gid={`${uid}-bv-orb`} cx={variant === "a" ? 330 : 90} cy={60} r={variant === "a" ? 46 : 38} edge="var(--orb-edge)" />
-      <NetworkCluster x={variant === "a" ? 20 : 260} y={10} scale={0.85} />
+      <LeafSprig x={variant === "a" ? 40 : 380} y={210} scale={1.3} flip={variant === "b"} />
+      <GlassOrb gid={`${uid}-bv-orb`} cx={variant === "a" ? 330 : 90} cy={54} r={34} edge="var(--orb-edge)" />
     </svg>
   );
 }

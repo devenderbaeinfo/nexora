@@ -14,12 +14,16 @@
   position: relative;
   isolation: isolate; /* keeps the atmosphere layer's stacking contained to this page */
 
-  --bloom-mint: #CFEFEA;
-  --bloom-blue: #E3EEFC;
-  --bloom-teal-haze: #D9F2EE;
-  --bloom-blush: #FBE7EC;
-  --bloom-lavender: #EAE6FA;
-  --bloom-peach: #FBE9DA;
+  /* Every "pastel" here is color-mix()'d from Nexora's real brand tokens (--teal/--gold/
+     --danger/--accent-light), not a separate invented palette — so the reference's soft
+     per-card tinting shows up without introducing pink/lavender hues that exist nowhere
+     else in the product. One definition covers both themes since --teal etc. already flip. */
+  --bloom-mint: color-mix(in srgb, var(--teal) 22%, var(--surface));
+  --bloom-blue: color-mix(in srgb, var(--accent-light) 18%, var(--surface));
+  --bloom-teal-haze: color-mix(in srgb, var(--teal) 14%, var(--surface));
+  --bloom-blush: color-mix(in srgb, var(--danger) 16%, var(--surface));
+  --bloom-lavender: color-mix(in srgb, var(--accent-light) 20%, var(--surface));
+  --bloom-peach: color-mix(in srgb, var(--gold) 20%, var(--surface));
 
   --glass-bg: rgba(255, 255, 255, 0.72);
   --glass-bg-strong: rgba(255, 255, 255, 0.85);
@@ -27,42 +31,31 @@
   --glass-shadow: 0 8px 32px rgba(19, 43, 70, 0.08);
   --glass-blur: 20px;
 
-  --ribbon-teal: rgba(22, 184, 166, 0.32);
-  --ribbon-mint: rgba(150, 220, 205, 0.28);
-  --ribbon-blue: rgba(120, 170, 230, 0.26);
-  --ribbon-lavender: rgba(190, 175, 235, 0.26);
+  --ribbon-teal: color-mix(in srgb, var(--teal) 32%, transparent);
+  --ribbon-mint: color-mix(in srgb, var(--teal) 22%, transparent);
+  --ribbon-blue: color-mix(in srgb, var(--accent-light) 26%, transparent);
+  --ribbon-lavender: color-mix(in srgb, var(--accent-light) 22%, transparent);
+  --leaf-fill: color-mix(in srgb, var(--teal) 30%, transparent);
+  --leaf-fill-2: color-mix(in srgb, var(--gold) 26%, transparent);
   --orb-fill: rgba(255, 255, 255, 0.55);
-  --orb-edge: rgba(22, 184, 166, 0.22);
+  --orb-edge: color-mix(in srgb, var(--teal) 22%, transparent);
   --orb-highlight: rgba(255, 255, 255, 0.85);
   --arch-fill: rgba(255, 255, 255, 0.4);
-  --node-color: rgba(22, 184, 166, 0.45);
-  --network-line: rgba(70, 120, 180, 0.16);
+  --node-color: color-mix(in srgb, var(--teal) 45%, transparent);
+  --network-line: color-mix(in srgb, var(--accent-light) 22%, transparent);
+  --ghost-icon: color-mix(in srgb, var(--ink) 6%, transparent);
 }
 
 :root[data-theme="dark"] .dashboard-glass,
 :root:not([data-theme="light"]) .dashboard-glass {
-  --bloom-mint: #16302c;
-  --bloom-blue: #16222e;
-  --bloom-teal-haze: #14302b;
-  --bloom-blush: #2a1f26;
-  --bloom-lavender: #221f30;
-  --bloom-peach: #2e2620;
-
   --glass-bg: rgba(23, 34, 45, 0.62);
   --glass-bg-strong: rgba(23, 34, 45, 0.78);
   --glass-border: rgba(255, 255, 255, 0.08);
   --glass-shadow: 0 12px 36px rgba(0, 0, 0, 0.45);
-
-  --ribbon-teal: rgba(45, 212, 192, 0.16);
-  --ribbon-mint: rgba(45, 180, 160, 0.13);
-  --ribbon-blue: rgba(91, 155, 224, 0.15);
-  --ribbon-lavender: rgba(160, 140, 220, 0.13);
   --orb-fill: rgba(255, 255, 255, 0.06);
-  --orb-edge: rgba(45, 212, 192, 0.16);
   --orb-highlight: rgba(255, 255, 255, 0.14);
   --arch-fill: rgba(255, 255, 255, 0.04);
-  --node-color: rgba(45, 212, 192, 0.35);
-  --network-line: rgba(120, 160, 210, 0.14);
+  --ghost-icon: color-mix(in srgb, var(--ink) 8%, transparent);
 }
 
 /* The atmosphere is pure CSS gradients (no image assets) positioned at the five corners the
@@ -140,7 +133,21 @@
   display: inline-flex; align-items: center; justify-content: center;
   width: 34px; height: 34px; border-radius: 10px;
   background: var(--glass-bg-strong); color: var(--accent);
-  margin-bottom: 12px;
+}
+/* The reference's signature move: a second, much larger and near-invisible copy of the
+   same icon sitting in the card's corner — decorative only, never a second data point. */
+.kpi-ghost-icon {
+  position: absolute; top: 8px; right: 8px; z-index: 0;
+  color: var(--ghost-icon); pointer-events: none;
+}
+
+.quote-card {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 600;
+  color: var(--ink);
+  font-size: 15px;
+  line-height: 1.5;
 }
 
 /* Brand cards: the "Smarter Operations" / "Operational Clarity" replacements for whatever

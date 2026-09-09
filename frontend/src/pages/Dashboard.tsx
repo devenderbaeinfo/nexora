@@ -21,6 +21,9 @@ function KpiCard({
 }: { to: string; label: string; value: number | string; index: number; deltaPercent?: number | null }) {
   return (
     <Link to={to} className={`glass-panel kpi-glass ${KPI_TINTS[index % KPI_TINTS.length]}`}>
+      {/* Decorative echo of the small icon below, enlarged and near-invisible — never a
+          second data point, purely the reference theme's corner-watermark treatment. */}
+      <span className="kpi-ghost-icon">{iconForLabel(label, 64)}</span>
       <div className="kpi-glass-inner">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
           <span className="kpi-icon">{iconForLabel(label, 17)}</span>
@@ -166,7 +169,7 @@ export default function Dashboard() {
             <h1 style={s.title}>{timeOfDayGreeting()}{user?.displayName ? `, ${user.displayName.split(" ")[0]}` : ""} 👋</h1>
             <p style={s.subtitle}>Here's what's happening in your organization today.</p>
           </div>
-          <div className="glass-panel" style={{ ...glassCard, flex: "1 1 220px", display: "flex", alignItems: "center", fontStyle: "italic", color: "var(--muted)", fontSize: 13.5 }}>
+          <div className="glass-panel quote-card" style={{ ...glassCard, flex: "1 1 220px", display: "flex", alignItems: "center" }}>
             "{quoteOfTheDay()}"
           </div>
           <div className="glass-panel" style={{ ...glassCard, flex: "0 0 auto", minWidth: 180 }}>
