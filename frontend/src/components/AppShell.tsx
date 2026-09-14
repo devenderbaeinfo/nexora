@@ -173,6 +173,7 @@ const NAV_MODULES: NavModule[] = [
       section: "", items: [
         { to: "/job-titles", label: "Job Titles", show: (can) => can("people.manage") },
         { to: "/leave-types", label: "Leave Types", show: (can) => can("leave.configure_policy") },
+        { to: "/approval-chains", label: "Approval Chains", show: (can) => can("leave.configure_policy") },
         { to: "/roles", label: "Roles & Permissions", show: (can) => can("admin.manage_roles") },
         { to: "/report-access", label: "Report Access", show: (can) => can("admin.manage_roles") },
         { to: "/audit-log", label: "Audit Log", show: (can) => can("admin.view_audit_log") },

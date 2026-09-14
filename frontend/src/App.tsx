@@ -35,6 +35,7 @@ import MyExpenses from "./pages/MyExpenses";
 import JobTitles from "./pages/JobTitles";
 import Roles from "./pages/Roles";
 import ReportAccess from "./pages/ReportAccess";
+import ApprovalChains from "./pages/ApprovalChains";
 import LeaveTypes from "./pages/LeaveTypes";
 import AuditLog from "./pages/AuditLog";
 import TimesheetApproval from "./pages/TimesheetApproval";
@@ -108,6 +109,7 @@ export default function App() {
         <Route path="roles" element={<Roles />} />
         <Route path="report-access" element={<ReportAccess />} />
         <Route path="leave-types" element={<LeaveTypes />} />
+        <Route path="approval-chains" element={<ApprovalChains />} />
         <Route path="audit-log" element={<AuditLog />} />
         <Route path="projects/progress" element={<ProjectProgress />} />
         <Route path="projects/budget" element={<ProjectBudget />} />
