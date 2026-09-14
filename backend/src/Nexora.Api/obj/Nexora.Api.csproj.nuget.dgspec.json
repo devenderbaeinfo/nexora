@@ -1578,6 +1578,9 @@
               "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Modules.Identity\\Nexora.Modules.Identity.csproj": {
                 "projectPath": "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Modules.Identity\\Nexora.Modules.Identity.csproj"
               },
+              "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Modules.Workflow\\Nexora.Modules.Workflow.csproj": {
+                "projectPath": "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Modules.Workflow\\Nexora.Modules.Workflow.csproj"
+              },
               "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Shared\\Nexora.Shared.csproj": {
                 "projectPath": "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Shared\\Nexora.Shared.csproj"
               }
@@ -2556,8 +2559,17 @@
             "framework": "net10.0",
             "targetAlias": "net10.0",
             "projectReferences": {
+              "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Modules.HR\\Nexora.Modules.HR.csproj": {
+                "projectPath": "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Modules.HR\\Nexora.Modules.HR.csproj"
+              },
               "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Modules.Identity\\Nexora.Modules.Identity.csproj": {
                 "projectPath": "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Modules.Identity\\Nexora.Modules.Identity.csproj"
+              },
+              "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Modules.Payroll\\Nexora.Modules.Payroll.csproj": {
+                "projectPath": "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Modules.Payroll\\Nexora.Modules.Payroll.csproj"
+              },
+              "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Modules.Projects\\Nexora.Modules.Projects.csproj": {
+                "projectPath": "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Modules.Projects\\Nexora.Modules.Projects.csproj"
               },
               "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Shared\\Nexora.Shared.csproj": {
                 "projectPath": "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Shared\\Nexora.Shared.csproj"
@@ -3543,6 +3555,9 @@
             "framework": "net10.0",
             "targetAlias": "net10.0",
             "projectReferences": {
+              "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Modules.Finance\\Nexora.Modules.Finance.csproj": {
+                "projectPath": "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Modules.Finance\\Nexora.Modules.Finance.csproj"
+              },
               "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Modules.HR\\Nexora.Modules.HR.csproj": {
                 "projectPath": "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Modules.HR\\Nexora.Modules.HR.csproj"
               },
@@ -4038,6 +4053,12 @@
             "framework": "net10.0",
             "targetAlias": "net10.0",
             "projectReferences": {
+              "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Modules.Finance\\Nexora.Modules.Finance.csproj": {
+                "projectPath": "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Modules.Finance\\Nexora.Modules.Finance.csproj"
+              },
+              "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Modules.HR\\Nexora.Modules.HR.csproj": {
+                "projectPath": "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Modules.HR\\Nexora.Modules.HR.csproj"
+              },
               "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Modules.Identity\\Nexora.Modules.Identity.csproj": {
                 "projectPath": "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Modules.Identity\\Nexora.Modules.Identity.csproj"
               },
@@ -4530,11 +4551,17 @@
             "framework": "net10.0",
             "targetAlias": "net10.0",
             "projectReferences": {
+              "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Modules.Finance\\Nexora.Modules.Finance.csproj": {
+                "projectPath": "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Modules.Finance\\Nexora.Modules.Finance.csproj"
+              },
               "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Modules.HR\\Nexora.Modules.HR.csproj": {
                 "projectPath": "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Modules.HR\\Nexora.Modules.HR.csproj"
               },
               "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Modules.Identity\\Nexora.Modules.Identity.csproj": {
                 "projectPath": "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Modules.Identity\\Nexora.Modules.Identity.csproj"
+              },
+              "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Modules.Workflow\\Nexora.Modules.Workflow.csproj": {
+                "projectPath": "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Modules.Workflow\\Nexora.Modules.Workflow.csproj"
               },
               "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Shared\\Nexora.Shared.csproj": {
                 "projectPath": "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Shared\\Nexora.Shared.csproj"
@@ -5025,8 +5052,17 @@
             "framework": "net10.0",
             "targetAlias": "net10.0",
             "projectReferences": {
+              "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Modules.HR\\Nexora.Modules.HR.csproj": {
+                "projectPath": "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Modules.HR\\Nexora.Modules.HR.csproj"
+              },
               "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Modules.Identity\\Nexora.Modules.Identity.csproj": {
                 "projectPath": "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Modules.Identity\\Nexora.Modules.Identity.csproj"
+              },
+              "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Modules.Payroll\\Nexora.Modules.Payroll.csproj": {
+                "projectPath": "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Modules.Payroll\\Nexora.Modules.Payroll.csproj"
+              },
+              "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Modules.Projects\\Nexora.Modules.Projects.csproj": {
+                "projectPath": "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Modules.Projects\\Nexora.Modules.Projects.csproj"
               },
               "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Shared\\Nexora.Shared.csproj": {
                 "projectPath": "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Shared\\Nexora.Shared.csproj"
@@ -6043,10 +6079,6 @@
               "version": "[9.0.1, )"
             },
             "Microsoft.EntityFrameworkCore.SqlServer": {
-              "target": "Package",
-              "version": "[9.0.1, )"
-            },
-            "Microsoft.Extensions.Identity.Stores": {
               "target": "Package",
               "version": "[9.0.1, )"
             }

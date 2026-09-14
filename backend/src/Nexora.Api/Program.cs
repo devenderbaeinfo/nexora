@@ -1,8 +1,19 @@
 using System.Text;
 using System.Threading.RateLimiting;
 using Nexora.Shared.Authorization;
-using Nexora.Modules.Identity.Entities;
+using Nexora.Shared.Common;
+using Nexora.Shared.Events;
+using Nexora.Api.Authorization;
+using Nexora.Api.Events;
 using Nexora.Api.Persistence;
+using Nexora.Modules.Identity.Authorization;
+using Nexora.Modules.Identity.Entities;
+using Nexora.Modules.Identity.Services;
+using Nexora.Modules.HR.Services;
+using Nexora.Modules.Finance.Services;
+using Nexora.Modules.Workflow.Entities;
+using Nexora.Modules.Workflow.Services;
+using Nexora.Modules.Platform.Services;
 using Nexora.Shared.Tenancy;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
@@ -20,30 +31,36 @@ builder.Services.AddOpenApi();
 // Global exception handling: every unhandled exception, anywhere in the API, gets logged
 // server-side and returns the same sanitized ProblemDetails response — see the handler
 // itself for why this replaced "whatever the framework default happens to do."
-builder.Services.AddExceptionHandler<Erp.Api.Middleware.GlobalExceptionHandler>();
+builder.Services.AddExceptionHandler<Nexora.Shared.Middleware.GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
 
 // --- Persistence & multi-tenancy -------------------------------------------------
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ITenantContext, JwtTenantContext>();
-builder.Services.AddScoped<Erp.Infrastructure.Workflow.IApprovalWorkflowService, Erp.Infrastructure.Workflow.ApprovalWorkflowService>();
-builder.Services.AddScoped<Erp.Infrastructure.Accounting.IAccountingPostingService, Erp.Infrastructure.Accounting.AccountingPostingService>();
-builder.Services.AddSingleton<Erp.Api.Services.EmployeeDocumentStorage>();
-builder.Services.AddScoped<Erp.Infrastructure.Authorization.DataScopeService>();
-builder.Services.AddScoped<Erp.Application.Billing.IBillingProviderGateway, Erp.Application.Billing.ManualBillingProviderGateway>();
+builder.Services.AddScoped<IApprovalWorkflowService, ApprovalWorkflowService>();
+builder.Services.AddScoped<IAccountingPostingService, AccountingPostingService>();
+builder.Services.AddSingleton<Nexora.Modules.HR.Services.EmployeeDocumentStorage>();
+builder.Services.AddScoped<IDataScopeService, DataScopeService>();
+builder.Services.AddScoped<IRoleUsageChecker, JobTitleRoleUsageChecker>();
+builder.Services.AddScoped<IEmployeeDirectory, EmployeeDirectory>();
+builder.Services.AddScoped<IProjectDirectory, Nexora.Modules.Projects.Services.ProjectDirectory>();
+builder.Services.AddScoped<IBillingProviderGateway, ManualBillingProviderGateway>();
 builder.Services.AddDbContext<NexoraDbContext>(opt =>
     opt.UseSqlServer(builder.Configuration.GetConnectionString("Default")));
+// Modules depend only on the base EF Core DbContext type (never NexoraDbContext directly),
+// so they never need a project reference to Nexora.Api, which owns the concrete context.
+builder.Services.AddScoped<DbContext>(sp => sp.GetRequiredService<NexoraDbContext>());
 
 // --- Domain events / Outbox --------------------------------------------------------
 // Scoped (not Singleton): it's only ever resolved from inside the per-poll scope that
 // OutboxDispatcherService creates, so it should share that scope's NexoraDbContext-dependent
 // handlers rather than capture the root provider.
-builder.Services.AddScoped<Erp.Infrastructure.Events.IEventDispatcher, Erp.Infrastructure.Events.EventDispatcher>();
-builder.Services.AddScoped<Erp.Domain.Common.IDomainEventHandler<Erp.Domain.Workflow.WorkflowApprovalCompletedEvent>,
-    Erp.Infrastructure.Events.Handlers.WorkflowApprovalAuditHandler>();
-builder.Services.AddScoped<Erp.Domain.Common.IDomainEventHandler<Erp.Domain.People.EmployeeCreatedEvent>,
-    Erp.Infrastructure.Events.Handlers.EmployeeCreatedAuditHandler>();
-builder.Services.AddHostedService<Erp.Infrastructure.Events.OutboxDispatcherService>();
+builder.Services.AddScoped<IEventDispatcher, EventDispatcher>();
+builder.Services.AddScoped<IDomainEventHandler<WorkflowApprovalCompletedEvent>,
+    Nexora.Modules.Workflow.Services.WorkflowApprovalAuditHandler>();
+builder.Services.AddScoped<IDomainEventHandler<Nexora.Modules.HR.Entities.EmployeeCreatedEvent>,
+    Nexora.Modules.HR.Services.EmployeeCreatedAuditHandler>();
+builder.Services.AddHostedService<OutboxDispatcherService>();
 
 builder.Services
     .AddIdentityCore<AppUser>(opt =>
@@ -203,7 +220,7 @@ app.UseCors("frontend");
 app.UseRateLimiter();
 
 app.UseAuthentication();
-app.UseMiddleware<Erp.Api.Authorization.RequirePasswordCurrentMiddleware>();
+app.UseMiddleware<RequirePasswordCurrentMiddleware>();
 app.UseAuthorization();
 
 app.MapControllers();
@@ -213,11 +230,11 @@ if (app.Environment.IsDevelopment())
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<NexoraDbContext>();
     await db.Database.MigrateAsync();
-    await Erp.Api.Seed.DevSeeder.SeedIfEmptyAsync(app.Services);
-    await Erp.Api.Seed.RolePermissionSync.RunAsync(app.Services);
-    await Erp.Api.Seed.JobTitleSync.RunAsync(app.Services);
-    await Erp.Api.Seed.AccountSync.RunAsync(app.Services);
-    await Erp.Api.Seed.DefaultDataScopeSync.RunAsync(app.Services);
+    await Nexora.Api.Seed.DevSeeder.SeedIfEmptyAsync(app.Services);
+    await Nexora.Modules.Identity.Seed.RolePermissionSync.RunAsync(app.Services);
+    await Nexora.Modules.HR.Seed.JobTitleSync.RunAsync(app.Services);
+    await Nexora.Modules.Finance.Seed.AccountSync.RunAsync(app.Services);
+    await Nexora.Modules.Identity.Seed.DefaultDataScopeSync.RunAsync(app.Services);
 }
 
 app.Run();

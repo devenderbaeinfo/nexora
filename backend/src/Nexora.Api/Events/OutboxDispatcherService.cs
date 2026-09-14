@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Nexora.Shared.Common;
+using Nexora.Shared.Events;
 using Nexora.Api.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;

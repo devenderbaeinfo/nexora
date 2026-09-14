@@ -51,7 +51,7 @@ public class AuthController : ControllerBase
         }
 
         var tenant = await _db.Tenants.IgnoreQueryFilters().FirstOrDefaultAsync(t => t.Id == user.TenantId);
-        if (tenant is null || tenant.Status == Erp.Domain.Tenancy.TenantStatus.Suspended)
+        if (tenant is null || tenant.Status == Nexora.Shared.Tenancy.TenantStatus.Suspended)
         {
             await AuditLoginFailure(user.TenantId, request.Email, "tenant_not_found_or_suspended");
             return Unauthorized();
@@ -78,8 +78,8 @@ public class AuthController : ControllerBase
         // Resolved fresh on every login from the employee's *current* Job Title — never a
         // role snapshot taken at account-creation time — so a Job Title remap takes effect
         // for everyone holding it automatically, no per-account fix-up required.
-        var effectiveRole = await Erp.Infrastructure.Identity.EffectiveRoleResolver.ResolveAsync(_db, _userManager, user);
-        var roleIds = effectiveRole is null ? [] : await _db.Roles.IgnoreQueryFilters()
+        var effectiveRole = await Nexora.Modules.HR.Services.EffectiveRoleResolver.ResolveAsync(_db, _userManager, user);
+        var roleIds = effectiveRole is null ? [] : await _db.Set<AppRole>().IgnoreQueryFilters()
             .Where(r => r.TenantId == tenant.Id && r.Name == effectiveRole)
             .Select(r => r.Id).ToListAsync();
 
@@ -98,7 +98,7 @@ public class AuthController : ControllerBase
 
         var (token, expires) = IssueToken(user, tenant.Id, roleIds, permissions, mustChangePassword);
 
-        _db.AuditLogs.Add(new Erp.Domain.Audit.AuditLog
+        _db.AuditLogs.Add(new Nexora.Shared.Common.AuditLog
         {
             TenantId = tenant.Id,
             ActorUserId = user.Id,
@@ -130,7 +130,7 @@ public class AuthController : ControllerBase
         user.MustChangePassword = false;
         await _userManager.UpdateAsync(user);
 
-        _db.AuditLogs.Add(new Erp.Domain.Audit.AuditLog
+        _db.AuditLogs.Add(new Nexora.Shared.Common.AuditLog
         {
             ActorUserId = user.Id,
             Action = "auth.password_changed",
@@ -142,8 +142,8 @@ public class AuthController : ControllerBase
         // The old JWT still carries pwd_change_required from before this call — tokens are
         // immutable once signed — so hand back a fresh one without it rather than leaving
         // the client stuck locked-out with a technically-valid-but-stale token.
-        var effectiveRole = await Erp.Infrastructure.Identity.EffectiveRoleResolver.ResolveAsync(_db, _userManager, user);
-        var roleIds = effectiveRole is null ? [] : await _db.Roles.IgnoreQueryFilters()
+        var effectiveRole = await Nexora.Modules.HR.Services.EffectiveRoleResolver.ResolveAsync(_db, _userManager, user);
+        var roleIds = effectiveRole is null ? [] : await _db.Set<AppRole>().IgnoreQueryFilters()
             .Where(r => r.TenantId == user.TenantId && r.Name == effectiveRole)
             .Select(r => r.Id).ToListAsync();
         var permissions = await _db.RolePermissions
@@ -163,7 +163,7 @@ public class AuthController : ControllerBase
         _logger.LogWarning("Login failed for {Email}: {Reason}", attemptedEmail, reason);
         if (tenantId is null) return; // no tenant resolved — nothing to scope the audit row to
 
-        _db.AuditLogs.Add(new Erp.Domain.Audit.AuditLog
+        _db.AuditLogs.Add(new Nexora.Shared.Common.AuditLog
         {
             TenantId = tenantId.Value,
             Action = "auth.login_failed",

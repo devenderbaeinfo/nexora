@@ -8,7 +8,7 @@ namespace Nexora.Api;
 
 // Used only by `dotnet ef migrations add` at design time — no HTTP request exists yet,
 // so tenant scoping is irrelevant here; migrations operate on the schema, not tenant rows.
-public class ErpDbContextFactory : IDesignTimeDbContextFactory<NexoraDbContext>
+public class NexoraDbContextFactory : IDesignTimeDbContextFactory<NexoraDbContext>
 {
     private class DesignTimeTenantContext : ITenantContext
     {

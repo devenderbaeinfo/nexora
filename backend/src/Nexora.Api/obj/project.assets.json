@@ -1204,6 +1204,7 @@
         "dependencies": {
           "Nexora.Modules.Company": "1.0.0",
           "Nexora.Modules.Identity": "1.0.0",
+          "Nexora.Modules.Workflow": "1.0.0",
           "Nexora.Shared": "1.0.0"
         },
         "compile": {
@@ -1236,7 +1237,10 @@
         "type": "project",
         "framework": ".NETCoreApp,Version=v10.0",
         "dependencies": {
+          "Nexora.Modules.HR": "1.0.0",
           "Nexora.Modules.Identity": "1.0.0",
+          "Nexora.Modules.Payroll": "1.0.0",
+          "Nexora.Modules.Projects": "1.0.0",
           "Nexora.Shared": "1.0.0"
         },
         "compile": {
@@ -1271,6 +1275,7 @@
         "type": "project",
         "framework": ".NETCoreApp,Version=v10.0",
         "dependencies": {
+          "Nexora.Modules.Finance": "1.0.0",
           "Nexora.Modules.HR": "1.0.0",
           "Nexora.Modules.Identity": "1.0.0",
           "Nexora.Shared": "1.0.0"
@@ -1289,6 +1294,8 @@
         "type": "project",
         "framework": ".NETCoreApp,Version=v10.0",
         "dependencies": {
+          "Nexora.Modules.Finance": "1.0.0",
+          "Nexora.Modules.HR": "1.0.0",
           "Nexora.Modules.Identity": "1.0.0",
           "Nexora.Shared": "1.0.0"
         },
@@ -1306,8 +1313,10 @@
         "type": "project",
         "framework": ".NETCoreApp,Version=v10.0",
         "dependencies": {
+          "Nexora.Modules.Finance": "1.0.0",
           "Nexora.Modules.HR": "1.0.0",
           "Nexora.Modules.Identity": "1.0.0",
+          "Nexora.Modules.Workflow": "1.0.0",
           "Nexora.Shared": "1.0.0"
         },
         "compile": {
@@ -1324,7 +1333,10 @@
         "type": "project",
         "framework": ".NETCoreApp,Version=v10.0",
         "dependencies": {
+          "Nexora.Modules.HR": "1.0.0",
           "Nexora.Modules.Identity": "1.0.0",
+          "Nexora.Modules.Payroll": "1.0.0",
+          "Nexora.Modules.Projects": "1.0.0",
           "Nexora.Shared": "1.0.0"
         },
         "compile": {
