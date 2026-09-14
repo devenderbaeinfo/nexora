@@ -41,6 +41,7 @@ builder.Services.AddScoped<IApprovalWorkflowService, ApprovalWorkflowService>();
 builder.Services.AddScoped<IAccountingPostingService, AccountingPostingService>();
 builder.Services.AddSingleton<Nexora.Modules.HR.Services.EmployeeDocumentStorage>();
 builder.Services.AddScoped<IDataScopeService, DataScopeService>();
+builder.Services.AddScoped<IReportAccessService, ReportAccessService>();
 builder.Services.AddScoped<IRoleUsageChecker, JobTitleRoleUsageChecker>();
 builder.Services.AddScoped<IEmployeeDirectory, EmployeeDirectory>();
 builder.Services.AddScoped<IProjectDirectory, Nexora.Modules.Projects.Services.ProjectDirectory>();

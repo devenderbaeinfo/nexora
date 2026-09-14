@@ -39,6 +39,11 @@ public static class RoleTemplates
             Permission.Fnf.View,
             Permission.Payroll.View,
             Permission.AccountsPayable.View,
+            // Admin is the tenant owner — broadest default of the six system roles, matching
+            // every reportable surface it can already effectively reach today (Project.View,
+            // Accounting.View, Attendance.ViewAll) plus the two report keys are new to it.
+            Permission.Reports.ViewProjects, Permission.Reports.ViewFinance,
+            Permission.Reports.ViewDashboardKpis, Permission.Reports.ViewHrTrends,
         ],
 
         Hr =>
@@ -53,6 +58,8 @@ public static class RoleTemplates
             Permission.Fnf.View, Permission.Fnf.Manage,
             Permission.Announcements.Manage,
             Permission.Payroll.View, Permission.Payroll.Manage,
+            // Broad by design, matching what HR already effectively sees today (Attendance.ViewAll).
+            Permission.Reports.ViewDashboardKpis, Permission.Reports.ViewHrTrends,
         ],
 
         Manager =>
@@ -67,6 +74,8 @@ public static class RoleTemplates
             Permission.Attendance.ClockInOut, Permission.Attendance.ViewTeam,
             Permission.Fnf.View,
             Permission.Payroll.View,
+            // Matches the Leave/Expense manager-approval + Project.View this role already holds.
+            Permission.Reports.ViewTeam, Permission.Reports.ViewProjects, Permission.Reports.ViewExpenses,
         ],
 
         Finance =>
@@ -77,6 +86,8 @@ public static class RoleTemplates
             Permission.Attendance.ClockInOut,
             Permission.Payroll.View, Permission.Payroll.Approve,
             Permission.AccountsPayable.View, Permission.AccountsPayable.Manage, Permission.AccountsPayable.Approve,
+            // Matches Accounting.View/Project.ApproveExpenseAsFinance this role already holds.
+            Permission.Reports.ViewFinance, Permission.Reports.ViewProjects, Permission.Reports.ViewDashboardKpis,
         ],
 
         Employee =>

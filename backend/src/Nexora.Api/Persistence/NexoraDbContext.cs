@@ -31,6 +31,7 @@ public class NexoraDbContext : IdentityDbContext<AppUser, AppRole, Guid>
     public DbSet<PermissionScope> PermissionScopes => Set<PermissionScope>();
     public DbSet<PermissionScopeRecord> PermissionScopeRecords => Set<PermissionScopeRecord>();
     public DbSet<RoleFieldPermission> RoleFieldPermissions => Set<RoleFieldPermission>();
+    public DbSet<ReportAccessGrant> ReportAccessGrants => Set<ReportAccessGrant>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 
     public DbSet<Department> Departments => Set<Department>();
@@ -114,6 +115,8 @@ public class NexoraDbContext : IdentityDbContext<AppUser, AppRole, Guid>
         builder.Entity<ExchangeRate>().HasIndex(r => new { r.TenantId, r.CurrencyCode, r.EffectiveDate }).IsUnique();
         builder.Entity<PermissionScope>().HasIndex(s => new { s.TenantId, s.RoleId, s.PermissionKey }).IsUnique();
         builder.Entity<RoleFieldPermission>().HasIndex(f => new { f.TenantId, f.RoleId, f.Resource, f.FieldName }).IsUnique();
+        builder.Entity<ReportAccessGrant>().HasIndex(g => new { g.TenantId, g.RoleId });
+        builder.Entity<ReportAccessGrant>().HasIndex(g => new { g.TenantId, g.UserId, g.ReportKey });
         builder.Entity<TenantApprovalSettings>().HasIndex(s => s.TenantId).IsUnique();
         builder.Entity<VendorBill>().HasIndex(b => new { b.TenantId, b.VendorId, b.BillNumber }).IsUnique();
         builder.Entity<TenantAttendanceSettings>().HasIndex(s => s.TenantId).IsUnique();

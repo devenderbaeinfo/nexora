@@ -118,6 +118,23 @@ public static class Permission
         public const string ViewAuditLog = "admin.view_audit_log";
     }
 
+    // Admin-configurable report visibility: the base claim a role/user needs to even attempt
+    // a given reportable surface (Team/Projects/Expenses reports, Finance's tenant-wide expense
+    // view, the dashboard KPI row, HR's headcount/attendance trends). Holding the claim alone is
+    // still gated by whatever permission that surface already borrowed (e.g. Leave.ApproveAsManager
+    // for the Team report) — see ReportsController/DashboardController/SearchController. On top of
+    // that, IReportAccessService can further narrow *which* roles/users/projects are actually
+    // visible via ReportAccessGrant rows an Admin configures on the Report Access admin page.
+    public static class Reports
+    {
+        public const string ViewTeam = "reports.view_team";
+        public const string ViewProjects = "reports.view_projects";
+        public const string ViewExpenses = "reports.view_expenses";
+        public const string ViewFinance = "reports.view_expenses_all";
+        public const string ViewDashboardKpis = "reports.view_dashboard_kpis";
+        public const string ViewHrTrends = "reports.view_hr_trends";
+    }
+
     // Platform-operator permissions — granted only to accounts in the reserved "platform"
     // tenant, never to a customer tenant. A SuperAdmin provisions new tenants and their
     // first Admin; everything below that line is the tenant's own business.
