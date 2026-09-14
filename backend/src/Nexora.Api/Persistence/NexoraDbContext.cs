@@ -71,6 +71,8 @@ public class NexoraDbContext : IdentityDbContext<AppUser, AppRole, Guid>
     public DbSet<WorkflowInstance> WorkflowInstances => Set<WorkflowInstance>();
     public DbSet<WorkflowDecision> WorkflowDecisions => Set<WorkflowDecision>();
     public DbSet<TenantApprovalSettings> TenantApprovalSettings => Set<TenantApprovalSettings>();
+    public DbSet<ApprovalChainDefinition> ApprovalChainDefinitions => Set<ApprovalChainDefinition>();
+    public DbSet<ApprovalChainStage> ApprovalChainStages => Set<ApprovalChainStage>();
 
     public DbSet<ReimbursementRequest> ReimbursementRequests => Set<ReimbursementRequest>();
 
@@ -118,6 +120,8 @@ public class NexoraDbContext : IdentityDbContext<AppUser, AppRole, Guid>
         builder.Entity<ReportAccessGrant>().HasIndex(g => new { g.TenantId, g.RoleId });
         builder.Entity<ReportAccessGrant>().HasIndex(g => new { g.TenantId, g.UserId, g.ReportKey });
         builder.Entity<TenantApprovalSettings>().HasIndex(s => s.TenantId).IsUnique();
+        builder.Entity<ApprovalChainDefinition>().HasIndex(c => new { c.TenantId, c.EntityType, c.ScopeType, c.ScopeKey });
+        builder.Entity<ApprovalChainStage>().HasIndex(s => new { s.TenantId, s.ChainDefinitionId, s.StageOrder });
         builder.Entity<VendorBill>().HasIndex(b => new { b.TenantId, b.VendorId, b.BillNumber }).IsUnique();
         builder.Entity<TenantAttendanceSettings>().HasIndex(s => s.TenantId).IsUnique();
 

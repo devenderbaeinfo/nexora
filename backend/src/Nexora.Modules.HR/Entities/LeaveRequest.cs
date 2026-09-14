@@ -49,6 +49,14 @@ public class LeaveRequest : TenantEntity
     public LeaveRequestStatus Status { get; set; } = LeaveRequestStatus.PendingManagerApproval;
     public Guid WorkflowInstanceId { get; set; }
 
+    // Which ApprovalChainDefinition (if any) was resolved at submission time — fixed here for
+    // the same reason WorkflowInstance.StagesCsv is fixed at start: a later admin change to the
+    // chain must never rewrite the rules under a request that's already partway through. Null
+    // means this request runs the hardcoded Manager->HR path (ManagerApprovalStatus/
+    // HrApprovalStatus below), exactly as before this feature existed — see
+    // IApprovalChainResolver and LeaveRequestsController.Decide.
+    public Guid? ApprovalChainDefinitionId { get; set; }
+
     // The balance is only ever debited once the workflow reaches Approved (HR's sign-off) — never before.
     public bool BalanceDebited { get; set; }
 

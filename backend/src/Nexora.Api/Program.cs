@@ -38,6 +38,7 @@ builder.Services.AddProblemDetails();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ITenantContext, JwtTenantContext>();
 builder.Services.AddScoped<IApprovalWorkflowService, ApprovalWorkflowService>();
+builder.Services.AddScoped<Nexora.Modules.HR.Services.IApprovalChainResolver, Nexora.Modules.HR.Services.ApprovalChainResolver>();
 builder.Services.AddScoped<IAccountingPostingService, AccountingPostingService>();
 builder.Services.AddSingleton<Nexora.Modules.HR.Services.EmployeeDocumentStorage>();
 builder.Services.AddScoped<IDataScopeService, DataScopeService>();

@@ -9,6 +9,12 @@ public interface IApprovalWorkflowService
 {
     Task<WorkflowInstance> StartAsync(string entityType, Guid entityId);
 
+    // Same as StartAsync, but with an explicit stage list instead of looking one up from the
+    // static WorkflowDefinitions dictionary — used by LeaveRequest once a tenant has configured
+    // a custom ApprovalChainDefinition (see IApprovalChainResolver). Stored on the instance the
+    // same way either way, so DecideAsync/CurrentStage work identically regardless of source.
+    Task<WorkflowInstance> StartWithStagesAsync(string entityType, Guid entityId, IReadOnlyList<string> stageNames);
+
     // expectedStage guards against a stale client call acting on a stage the instance has
     // already moved past — the instance's own CurrentStage is the source of truth, this is
     // just belt-and-braces so a race doesn't silently apply a decision to the wrong stage.
@@ -22,14 +28,16 @@ public class ApprovalWorkflowService : IApprovalWorkflowService
     private readonly DbContext _db;
     public ApprovalWorkflowService(DbContext db) => _db = db;
 
-    public async Task<WorkflowInstance> StartAsync(string entityType, Guid entityId)
+    public Task<WorkflowInstance> StartAsync(string entityType, Guid entityId) =>
+        StartWithStagesAsync(entityType, entityId, WorkflowDefinitions.StagesFor(entityType));
+
+    public async Task<WorkflowInstance> StartWithStagesAsync(string entityType, Guid entityId, IReadOnlyList<string> stageNames)
     {
-        var stages = WorkflowDefinitions.StagesFor(entityType);
         var instance = new WorkflowInstance
         {
             EntityType = entityType,
             EntityId = entityId,
-            StagesCsv = string.Join(',', stages),
+            StagesCsv = string.Join(',', stageNames),
             CurrentStageIndex = 0,
             Status = WorkflowStatus.InProgress,
         };
