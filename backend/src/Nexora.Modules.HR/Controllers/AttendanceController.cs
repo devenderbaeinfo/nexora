@@ -4,7 +4,6 @@ using Nexora.Modules.HR.Contracts;
 using Nexora.Shared.Common;
 using Nexora.Modules.Identity.Entities;
 using Nexora.Modules.HR.Entities;
-using Nexora.Api.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -21,8 +20,8 @@ public class AttendanceController : ControllerBase
     // no behavior change from before that setting existed.
     private const decimal DefaultStandardWorkDayHours = 8m;
 
-    private readonly NexoraDbContext _db;
-    public AttendanceController(NexoraDbContext db) => _db = db;
+    private readonly DbContext _db;
+    public AttendanceController(DbContext db) => _db = db;
 
     private Guid? CurrentEmployeeId =>
         Guid.TryParse(User.FindFirstValue("employee_id"), out var id) ? id : null;
@@ -30,7 +29,7 @@ public class AttendanceController : ControllerBase
     private Guid CurrentUserId => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub")!);
 
     private async Task<decimal> StandardWorkDayHoursAsync() =>
-        (await _db.TenantAttendanceSettings.FirstOrDefaultAsync())?.StandardWorkDayHours ?? DefaultStandardWorkDayHours;
+        (await _db.Set<TenantAttendanceSettings>().FirstOrDefaultAsync())?.StandardWorkDayHours ?? DefaultStandardWorkDayHours;
 
     // Tenant-wide operational config, same permission as the fallback-approver setting
     // (Permission.Admin.ManageOrgStructure) — both configure "how this org's approvals/hours
@@ -47,11 +46,11 @@ public class AttendanceController : ControllerBase
         if (request.StandardWorkDayHours is <= 0 or > 24)
             return BadRequest("Standard workday hours must be between 0 and 24.");
 
-        var settings = await _db.TenantAttendanceSettings.FirstOrDefaultAsync();
+        var settings = await _db.Set<TenantAttendanceSettings>().FirstOrDefaultAsync();
         if (settings is null)
         {
             settings = new TenantAttendanceSettings();
-            _db.TenantAttendanceSettings.Add(settings);
+            _db.Set<TenantAttendanceSettings>().Add(settings);
         }
         settings.StandardWorkDayHours = request.StandardWorkDayHours;
 
@@ -64,7 +63,7 @@ public class AttendanceController : ControllerBase
     public async Task<ActionResult<List<AttendanceEntryDto>>> Mine()
     {
         if (CurrentEmployeeId is not { } employeeId) return Ok(new List<AttendanceEntryDto>());
-        return Ok(await BuildDtos(_db.AttendanceEntries
+        return Ok(await BuildDtos(_db.Set<AttendanceEntry>()
             .Where(a => a.EmployeeId == employeeId)
             .OrderByDescending(a => a.WorkDate)
             .Take(30)));
@@ -76,7 +75,7 @@ public class AttendanceController : ControllerBase
     public async Task<ActionResult<List<AttendanceEntryDto>>> ForDate([FromQuery] DateOnly? date)
     {
         var workDate = date ?? DateOnly.FromDateTime(DateTime.UtcNow);
-        return Ok(await BuildDtos(_db.AttendanceEntries.Where(a => a.WorkDate == workDate)));
+        return Ok(await BuildDtos(_db.Set<AttendanceEntry>().Where(a => a.WorkDate == workDate)));
     }
 
     // A manager's own team, scoped by ReportingManagerId rather than company-wide —
@@ -88,12 +87,12 @@ public class AttendanceController : ControllerBase
         if (CurrentEmployeeId is not { } managerId) return Ok(new List<AttendanceEntryDto>());
 
         var workDate = date ?? DateOnly.FromDateTime(DateTime.UtcNow);
-        var directReportIds = await _db.Employees
+        var directReportIds = await _db.Set<Employee>()
             .Where(e => e.ReportingManagerId == managerId)
             .Select(e => e.Id)
             .ToListAsync();
 
-        return Ok(await BuildDtos(_db.AttendanceEntries.Where(a => a.WorkDate == workDate && directReportIds.Contains(a.EmployeeId))));
+        return Ok(await BuildDtos(_db.Set<AttendanceEntry>().Where(a => a.WorkDate == workDate && directReportIds.Contains(a.EmployeeId))));
     }
 
     [HttpPost("clock-in")]
@@ -104,7 +103,7 @@ public class AttendanceController : ControllerBase
             return BadRequest("This account isn't linked to an employee record yet.");
 
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
-        var existing = await _db.AttendanceEntries.FirstOrDefaultAsync(a => a.EmployeeId == employeeId && a.WorkDate == today);
+        var existing = await _db.Set<AttendanceEntry>().FirstOrDefaultAsync(a => a.EmployeeId == employeeId && a.WorkDate == today);
         if (existing is not null) return Conflict("Already clocked in today.");
 
         var entry = new AttendanceEntry
@@ -113,7 +112,7 @@ public class AttendanceController : ControllerBase
             WorkDate = today,
             ClockIn = DateTimeOffset.UtcNow,
         };
-        _db.AttendanceEntries.Add(entry);
+        _db.Set<AttendanceEntry>().Add(entry);
         await _db.SaveChangesAsync();
 
         return CreatedAtAction(nameof(Mine), null);
@@ -127,7 +126,7 @@ public class AttendanceController : ControllerBase
             return BadRequest("This account isn't linked to an employee record yet.");
 
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
-        var entry = await _db.AttendanceEntries.FirstOrDefaultAsync(a => a.EmployeeId == employeeId && a.WorkDate == today);
+        var entry = await _db.Set<AttendanceEntry>().FirstOrDefaultAsync(a => a.EmployeeId == employeeId && a.WorkDate == today);
         if (entry is null) return BadRequest("You haven't clocked in today.");
         if (entry.ClockOut is not null) return Conflict("Already clocked out today.");
 
@@ -142,7 +141,7 @@ public class AttendanceController : ControllerBase
     [RequirePermission(Permission.Attendance.Correct)]
     public async Task<IActionResult> Correct(Guid id, CorrectAttendanceRequest request)
     {
-        var entry = await _db.AttendanceEntries.FirstOrDefaultAsync(a => a.Id == id);
+        var entry = await _db.Set<AttendanceEntry>().FirstOrDefaultAsync(a => a.Id == id);
         if (entry is null) return NotFound();
         if (request.ClockOut is not null && request.ClockOut < request.ClockIn)
             return BadRequest("Clock-out can't be before clock-in.");
@@ -151,7 +150,7 @@ public class AttendanceController : ControllerBase
         entry.ClockOut = request.ClockOut;
         ApplyHours(entry, await StandardWorkDayHoursAsync());
 
-        _db.AuditLogs.Add(new AuditLog
+        _db.Set<AuditLog>().Add(new AuditLog
         {
             ActorUserId = CurrentUserId,
             Action = "attendance.correct",
@@ -180,7 +179,7 @@ public class AttendanceController : ControllerBase
     private async Task<List<AttendanceEntryDto>> BuildDtos(IQueryable<AttendanceEntry> query)
     {
         var entries = await query.ToListAsync();
-        var employees = await _db.Employees.ToDictionaryAsync(e => e.Id, e => $"{e.FirstName} {e.LastName}");
+        var employees = await _db.Set<Employee>().ToDictionaryAsync(e => e.Id, e => $"{e.FirstName} {e.LastName}");
 
         return entries.Select(a => new AttendanceEntryDto(
             a.Id, a.EmployeeId, employees.TryGetValue(a.EmployeeId, out var name) ? name : "—",

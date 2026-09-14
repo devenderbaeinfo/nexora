@@ -4,7 +4,6 @@ using Nexora.Modules.HR.Contracts;
 using Nexora.Shared.Common;
 using Nexora.Modules.Identity.Entities;
 using Nexora.Modules.HR.Entities;
-using Nexora.Api.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -20,8 +19,8 @@ namespace Nexora.Modules.HR.Controllers;
 [Route("api/timesheets")]
 public class TimesheetsController : ControllerBase
 {
-    private readonly NexoraDbContext _db;
-    public TimesheetsController(NexoraDbContext db) => _db = db;
+    private readonly DbContext _db;
+    public TimesheetsController(DbContext db) => _db = db;
 
     private Guid? CurrentEmployeeId =>
         Guid.TryParse(User.FindFirstValue("employee_id"), out var id) ? id : null;
@@ -33,7 +32,7 @@ public class TimesheetsController : ControllerBase
     public async Task<ActionResult<List<TimesheetEntryDto>>> Mine()
     {
         if (CurrentEmployeeId is not { } employeeId) return Ok(new List<TimesheetEntryDto>());
-        return Ok(await BuildDtos(_db.TimesheetEntries
+        return Ok(await BuildDtos(_db.Set<TimesheetEntry>()
             .Where(t => t.EmployeeId == employeeId)
             .OrderByDescending(t => t.WorkDate)
             .Take(30)));
@@ -45,12 +44,12 @@ public class TimesheetsController : ControllerBase
     {
         if (CurrentEmployeeId is not { } managerId) return Ok(new List<TimesheetEntryDto>());
 
-        var directReportIds = await _db.Employees
+        var directReportIds = await _db.Set<Employee>()
             .Where(e => e.ReportingManagerId == managerId)
             .Select(e => e.Id)
             .ToListAsync();
 
-        return Ok(await BuildDtos(_db.TimesheetEntries
+        return Ok(await BuildDtos(_db.Set<TimesheetEntry>()
             .Where(t => directReportIds.Contains(t.EmployeeId) && t.Status == TimesheetStatus.Submitted)));
     }
 
@@ -63,7 +62,7 @@ public class TimesheetsController : ControllerBase
 
         if (request.Hours <= 0 || request.Hours > 24) return BadRequest("Hours must be between 0 and 24.");
 
-        var projectExists = await _db.Projects.AnyAsync(p => p.Id == request.ProjectId);
+        var projectExists = await _db.Set<ProjectEntity>().AnyAsync(p => p.Id == request.ProjectId);
         if (!projectExists) return BadRequest("Unknown project.");
 
         var entry = new TimesheetEntry
@@ -76,7 +75,7 @@ public class TimesheetsController : ControllerBase
             Notes = request.Notes,
             Status = TimesheetStatus.Submitted,
         };
-        _db.TimesheetEntries.Add(entry);
+        _db.Set<TimesheetEntry>().Add(entry);
         await _db.SaveChangesAsync();
 
         return CreatedAtAction(nameof(Mine), null);
@@ -86,16 +85,16 @@ public class TimesheetsController : ControllerBase
     [RequirePermission(Permission.Timesheet.Approve)]
     public async Task<IActionResult> Decide(Guid id, DecideTimesheetRequest decision)
     {
-        var entry = await _db.TimesheetEntries.FirstOrDefaultAsync(t => t.Id == id);
+        var entry = await _db.Set<TimesheetEntry>().FirstOrDefaultAsync(t => t.Id == id);
         if (entry is null) return NotFound();
         if (entry.Status != TimesheetStatus.Submitted) return Conflict("This entry has already been decided.");
 
-        var employee = await _db.Employees.FirstOrDefaultAsync(e => e.Id == entry.EmployeeId);
+        var employee = await _db.Set<Employee>().FirstOrDefaultAsync(e => e.Id == entry.EmployeeId);
         if (employee?.ReportingManagerId != CurrentEmployeeId) return Forbid();
 
         entry.Status = decision.Approve ? TimesheetStatus.Approved : TimesheetStatus.Rejected;
 
-        _db.AuditLogs.Add(new AuditLog
+        _db.Set<AuditLog>().Add(new AuditLog
         {
             ActorUserId = CurrentUserId,
             Action = decision.Approve ? "timesheet.approve" : "timesheet.reject",
@@ -110,8 +109,8 @@ public class TimesheetsController : ControllerBase
     private async Task<List<TimesheetEntryDto>> BuildDtos(IQueryable<TimesheetEntry> query)
     {
         var entries = await query.OrderByDescending(t => t.WorkDate).ToListAsync();
-        var employees = await _db.Employees.ToDictionaryAsync(e => e.Id, e => $"{e.FirstName} {e.LastName}");
-        var projects = await _db.Projects.ToDictionaryAsync(p => p.Id, p => p.Name);
+        var employees = await _db.Set<Employee>().ToDictionaryAsync(e => e.Id, e => $"{e.FirstName} {e.LastName}");
+        var projects = await _db.Set<ProjectEntity>().ToDictionaryAsync(p => p.Id, p => p.Name);
 
         return entries.Select(t => new TimesheetEntryDto(
             t.Id,

@@ -4,7 +4,6 @@ using Nexora.Modules.Onboarding.Contracts;
 using Nexora.Shared.Common;
 using Nexora.Modules.Identity.Entities;
 using Nexora.Modules.Onboarding.Entities;
-using Nexora.Api.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -16,8 +15,8 @@ namespace Nexora.Modules.Onboarding.Controllers;
 [Route("api/fnf")]
 public class FnfController : ControllerBase
 {
-    private readonly NexoraDbContext _db;
-    public FnfController(NexoraDbContext db) => _db = db;
+    private readonly DbContext _db;
+    public FnfController(DbContext db) => _db = db;
 
     private Guid? CurrentEmployeeId =>
         Guid.TryParse(User.FindFirstValue("employee_id"), out var id) ? id : null;
@@ -30,7 +29,7 @@ public class FnfController : ControllerBase
     [RequirePermission(Permission.Fnf.Manage)]
     public async Task<ActionResult<List<FnfCaseDto>>> All()
     {
-        return Ok(await BuildDtos(_db.FnfCases.Where(c => c.Status != FnfCaseStatus.Completed)));
+        return Ok(await BuildDtos(_db.Set<FnfCase>().Where(c => c.Status != FnfCaseStatus.Completed)));
     }
 
     [HttpGet("employees/{employeeId:guid}")]
@@ -38,7 +37,7 @@ public class FnfController : ControllerBase
     public async Task<ActionResult<List<FnfCaseDto>>> ForEmployee(Guid employeeId)
     {
         if (!CanManage && employeeId != CurrentEmployeeId) return Forbid();
-        return Ok(await BuildDtos(_db.FnfCases.Where(c => c.EmployeeId == employeeId)));
+        return Ok(await BuildDtos(_db.Set<FnfCase>().Where(c => c.EmployeeId == employeeId)));
     }
 
     [HttpGet("mine")]
@@ -46,26 +45,26 @@ public class FnfController : ControllerBase
     public async Task<ActionResult<List<FnfCaseDto>>> Mine()
     {
         if (CurrentEmployeeId is not { } employeeId) return Ok(new List<FnfCaseDto>());
-        return Ok(await BuildDtos(_db.FnfCases.Where(c => c.EmployeeId == employeeId)));
+        return Ok(await BuildDtos(_db.Set<FnfCase>().Where(c => c.EmployeeId == employeeId)));
     }
 
     [HttpPost("start")]
     [RequirePermission(Permission.Fnf.Manage)]
     public async Task<IActionResult> Start(StartFnfCaseRequest request)
     {
-        var employeeExists = await _db.Employees.AnyAsync(e => e.Id == request.EmployeeId);
+        var employeeExists = await _db.Set<Employee>().AnyAsync(e => e.Id == request.EmployeeId);
         if (!employeeExists) return BadRequest("Unknown employee.");
 
-        var alreadyOpen = await _db.FnfCases.AnyAsync(c => c.EmployeeId == request.EmployeeId && c.Status == FnfCaseStatus.InProgress);
+        var alreadyOpen = await _db.Set<FnfCase>().AnyAsync(c => c.EmployeeId == request.EmployeeId && c.Status == FnfCaseStatus.InProgress);
         if (alreadyOpen) return Conflict("This employee already has an open settlement case.");
 
         var fnfCase = new FnfCase { EmployeeId = request.EmployeeId };
-        _db.FnfCases.Add(fnfCase);
+        _db.Set<FnfCase>().Add(fnfCase);
         await _db.SaveChangesAsync();
 
         foreach (var (title, department) in FnfDefaultTemplate.Items)
         {
-            _db.FnfClearanceItems.Add(new FnfClearanceItem
+            _db.Set<FnfClearanceItem>().Add(new FnfClearanceItem
             {
                 FnfCaseId = fnfCase.Id,
                 EmployeeId = request.EmployeeId,
@@ -74,7 +73,7 @@ public class FnfController : ControllerBase
             });
         }
 
-        _db.AuditLogs.Add(new AuditLog
+        _db.Set<AuditLog>().Add(new AuditLog
         {
             ActorUserId = CurrentUserId,
             Action = "fnf.start",
@@ -90,7 +89,7 @@ public class FnfController : ControllerBase
     [RequirePermission(Permission.Fnf.Manage)]
     public async Task<IActionResult> UpdateItem(Guid id, UpdateFnfItemRequest request)
     {
-        var item = await _db.FnfClearanceItems.FirstOrDefaultAsync(i => i.Id == id);
+        var item = await _db.Set<FnfClearanceItem>().FirstOrDefaultAsync(i => i.Id == id);
         if (item is null) return NotFound();
 
         item.Status = request.Cleared ? FnfClearanceStatus.Cleared : FnfClearanceStatus.Pending;
@@ -107,11 +106,11 @@ public class FnfController : ControllerBase
     [RequirePermission(Permission.Fnf.Manage)]
     public async Task<IActionResult> Close(Guid id, CloseFnfCaseRequest request)
     {
-        var fnfCase = await _db.FnfCases.FirstOrDefaultAsync(c => c.Id == id);
+        var fnfCase = await _db.Set<FnfCase>().FirstOrDefaultAsync(c => c.Id == id);
         if (fnfCase is null) return NotFound();
         if (fnfCase.Status == FnfCaseStatus.Completed) return Conflict("This case is already closed.");
 
-        var items = await _db.FnfClearanceItems.Where(i => i.FnfCaseId == id).ToListAsync();
+        var items = await _db.Set<FnfClearanceItem>().Where(i => i.FnfCaseId == id).ToListAsync();
         if (items.Any(i => i.Status != FnfClearanceStatus.Cleared))
             return Conflict("All clearance items must be cleared before closing.");
 
@@ -119,7 +118,7 @@ public class FnfController : ControllerBase
         fnfCase.FinalPayoutAmount = request.FinalPayoutAmount;
         fnfCase.ClosedAtUtc = DateTimeOffset.UtcNow;
 
-        _db.AuditLogs.Add(new AuditLog
+        _db.Set<AuditLog>().Add(new AuditLog
         {
             ActorUserId = CurrentUserId,
             Action = "fnf.close",
@@ -135,8 +134,8 @@ public class FnfController : ControllerBase
     {
         var cases = await query.OrderByDescending(c => c.CreatedAtUtc).ToListAsync();
         var caseIds = cases.Select(c => c.Id).ToList();
-        var items = await _db.FnfClearanceItems.Where(i => caseIds.Contains(i.FnfCaseId)).ToListAsync();
-        var employees = await _db.Employees.ToDictionaryAsync(e => e.Id, e => $"{e.FirstName} {e.LastName}");
+        var items = await _db.Set<FnfClearanceItem>().Where(i => caseIds.Contains(i.FnfCaseId)).ToListAsync();
+        var employees = await _db.Set<Employee>().ToDictionaryAsync(e => e.Id, e => $"{e.FirstName} {e.LastName}");
 
         return cases.Select(c => new FnfCaseDto(
             c.Id, c.EmployeeId, employees.TryGetValue(c.EmployeeId, out var name) ? name : "—",

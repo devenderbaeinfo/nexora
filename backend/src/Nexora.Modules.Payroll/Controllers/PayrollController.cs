@@ -3,12 +3,12 @@ using Nexora.Shared.Authorization;
 using Nexora.Modules.Payroll.Contracts;
 using Nexora.Modules.Finance.Entities;
 using Nexora.Shared.Common;
+using Nexora.Modules.Identity.Authorization;
 using Nexora.Modules.Identity.Entities;
 using Nexora.Modules.Payroll.Entities;
 using Nexora.Modules.HR.Entities;
 using Nexora.Modules.HR.Entities;
 using Nexora.Shared.Authorization;
-using Nexora.Api.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -25,9 +25,9 @@ namespace Nexora.Modules.Payroll.Controllers;
 [Route("api/payroll")]
 public class PayrollController : ControllerBase
 {
-    private readonly NexoraDbContext _db;
-    private readonly DataScopeService _scope;
-    public PayrollController(NexoraDbContext db, DataScopeService scope)
+    private readonly DbContext _db;
+    private readonly IDataScopeService _scope;
+    public PayrollController(DbContext db, IDataScopeService scope)
     {
         _db = db;
         _scope = scope;
@@ -57,9 +57,9 @@ public class PayrollController : ControllerBase
             case DataScopeType.Department:
             {
                 if (CurrentEmployeeId is not { } employeeId) return [];
-                var me = await _db.Employees.FirstOrDefaultAsync(e => e.Id == employeeId);
+                var me = await _db.Set<Employee>().FirstOrDefaultAsync(e => e.Id == employeeId);
                 if (me is null) return [];
-                var ids = await _db.Employees.Where(e => e.DepartmentId == me.DepartmentId).Select(e => e.Id).ToListAsync();
+                var ids = await _db.Set<Employee>().Where(e => e.DepartmentId == me.DepartmentId).Select(e => e.Id).ToListAsync();
                 return ids.ToHashSet();
             }
 
@@ -97,7 +97,7 @@ public class PayrollController : ControllerBase
             if (allowed is not null && !allowed.Contains(employeeId)) return Forbid();
         }
 
-        var structure = await _db.SalaryStructures
+        var structure = await _db.Set<SalaryStructure>()
             .Where(s => s.EmployeeId == employeeId && s.IsActive)
             .FirstOrDefaultAsync();
         if (structure is null) return Ok(null);
@@ -109,7 +109,7 @@ public class PayrollController : ControllerBase
     [RequirePermission(Permission.Payroll.Manage)]
     public async Task<ActionResult<SalaryStructureDto>> SetSalaryStructure(Guid employeeId, SetSalaryStructureRequest request)
     {
-        var employeeExists = await _db.Employees.AnyAsync(e => e.Id == employeeId);
+        var employeeExists = await _db.Set<Employee>().AnyAsync(e => e.Id == employeeId);
         if (!employeeExists) return BadRequest("Unknown employee.");
 
         if (request.Components is null || request.Components.Count == 0)
@@ -131,24 +131,24 @@ public class PayrollController : ControllerBase
         var basicCount = parsed.Count(c => c.IsBasic);
         if (basicCount != 1) return BadRequest("Exactly one earning component must be marked as Basic — every percentage-based component calculates off it.");
 
-        var existingActive = await _db.SalaryStructures.Where(s => s.EmployeeId == employeeId && s.IsActive).ToListAsync();
+        var existingActive = await _db.Set<SalaryStructure>().Where(s => s.EmployeeId == employeeId && s.IsActive).ToListAsync();
         foreach (var old in existingActive) old.IsActive = false;
 
         var structure = new SalaryStructure { EmployeeId = employeeId, EffectiveFrom = request.EffectiveFrom, IsActive = true };
-        _db.SalaryStructures.Add(structure);
+        _db.Set<SalaryStructure>().Add(structure);
         await _db.SaveChangesAsync();
 
         var sortOrder = 0;
         foreach (var c in parsed)
         {
-            _db.SalaryComponents.Add(new SalaryComponent
+            _db.Set<SalaryComponent>().Add(new SalaryComponent
             {
                 SalaryStructureId = structure.Id, Name = c.Name, Type = c.Type,
                 CalculationType = c.Calc, Value = c.Value, IsBasic = c.IsBasic, SortOrder = sortOrder++,
             });
         }
 
-        _db.AuditLogs.Add(new AuditLog
+        _db.Set<AuditLog>().Add(new AuditLog
         {
             ActorUserId = CurrentUserId, Action = "payroll.set_salary_structure",
             EntityType = "Employee", EntityId = employeeId,
@@ -165,7 +165,7 @@ public class PayrollController : ControllerBase
     {
         if (!CanManage && !CanApprove) return Forbid();
 
-        var runs = await _db.PayrollRuns.OrderByDescending(r => r.PeriodYear).ThenByDescending(r => r.PeriodMonth).ToListAsync();
+        var runs = await _db.Set<PayrollRun>().OrderByDescending(r => r.PeriodYear).ThenByDescending(r => r.PeriodMonth).ToListAsync();
         return Ok(await BuildRunDtos(runs));
     }
 
@@ -174,7 +174,7 @@ public class PayrollController : ControllerBase
     {
         if (!CanManage && !CanApprove) return Forbid();
 
-        var run = await _db.PayrollRuns.FirstOrDefaultAsync(r => r.Id == id);
+        var run = await _db.Set<PayrollRun>().FirstOrDefaultAsync(r => r.Id == id);
         if (run is null) return NotFound();
         return Ok((await BuildRunDtos([run])).First());
     }
@@ -184,16 +184,16 @@ public class PayrollController : ControllerBase
     {
         if (!CanManage && !CanApprove) return Forbid();
 
-        var runExists = await _db.PayrollRuns.AnyAsync(r => r.Id == id);
+        var runExists = await _db.Set<PayrollRun>().AnyAsync(r => r.Id == id);
         if (!runExists) return NotFound();
 
         var allowed = await ResolveAllowedPayrollEmployeeIdsAsync();
         var fieldAccess = await PayslipFieldAccessAsync();
 
-        var payslipsQuery = _db.Payslips.Where(p => p.PayrollRunId == id);
+        var payslipsQuery = _db.Set<Payslip>().Where(p => p.PayrollRunId == id);
         if (allowed is not null) payslipsQuery = payslipsQuery.Where(p => allowed.Contains(p.EmployeeId));
         var payslips = await payslipsQuery.ToListAsync();
-        var employees = await _db.Employees.ToDictionaryAsync(e => e.Id, e => $"{e.FirstName} {e.LastName}");
+        var employees = await _db.Set<Employee>().ToDictionaryAsync(e => e.Id, e => $"{e.FirstName} {e.LastName}");
 
         return Ok(payslips.OrderBy(p => employees.TryGetValue(p.EmployeeId, out var n) ? n : "").Select(p =>
         {
@@ -216,28 +216,28 @@ public class PayrollController : ControllerBase
         if (request.PeriodMonth is < 1 or > 12) return BadRequest("Month must be between 1 and 12.");
         if (request.PeriodYear is < 2000 or > 2100) return BadRequest("Year looks wrong.");
 
-        var alreadyExists = await _db.PayrollRuns.AnyAsync(r => r.PeriodMonth == request.PeriodMonth && r.PeriodYear == request.PeriodYear);
+        var alreadyExists = await _db.Set<PayrollRun>().AnyAsync(r => r.PeriodMonth == request.PeriodMonth && r.PeriodYear == request.PeriodYear);
         if (alreadyExists) return Conflict("A payroll run already exists for this period.");
 
         var periodStart = new DateOnly(request.PeriodYear, request.PeriodMonth, 1);
         var periodEnd = periodStart.AddMonths(1).AddDays(-1);
         var daysInMonth = periodEnd.Day;
 
-        var employees = await _db.Employees.Where(e => e.Status == EmploymentStatus.Active).ToListAsync();
+        var employees = await _db.Set<Employee>().Where(e => e.Status == EmploymentStatus.Active).ToListAsync();
         var employeeIds = employees.Select(e => e.Id).ToList();
 
-        var activeStructures = await _db.SalaryStructures
+        var activeStructures = await _db.Set<SalaryStructure>()
             .Where(s => employeeIds.Contains(s.EmployeeId) && s.IsActive)
             .ToListAsync();
         var structureIds = activeStructures.Select(s => s.Id).ToList();
-        var componentsByStructure = (await _db.SalaryComponents.Where(c => structureIds.Contains(c.SalaryStructureId)).ToListAsync())
+        var componentsByStructure = (await _db.Set<SalaryComponent>().Where(c => structureIds.Contains(c.SalaryStructureId)).ToListAsync())
             .GroupBy(c => c.SalaryStructureId).ToDictionary(g => g.Key, g => g.OrderBy(c => c.SortOrder).ToList());
 
         // Unpaid-leave requests overlapping this period, across all employees in one query —
         // avoids an N+1 round trip per employee during a full-company run.
         var unpaidLeave = await (
-            from lr in _db.LeaveRequests
-            join lt in _db.LeaveTypes on lr.LeaveTypeId equals lt.Id
+            from lr in _db.Set<LeaveRequest>()
+            join lt in _db.Set<LeaveType>() on lr.LeaveTypeId equals lt.Id
             where employeeIds.Contains(lr.EmployeeId)
                 && lr.Status == LeaveRequestStatus.Approved
                 && !lt.IsPaidLeave
@@ -246,7 +246,7 @@ public class PayrollController : ControllerBase
         ).ToListAsync();
 
         var run = new PayrollRun { PeriodMonth = request.PeriodMonth, PeriodYear = request.PeriodYear, Status = PayrollRunStatus.Draft };
-        _db.PayrollRuns.Add(run);
+        _db.Set<PayrollRun>().Add(run);
         await _db.SaveChangesAsync();
 
         var skipped = new List<string>();
@@ -277,20 +277,20 @@ public class PayrollController : ControllerBase
                 PayrollRunId = run.Id, EmployeeId = employee.Id, DaysInMonth = daysInMonth, LopDays = lopDays,
                 GrossEarnings = grossEarnings, LopDeduction = lopDeduction, OtherDeductions = otherDeductions, NetPay = netPay,
             };
-            _db.Payslips.Add(payslip);
+            _db.Set<Payslip>().Add(payslip);
             await _db.SaveChangesAsync();
 
             foreach (var l in earningLines)
-                _db.PayslipLines.Add(new PayslipLine { PayslipId = payslip.Id, ComponentName = l.Name, Type = SalaryComponentType.Earning, Amount = l.Amount, SortOrder = l.SortOrder });
+                _db.Set<PayslipLine>().Add(new PayslipLine { PayslipId = payslip.Id, ComponentName = l.Name, Type = SalaryComponentType.Earning, Amount = l.Amount, SortOrder = l.SortOrder });
             foreach (var l in deductionLines)
-                _db.PayslipLines.Add(new PayslipLine { PayslipId = payslip.Id, ComponentName = l.Name, Type = SalaryComponentType.Deduction, Amount = l.Amount, SortOrder = l.SortOrder });
+                _db.Set<PayslipLine>().Add(new PayslipLine { PayslipId = payslip.Id, ComponentName = l.Name, Type = SalaryComponentType.Deduction, Amount = l.Amount, SortOrder = l.SortOrder });
             if (lopDeduction > 0)
-                _db.PayslipLines.Add(new PayslipLine { PayslipId = payslip.Id, ComponentName = "Loss of Pay", Type = SalaryComponentType.Deduction, Amount = lopDeduction, SortOrder = 999 });
+                _db.Set<PayslipLine>().Add(new PayslipLine { PayslipId = payslip.Id, ComponentName = "Loss of Pay", Type = SalaryComponentType.Deduction, Amount = lopDeduction, SortOrder = 999 });
         }
 
         run.SkippedEmployeeNames = skipped.Count == 0 ? null : string.Join(", ", skipped);
 
-        _db.AuditLogs.Add(new AuditLog
+        _db.Set<AuditLog>().Add(new AuditLog
         {
             ActorUserId = CurrentUserId, Action = "payroll.process_run",
             EntityType = "PayrollRun", EntityId = run.Id,
@@ -305,7 +305,7 @@ public class PayrollController : ControllerBase
     [RequirePermission(Permission.Payroll.Approve)]
     public async Task<IActionResult> ApproveRun(Guid id)
     {
-        var run = await _db.PayrollRuns.FirstOrDefaultAsync(r => r.Id == id);
+        var run = await _db.Set<PayrollRun>().FirstOrDefaultAsync(r => r.Id == id);
         if (run is null) return NotFound();
         if (run.Status != PayrollRunStatus.Draft) return Conflict("Only a Draft run can be approved.");
 
@@ -313,7 +313,7 @@ public class PayrollController : ControllerBase
         run.ApprovedByUserId = CurrentUserId;
         run.ApprovedAtUtc = DateTimeOffset.UtcNow;
 
-        _db.AuditLogs.Add(new AuditLog { ActorUserId = CurrentUserId, Action = "payroll.approve_run", EntityType = "PayrollRun", EntityId = run.Id });
+        _db.Set<AuditLog>().Add(new AuditLog { ActorUserId = CurrentUserId, Action = "payroll.approve_run", EntityType = "PayrollRun", EntityId = run.Id });
         await _db.SaveChangesAsync();
         return NoContent();
     }
@@ -327,14 +327,14 @@ public class PayrollController : ControllerBase
     [RequirePermission(Permission.Payroll.Approve)]
     public async Task<IActionResult> DisburseRun(Guid id)
     {
-        var run = await _db.PayrollRuns.FirstOrDefaultAsync(r => r.Id == id);
+        var run = await _db.Set<PayrollRun>().FirstOrDefaultAsync(r => r.Id == id);
         if (run is null) return NotFound();
         if (run.Status != PayrollRunStatus.Approved) return Conflict("Only an Approved run can be disbursed.");
 
-        var payslips = await _db.Payslips.Where(p => p.PayrollRunId == id).ToListAsync();
+        var payslips = await _db.Set<Payslip>().Where(p => p.PayrollRunId == id).ToListAsync();
         if (payslips.Count == 0) return Conflict("This run has no payslips to disburse.");
 
-        var cashAccount = await _db.Accounts.Where(a => a.IsCashAccount && a.IsActive).OrderBy(a => a.Code).FirstOrDefaultAsync();
+        var cashAccount = await _db.Set<Account>().Where(a => a.IsCashAccount && a.IsActive).OrderBy(a => a.Code).FirstOrDefaultAsync();
         if (cashAccount is null)
             return Conflict("No active cash/bank account exists in your Chart of Accounts yet. Add one under Accounting before disbursing payroll.");
 
@@ -351,34 +351,34 @@ public class PayrollController : ControllerBase
             Memo = $"Payroll disbursement — {run.PeriodYear}-{run.PeriodMonth:D2}",
             PostedByUserId = CurrentUserId,
         };
-        _db.JournalEntries.Add(entry);
+        _db.Set<JournalEntry>().Add(entry);
         await _db.SaveChangesAsync();
 
-        _db.JournalLines.Add(new JournalLine { JournalEntryId = entry.Id, AccountId = salaryExpenseAccount.Id, Debit = totalNetExpense, Credit = 0 });
+        _db.Set<JournalLine>().Add(new JournalLine { JournalEntryId = entry.Id, AccountId = salaryExpenseAccount.Id, Debit = totalNetExpense, Credit = 0 });
         if (totalDeductions > 0)
-            _db.JournalLines.Add(new JournalLine { JournalEntryId = entry.Id, AccountId = deductionsPayableAccount.Id, Debit = 0, Credit = totalDeductions });
-        _db.JournalLines.Add(new JournalLine { JournalEntryId = entry.Id, AccountId = cashAccount.Id, Debit = 0, Credit = totalNetPay });
+            _db.Set<JournalLine>().Add(new JournalLine { JournalEntryId = entry.Id, AccountId = deductionsPayableAccount.Id, Debit = 0, Credit = totalDeductions });
+        _db.Set<JournalLine>().Add(new JournalLine { JournalEntryId = entry.Id, AccountId = cashAccount.Id, Debit = 0, Credit = totalNetPay });
 
         run.Status = PayrollRunStatus.Disbursed;
         run.DisbursedByUserId = CurrentUserId;
         run.DisbursedAtUtc = DateTimeOffset.UtcNow;
         run.JournalEntryId = entry.Id;
 
-        _db.AuditLogs.Add(new AuditLog { ActorUserId = CurrentUserId, Action = "payroll.disburse_run", EntityType = "PayrollRun", EntityId = run.Id });
+        _db.Set<AuditLog>().Add(new AuditLog { ActorUserId = CurrentUserId, Action = "payroll.disburse_run", EntityType = "PayrollRun", EntityId = run.Id });
         await _db.SaveChangesAsync();
         return NoContent();
     }
 
     private async Task<Account> FindOrCreateAccount(string code, string name, AccountType type)
     {
-        var existing = await _db.Accounts.FirstOrDefaultAsync(a => a.Name == name && a.Type == type);
+        var existing = await _db.Set<Account>().FirstOrDefaultAsync(a => a.Name == name && a.Type == type);
         if (existing is not null) return existing;
 
         var tenantId = Guid.Parse(User.FindFirstValue("tenant_id")!);
-        var baseCurrency = (await _db.Tenants.FirstOrDefaultAsync(t => t.Id == tenantId))?.BaseCurrencyCode ?? "INR";
+        var baseCurrency = (await _db.Set<Tenant>().FirstOrDefaultAsync(t => t.Id == tenantId))?.BaseCurrencyCode ?? "INR";
 
         var account = new Account { Code = code, Name = name, Type = type, Currency = baseCurrency };
-        _db.Accounts.Add(account);
+        _db.Set<Account>().Add(account);
         await _db.SaveChangesAsync();
         return account;
     }
@@ -427,11 +427,11 @@ public class PayrollController : ControllerBase
 
     private async Task<ActionResult<List<PayslipListItemDto>>> PayslipsForEmployee(Guid employeeId)
     {
-        var payslips = await _db.Payslips.Where(p => p.EmployeeId == employeeId).ToListAsync();
+        var payslips = await _db.Set<Payslip>().Where(p => p.EmployeeId == employeeId).ToListAsync();
         var runIds = payslips.Select(p => p.PayrollRunId).ToList();
-        var runs = await _db.PayrollRuns.Where(r => runIds.Contains(r.Id)).ToDictionaryAsync(r => r.Id, r => r);
+        var runs = await _db.Set<PayrollRun>().Where(r => runIds.Contains(r.Id)).ToDictionaryAsync(r => r.Id, r => r);
 
-        var employeeName = await _db.Employees.Where(e => e.Id == employeeId)
+        var employeeName = await _db.Set<Employee>().Where(e => e.Id == employeeId)
             .Select(e => e.FirstName + " " + e.LastName).FirstOrDefaultAsync() ?? "—";
 
         var hide = employeeId != CurrentEmployeeId;
@@ -451,7 +451,7 @@ public class PayrollController : ControllerBase
     [RequirePermission(Permission.Payroll.View)]
     public async Task<ActionResult<PayslipDetailDto>> PayslipDetail(Guid id)
     {
-        var payslip = await _db.Payslips.FirstOrDefaultAsync(p => p.Id == id);
+        var payslip = await _db.Set<Payslip>().FirstOrDefaultAsync(p => p.Id == id);
         if (payslip is null) return NotFound();
 
         var hide = payslip.EmployeeId != CurrentEmployeeId;
@@ -462,10 +462,10 @@ public class PayrollController : ControllerBase
             if (allowed is not null && !allowed.Contains(payslip.EmployeeId)) return Forbid();
         }
 
-        var run = await _db.PayrollRuns.FirstOrDefaultAsync(r => r.Id == payslip.PayrollRunId);
-        var employeeName = await _db.Employees.Where(e => e.Id == payslip.EmployeeId)
+        var run = await _db.Set<PayrollRun>().FirstOrDefaultAsync(r => r.Id == payslip.PayrollRunId);
+        var employeeName = await _db.Set<Employee>().Where(e => e.Id == payslip.EmployeeId)
             .Select(e => e.FirstName + " " + e.LastName).FirstOrDefaultAsync() ?? "—";
-        var lines = await _db.PayslipLines.Where(l => l.PayslipId == id).OrderBy(l => l.SortOrder).ToListAsync();
+        var lines = await _db.Set<PayslipLine>().Where(l => l.PayslipId == id).OrderBy(l => l.SortOrder).ToListAsync();
         var fieldAccess = hide ? await PayslipFieldAccessAsync() : default;
 
         return Ok(new PayslipDetailDto(
@@ -479,7 +479,7 @@ public class PayrollController : ControllerBase
 
     private async Task<SalaryStructureDto> BuildStructureDto(SalaryStructure structure)
     {
-        var components = await _db.SalaryComponents.Where(c => c.SalaryStructureId == structure.Id).OrderBy(c => c.SortOrder).ToListAsync();
+        var components = await _db.Set<SalaryComponent>().Where(c => c.SalaryStructureId == structure.Id).OrderBy(c => c.SortOrder).ToListAsync();
         return new SalaryStructureDto(structure.Id, structure.EmployeeId, structure.EffectiveFrom, structure.IsActive,
             components.Select(c => new SalaryComponentDto(c.Id, c.Name, c.Type.ToString(), c.CalculationType.ToString(), c.Value, c.IsBasic, c.SortOrder)).ToList());
     }
@@ -487,7 +487,7 @@ public class PayrollController : ControllerBase
     private async Task<List<PayrollRunDto>> BuildRunDtos(List<PayrollRun> runs)
     {
         var runIds = runs.Select(r => r.Id).ToList();
-        var payslips = await _db.Payslips.Where(p => runIds.Contains(p.PayrollRunId)).ToListAsync();
+        var payslips = await _db.Set<Payslip>().Where(p => runIds.Contains(p.PayrollRunId)).ToListAsync();
 
         return runs.Select(r =>
         {

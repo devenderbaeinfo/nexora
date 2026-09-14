@@ -1,10 +1,9 @@
 using System.Security.Claims;
 using Nexora.Modules.Identity.Entities;
 using Nexora.Modules.Payroll.Entities;
-using Nexora.Modules.Projects.Entities;
-using Nexora.Modules.Projects.Entities;
+using Nexora.Modules.Set<ProjectEntity>().Entities;
+using Nexora.Modules.Set<ProjectEntity>().Entities;
 using Nexora.Modules.HR.Entities;
-using Nexora.Api.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -26,8 +25,8 @@ public record NotificationItem(string Kind, string Label, Guid Id, DateTimeOffse
 [Route("api/notifications")]
 public class NotificationsController : ControllerBase
 {
-    private readonly NexoraDbContext _db;
-    public NotificationsController(NexoraDbContext db) => _db = db;
+    private readonly DbContext _db;
+    public NotificationsController(DbContext db) => _db = db;
 
     private Guid? CurrentEmployeeId =>
         Guid.TryParse(User.FindFirstValue("employee_id"), out var id) ? id : null;
@@ -42,8 +41,8 @@ public class NotificationsController : ControllerBase
 
         if (Has(Permission.Leave.ApproveAsManager) && employeeId is { } mgrId)
         {
-            var directReportIds = await _db.Employees.Where(e => e.ReportingManagerId == mgrId).Select(e => e.Id).ToListAsync();
-            var rows = await _db.LeaveRequests
+            var directReportIds = await _db.Set<Employee>().Where(e => e.ReportingManagerId == mgrId).Select(e => e.Id).ToListAsync();
+            var rows = await _db.Set<LeaveRequest>()
                 .Where(r => directReportIds.Contains(r.EmployeeId) && r.Status == LeaveRequestStatus.PendingManagerApproval)
                 .Select(r => new { r.Id, r.CreatedAtUtc })
                 .ToListAsync();
@@ -52,7 +51,7 @@ public class NotificationsController : ControllerBase
 
         if (Has(Permission.Leave.ApproveAsHr))
         {
-            var rows = await _db.LeaveRequests
+            var rows = await _db.Set<LeaveRequest>()
                 .Where(r => r.Status == LeaveRequestStatus.PendingHrApproval)
                 .Select(r => new { r.Id, r.CreatedAtUtc })
                 .ToListAsync();
@@ -61,8 +60,8 @@ public class NotificationsController : ControllerBase
 
         if (Has(Permission.Timesheet.Approve) && employeeId is { } tsMgrId)
         {
-            var directReportIds = await _db.Employees.Where(e => e.ReportingManagerId == tsMgrId).Select(e => e.Id).ToListAsync();
-            var rows = await _db.TimesheetEntries
+            var directReportIds = await _db.Set<Employee>().Where(e => e.ReportingManagerId == tsMgrId).Select(e => e.Id).ToListAsync();
+            var rows = await _db.Set<TimesheetEntry>()
                 .Where(t => directReportIds.Contains(t.EmployeeId) && t.Status == TimesheetStatus.Submitted)
                 .Select(t => new { t.Id, t.CreatedAtUtc })
                 .ToListAsync();
@@ -71,8 +70,8 @@ public class NotificationsController : ControllerBase
 
         if (Has(Permission.Expense.ApproveAsManager) && employeeId is { } expMgrId)
         {
-            var directReportIds = await _db.Employees.Where(e => e.ReportingManagerId == expMgrId).Select(e => e.Id).ToListAsync();
-            var rows = await _db.ReimbursementRequests
+            var directReportIds = await _db.Set<Employee>().Where(e => e.ReportingManagerId == expMgrId).Select(e => e.Id).ToListAsync();
+            var rows = await _db.Set<ReimbursementRequest>()
                 .Where(r => directReportIds.Contains(r.EmployeeId) && r.Status == ReimbursementStatus.Pending)
                 .Select(r => new { r.Id, r.CreatedAtUtc })
                 .ToListAsync();
@@ -81,7 +80,7 @@ public class NotificationsController : ControllerBase
 
         if (Has(Permission.Expense.ApproveAsFinance))
         {
-            var rows = await _db.ReimbursementRequests
+            var rows = await _db.Set<ReimbursementRequest>()
                 .Where(r => r.Status == ReimbursementStatus.ManagerApproved)
                 .Select(r => new { r.Id, r.CreatedAtUtc })
                 .ToListAsync();
@@ -90,8 +89,8 @@ public class NotificationsController : ControllerBase
 
         if (Has(Permission.Project.ApproveExpenseAsProjectManager) && employeeId is { } pmId)
         {
-            var myProjectIds = await _db.Projects.Where(p => p.ProjectManagerId == pmId).Select(p => p.Id).ToListAsync();
-            var rows = await _db.ProjectExpenses
+            var myProjectIds = await _db.Set<ProjectEntity>().Where(p => p.ProjectManagerId == pmId).Select(p => p.Id).ToListAsync();
+            var rows = await _db.Set<ProjectExpense>()
                 .Where(e => myProjectIds.Contains(e.ProjectId) && e.Status == ProjectExpenseStatus.Pending)
                 .Select(e => new { e.Id, e.CreatedAtUtc })
                 .ToListAsync();
@@ -100,7 +99,7 @@ public class NotificationsController : ControllerBase
 
         if (Has(Permission.Project.ApproveExpenseAsFinance))
         {
-            var rows = await _db.ProjectExpenses
+            var rows = await _db.Set<ProjectExpense>()
                 .Where(e => e.Status == ProjectExpenseStatus.ManagerApproved)
                 .Select(e => new { e.Id, e.CreatedAtUtc })
                 .ToListAsync();
@@ -109,13 +108,13 @@ public class NotificationsController : ControllerBase
 
         if (Has(Permission.Payroll.Approve))
         {
-            var draftRuns = await _db.PayrollRuns
+            var draftRuns = await _db.Set<PayrollRun>()
                 .Where(r => r.Status == PayrollRunStatus.Draft)
                 .Select(r => new { r.Id, r.CreatedAtUtc })
                 .ToListAsync();
             items.AddRange(draftRuns.Select(r => new NotificationItem("Payroll", "Payroll run awaiting your approval", r.Id, r.CreatedAtUtc, $"/payroll/runs/{r.Id}", true)));
 
-            var approvedRuns = await _db.PayrollRuns
+            var approvedRuns = await _db.Set<PayrollRun>()
                 .Where(r => r.Status == PayrollRunStatus.Approved)
                 .Select(r => new { r.Id, ApprovedAtUtc = r.ApprovedAtUtc ?? r.CreatedAtUtc })
                 .ToListAsync();
@@ -129,7 +128,7 @@ public class NotificationsController : ControllerBase
         var since = DateTimeOffset.UtcNow.AddDays(-14);
         if (employeeId is { } selfId)
         {
-            var myLeave = await _db.LeaveRequests
+            var myLeave = await _db.Set<LeaveRequest>()
                 .Where(r => r.EmployeeId == selfId
                     && (r.Status == LeaveRequestStatus.Approved || r.Status == LeaveRequestStatus.RejectedByManager || r.Status == LeaveRequestStatus.RejectedByHr)
                     && (r.HrActedAtUtc ?? r.ManagerActedAtUtc) >= since)
@@ -138,7 +137,7 @@ public class NotificationsController : ControllerBase
             items.AddRange(myLeave.Select(r => new NotificationItem(
                 "Leave", $"Your leave request was {DecisionLabel(r.Status.ToString())}", r.Id, r.DecidedAt, "/timecard", false)));
 
-            var myReimbursements = await _db.ReimbursementRequests
+            var myReimbursements = await _db.Set<ReimbursementRequest>()
                 .Where(r => r.EmployeeId == selfId
                     && (r.Status == ReimbursementStatus.Approved || r.Status == ReimbursementStatus.Rejected)
                     && r.UpdatedAtUtc >= since)
@@ -147,7 +146,7 @@ public class NotificationsController : ControllerBase
             items.AddRange(myReimbursements.Select(r => new NotificationItem(
                 "Expense", $"Your reimbursement was {DecisionLabel(r.Status.ToString())}", r.Id, r.DecidedAt, "/reimbursement", false)));
 
-            var myProjectExpenses = await _db.ProjectExpenses
+            var myProjectExpenses = await _db.Set<ProjectExpense>()
                 .Where(e => e.EmployeeId == selfId
                     && (e.Status == ProjectExpenseStatus.Approved || e.Status == ProjectExpenseStatus.Rejected)
                     && e.UpdatedAtUtc >= since)
@@ -158,7 +157,7 @@ public class NotificationsController : ControllerBase
 
             // PRJ-8: a task getting assigned to you isn't an approval queue, just something
             // worth surfacing — same "recent, no read state" treatment as the FYI items above.
-            var myTasks = await _db.ProjectTasks
+            var myTasks = await _db.Set<ProjectTask>()
                 .Where(t => t.AssignedToEmployeeId == selfId && (t.UpdatedAtUtc ?? t.CreatedAtUtc) >= since)
                 .Select(t => new { t.Id, t.Title, AssignedAt = t.UpdatedAtUtc ?? t.CreatedAtUtc })
                 .ToListAsync();

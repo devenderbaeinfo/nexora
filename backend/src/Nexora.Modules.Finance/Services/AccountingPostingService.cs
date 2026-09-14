@@ -1,5 +1,4 @@
 using Nexora.Modules.Finance.Entities;
-using Nexora.Api.Persistence;
 using Nexora.Shared.Tenancy;
 using Microsoft.EntityFrameworkCore;
 
@@ -18,9 +17,9 @@ public interface IAccountingPostingService
 
 public class AccountingPostingService : IAccountingPostingService
 {
-    private readonly NexoraDbContext _db;
+    private readonly DbContext _db;
     private readonly ITenantContext _tenant;
-    public AccountingPostingService(NexoraDbContext db, ITenantContext tenant)
+    public AccountingPostingService(DbContext db, ITenantContext tenant)
     {
         _db = db;
         _tenant = tenant;
@@ -28,7 +27,7 @@ public class AccountingPostingService : IAccountingPostingService
 
     public async Task<Account> FindOrCreateAccountAsync(string name, AccountType type, string? code = null)
     {
-        var existing = await _db.Accounts.FirstOrDefaultAsync(a => a.Name == name && a.Type == type);
+        var existing = await _db.Set<Account>().FirstOrDefaultAsync(a => a.Name == name && a.Type == type);
         if (existing is not null) return existing;
 
         // A stable, deterministic fallback code when the caller doesn't supply one — auto-created
@@ -36,9 +35,9 @@ public class AccountingPostingService : IAccountingPostingService
         // accounts (Salary Expense, Employee Payable, etc.) are always the tenant's base
         // currency — a category/liability account like this is never itself foreign-denominated.
         var resolvedCode = code ?? $"AUTO-{name.ToUpperInvariant().Replace(" ", "-")}";
-        var baseCurrency = (await _db.Tenants.FirstOrDefaultAsync(t => t.Id == _tenant.TenantId))?.BaseCurrencyCode ?? "INR";
+        var baseCurrency = (await _db.Set<Tenant>().FirstOrDefaultAsync(t => t.Id == _tenant.TenantId))?.BaseCurrencyCode ?? "INR";
         var account = new Account { Code = resolvedCode, Name = name, Type = type, Currency = baseCurrency };
-        _db.Accounts.Add(account);
+        _db.Set<Account>().Add(account);
         await _db.SaveChangesAsync();
         return account;
     }
@@ -60,12 +59,12 @@ public class AccountingPostingService : IAccountingPostingService
             throw new InvalidOperationException($"Entry doesn't balance: {totalDebit} debit vs {totalCredit} credit.");
 
         var entry = new JournalEntry { EntryDate = entryDate, Memo = memo, PostedByUserId = postedByUserId };
-        _db.JournalEntries.Add(entry);
+        _db.Set<JournalEntry>().Add(entry);
         await _db.SaveChangesAsync();
 
         foreach (var line in nonZeroLines)
         {
-            _db.JournalLines.Add(new JournalLine { JournalEntryId = entry.Id, AccountId = line.AccountId, Debit = line.Debit, Credit = line.Credit });
+            _db.Set<JournalLine>().Add(new JournalLine { JournalEntryId = entry.Id, AccountId = line.AccountId, Debit = line.Debit, Credit = line.Credit });
         }
         await _db.SaveChangesAsync();
 

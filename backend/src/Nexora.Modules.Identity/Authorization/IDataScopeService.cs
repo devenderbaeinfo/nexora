@@ -10,7 +10,7 @@ public record ScopeDecision(DataScopeType Type, IReadOnlyList<Guid> SpecificIds)
 
 // Abstraction lives in the Identity module (it already owns DataScopeType/FieldAccessLevel)
 // so every other module can depend on it without creating a cycle back to Nexora.Api, which
-// owns the single NexoraDbContext and therefore the concrete implementation — see
+// owns the single DbContext and therefore the concrete implementation — see
 // Nexora.Api/Authorization/DataScopeService.cs.
 public interface IDataScopeService
 {

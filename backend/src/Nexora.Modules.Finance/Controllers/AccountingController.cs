@@ -2,9 +2,9 @@ using System.Security.Claims;
 using Nexora.Shared.Authorization;
 using Nexora.Modules.Finance.Contracts;
 using Nexora.Modules.Finance.Entities;
+using Nexora.Modules.Identity.Authorization;
 using Nexora.Modules.Identity.Entities;
 using Nexora.Shared.Authorization;
-using Nexora.Api.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -28,9 +28,9 @@ namespace Nexora.Modules.Finance.Controllers;
 [Route("api/accounting")]
 public class AccountingController : ControllerBase
 {
-    private readonly NexoraDbContext _db;
-    private readonly DataScopeService _scope;
-    public AccountingController(NexoraDbContext db, DataScopeService scope)
+    private readonly DbContext _db;
+    private readonly IDataScopeService _scope;
+    public AccountingController(DbContext db, IDataScopeService scope)
     {
         _db = db;
         _scope = scope;
@@ -40,7 +40,7 @@ public class AccountingController : ControllerBase
     private Guid CurrentTenantId => Guid.Parse(User.FindFirstValue("tenant_id")!);
 
     private async Task<string> BaseCurrencyAsync() =>
-        (await _db.Tenants.FirstOrDefaultAsync(t => t.Id == CurrentTenantId))?.BaseCurrencyCode ?? "INR";
+        (await _db.Set<Tenant>().FirstOrDefaultAsync(t => t.Id == CurrentTenantId))?.BaseCurrencyCode ?? "INR";
 
     // IAM-11: null = unrestricted (the "no row = All" default, same as every other unrestricted
     // role today). Accounts have no employee/department owner, so the only narrowing offered is
@@ -62,7 +62,7 @@ public class AccountingController : ControllerBase
     public async Task<ActionResult<List<AccountDto>>> Accounts()
     {
         var allowed = await ResolveAllowedAccountIdsAsync();
-        var accountsQuery = _db.Accounts.AsQueryable();
+        var accountsQuery = _db.Set<Account>().AsQueryable();
         if (allowed is not null) accountsQuery = accountsQuery.Where(a => allowed.Contains(a.Id));
         var accounts = await accountsQuery.OrderBy(a => a.Code).ToListAsync();
         return Ok(accounts.Select(a => new AccountDto(a.Id, a.Code, a.Name, a.Type.ToString(), a.Currency, a.IsCashAccount, a.IsActive)).ToList());
@@ -76,13 +76,13 @@ public class AccountingController : ControllerBase
         if (string.IsNullOrWhiteSpace(code) || string.IsNullOrWhiteSpace(request.Name))
             return BadRequest("Code and name are required.");
 
-        var codeInUse = await _db.Accounts.AnyAsync(a => a.Code == code);
+        var codeInUse = await _db.Set<Account>().AnyAsync(a => a.Code == code);
         if (codeInUse) return Conflict("An account with this code already exists.");
 
         var currency = string.IsNullOrWhiteSpace(request.Currency) ? await BaseCurrencyAsync() : request.Currency.Trim().ToUpperInvariant();
 
         var account = new Account { Code = code, Name = request.Name.Trim(), Type = request.Type, Currency = currency, IsCashAccount = request.IsCashAccount };
-        _db.Accounts.Add(account);
+        _db.Set<Account>().Add(account);
         await _db.SaveChangesAsync();
 
         return CreatedAtAction(nameof(Accounts), new AccountDto(account.Id, account.Code, account.Name, account.Type.ToString(), account.Currency, account.IsCashAccount, account.IsActive));
@@ -94,7 +94,7 @@ public class AccountingController : ControllerBase
     [RequirePermission(Permission.Accounting.View)]
     public async Task<ActionResult<List<ExchangeRateDto>>> ExchangeRates()
     {
-        var rates = await _db.ExchangeRates.OrderByDescending(r => r.EffectiveDate).ThenBy(r => r.CurrencyCode).ToListAsync();
+        var rates = await _db.Set<ExchangeRate>().OrderByDescending(r => r.EffectiveDate).ThenBy(r => r.CurrencyCode).ToListAsync();
         return Ok(rates.Select(r => new ExchangeRateDto(r.Id, r.CurrencyCode, r.RateToBase, r.EffectiveDate)).ToList());
     }
 
@@ -109,11 +109,11 @@ public class AccountingController : ControllerBase
         var baseCurrency = await BaseCurrencyAsync();
         if (code == baseCurrency) return BadRequest($"That's already the base currency ({baseCurrency}) — it doesn't need a rate.");
 
-        var exists = await _db.ExchangeRates.AnyAsync(r => r.CurrencyCode == code && r.EffectiveDate == request.EffectiveDate);
+        var exists = await _db.Set<ExchangeRate>().AnyAsync(r => r.CurrencyCode == code && r.EffectiveDate == request.EffectiveDate);
         if (exists) return Conflict("A rate for this currency and date already exists — edit isn't supported, add a new effective date instead.");
 
         var rate = new ExchangeRate { CurrencyCode = code, RateToBase = request.RateToBase, EffectiveDate = request.EffectiveDate };
-        _db.ExchangeRates.Add(rate);
+        _db.Set<ExchangeRate>().Add(rate);
         await _db.SaveChangesAsync();
 
         return Ok(new ExchangeRateDto(rate.Id, rate.CurrencyCode, rate.RateToBase, rate.EffectiveDate));
@@ -125,7 +125,7 @@ public class AccountingController : ControllerBase
     [RequirePermission(Permission.Accounting.View)]
     public async Task<ActionResult<List<JournalEntryDto>>> JournalEntriesList()
     {
-        var entries = await _db.JournalEntries.OrderByDescending(e => e.EntryDate).Take(50).ToListAsync();
+        var entries = await _db.Set<JournalEntry>().OrderByDescending(e => e.EntryDate).Take(50).ToListAsync();
         return Ok(await BuildEntryDtos(entries));
     }
 
@@ -143,7 +143,7 @@ public class AccountingController : ControllerBase
             return BadRequest("Each line must have exactly one of Debit or Credit, both non-negative.");
 
         var accountIds = request.Lines.Select(l => l.AccountId).Distinct().ToList();
-        var accounts = await _db.Accounts.Where(a => accountIds.Contains(a.Id)).ToDictionaryAsync(a => a.Id, a => a);
+        var accounts = await _db.Set<Account>().Where(a => accountIds.Contains(a.Id)).ToDictionaryAsync(a => a.Id, a => a);
         if (accounts.Count != accountIds.Count) return BadRequest("One or more accounts are unknown.");
 
         var baseCurrency = await BaseCurrencyAsync();
@@ -161,7 +161,7 @@ public class AccountingController : ControllerBase
                 continue;
             }
 
-            var latestRate = await _db.ExchangeRates
+            var latestRate = await _db.Set<ExchangeRate>()
                 .Where(r => r.CurrencyCode == account.Currency && r.EffectiveDate <= request.EntryDate)
                 .OrderByDescending(r => r.EffectiveDate)
                 .FirstOrDefaultAsync();
@@ -176,12 +176,12 @@ public class AccountingController : ControllerBase
             return BadRequest($"Entry doesn't balance in {baseCurrency}: {totalBaseDebit} debit vs {totalBaseCredit} credit.");
 
         var entry = new JournalEntry { EntryDate = request.EntryDate, Memo = request.Memo.Trim(), PostedByUserId = CurrentUserId };
-        _db.JournalEntries.Add(entry);
+        _db.Set<JournalEntry>().Add(entry);
         await _db.SaveChangesAsync();
 
         foreach (var line in request.Lines)
         {
-            _db.JournalLines.Add(new JournalLine
+            _db.Set<JournalLine>().Add(new JournalLine
             {
                 JournalEntryId = entry.Id, AccountId = line.AccountId,
                 Debit = line.Debit, Credit = line.Credit, ExchangeRateToBase = resolvedRates[line.AccountId],
@@ -196,15 +196,15 @@ public class AccountingController : ControllerBase
     [RequirePermission(Permission.Accounting.View)]
     public async Task<ActionResult<LedgerResponseDto>> Ledger(Guid accountId)
     {
-        var account = await _db.Accounts.FirstOrDefaultAsync(a => a.Id == accountId);
+        var account = await _db.Set<Account>().FirstOrDefaultAsync(a => a.Id == accountId);
         if (account is null) return NotFound();
 
         var allowed = await ResolveAllowedAccountIdsAsync();
         if (allowed is not null && !allowed.Contains(accountId)) return Forbid();
 
         var lines = await (
-            from line in _db.JournalLines
-            join entry in _db.JournalEntries on line.JournalEntryId equals entry.Id
+            from line in _db.Set<JournalLine>()
+            join entry in _db.Set<JournalEntry>() on line.JournalEntryId equals entry.Id
             where line.AccountId == accountId
             orderby entry.EntryDate, entry.CreatedAtUtc
             select new { entry.Id, entry.EntryDate, entry.Memo, line.Debit, line.Credit }
@@ -227,8 +227,8 @@ public class AccountingController : ControllerBase
     [RequirePermission(Permission.Accounting.View)]
     public async Task<ActionResult<List<TrialBalanceRowDto>>> TrialBalance()
     {
-        var accounts = await _db.Accounts.OrderBy(a => a.Code).ToListAsync();
-        var totalsByAccount = await _db.JournalLines
+        var accounts = await _db.Set<Account>().OrderBy(a => a.Code).ToListAsync();
+        var totalsByAccount = await _db.Set<JournalLine>()
             .GroupBy(l => l.AccountId)
             .Select(g => new { AccountId = g.Key, Debit = g.Sum(l => l.Debit * l.ExchangeRateToBase), Credit = g.Sum(l => l.Credit * l.ExchangeRateToBase) })
             .ToDictionaryAsync(x => x.AccountId, x => (x.Debit, x.Credit));
@@ -270,10 +270,10 @@ public class AccountingController : ControllerBase
     [RequirePermission(Permission.Accounting.View)]
     public async Task<ActionResult<CashFlowDto>> CashFlow([FromQuery] DateOnly? from, [FromQuery] DateOnly? to)
     {
-        var cashAccountIds = await _db.Accounts.Where(a => a.IsCashAccount).Select(a => a.Id).ToListAsync();
+        var cashAccountIds = await _db.Set<Account>().Where(a => a.IsCashAccount).Select(a => a.Id).ToListAsync();
 
-        var query = from line in _db.JournalLines
-                    join entry in _db.JournalEntries on line.JournalEntryId equals entry.Id
+        var query = from line in _db.Set<JournalLine>()
+                    join entry in _db.Set<JournalEntry>() on line.JournalEntryId equals entry.Id
                     where cashAccountIds.Contains(line.AccountId)
                     select new { entry.EntryDate, line.Debit, line.Credit, line.ExchangeRateToBase };
 
@@ -297,14 +297,14 @@ public class AccountingController : ControllerBase
         var firstOfThisMonth = new DateOnly(today.Year, today.Month, 1);
         var months = Enumerable.Range(0, 6).Select(i => firstOfThisMonth.AddMonths(-(5 - i))).ToList();
 
-        var cashAccountIds = await _db.Accounts.Where(a => a.IsCashAccount).Select(a => a.Id).ToHashSetAsync();
-        var revenueExpenseAccounts = await _db.Accounts
+        var cashAccountIds = await _db.Set<Account>().Where(a => a.IsCashAccount).Select(a => a.Id).ToHashSetAsync();
+        var revenueExpenseAccounts = await _db.Set<Account>()
             .Where(a => a.Type == AccountType.Revenue || a.Type == AccountType.Expense)
             .ToDictionaryAsync(a => a.Id, a => a.Type);
 
         var allLines = await (
-            from line in _db.JournalLines
-            join entry in _db.JournalEntries on line.JournalEntryId equals entry.Id
+            from line in _db.Set<JournalLine>()
+            join entry in _db.Set<JournalEntry>() on line.JournalEntryId equals entry.Id
             select new { entry.EntryDate, line.AccountId, line.Debit, line.Credit, line.ExchangeRateToBase }
         ).ToListAsync();
 
@@ -330,11 +330,11 @@ public class AccountingController : ControllerBase
 
     private async Task<(decimal, decimal)> SumByType(DateOnly? from, DateOnly? to, AccountType creditNormalType, AccountType debitNormalType)
     {
-        var accounts = await _db.Accounts.Where(a => a.Type == creditNormalType || a.Type == debitNormalType).ToListAsync();
+        var accounts = await _db.Set<Account>().Where(a => a.Type == creditNormalType || a.Type == debitNormalType).ToListAsync();
         var accountIds = accounts.Select(a => a.Id).ToList();
 
-        var query = from line in _db.JournalLines
-                    join entry in _db.JournalEntries on line.JournalEntryId equals entry.Id
+        var query = from line in _db.Set<JournalLine>()
+                    join entry in _db.Set<JournalEntry>() on line.JournalEntryId equals entry.Id
                     where accountIds.Contains(line.AccountId)
                     select new { line.AccountId, entry.EntryDate, line.Debit, line.Credit, line.ExchangeRateToBase };
 
@@ -352,11 +352,11 @@ public class AccountingController : ControllerBase
 
     private async Task<(decimal Assets, decimal Liabilities, decimal Equity)> SumAssetsLiabilitiesEquity(DateOnly? asOf)
     {
-        var accounts = await _db.Accounts.ToListAsync();
+        var accounts = await _db.Set<Account>().ToListAsync();
         var accountTypeById = accounts.ToDictionary(a => a.Id, a => a.Type);
 
-        var query = from line in _db.JournalLines
-                    join entry in _db.JournalEntries on line.JournalEntryId equals entry.Id
+        var query = from line in _db.Set<JournalLine>()
+                    join entry in _db.Set<JournalEntry>() on line.JournalEntryId equals entry.Id
                     select new { line.AccountId, entry.EntryDate, line.Debit, line.Credit, line.ExchangeRateToBase };
 
         if (asOf is { } d) query = query.Where(x => x.EntryDate <= d);
@@ -372,9 +372,9 @@ public class AccountingController : ControllerBase
     private async Task<List<JournalEntryDto>> BuildEntryDtos(List<JournalEntry> entries)
     {
         var entryIds = entries.Select(e => e.Id).ToList();
-        var lines = await _db.JournalLines.Where(l => entryIds.Contains(l.JournalEntryId)).ToListAsync();
-        var accounts = await _db.Accounts.ToDictionaryAsync(a => a.Id, a => a);
-        var users = await _db.Employees.ToDictionaryAsync(e => e.Id, e => $"{e.FirstName} {e.LastName}");
+        var lines = await _db.Set<JournalLine>().Where(l => entryIds.Contains(l.JournalEntryId)).ToListAsync();
+        var accounts = await _db.Set<Account>().ToDictionaryAsync(a => a.Id, a => a);
+        var users = await _db.Set<Employee>().ToDictionaryAsync(e => e.Id, e => $"{e.FirstName} {e.LastName}");
         var userEmployeeIds = await _db.Users.ToDictionaryAsync(u => u.Id, u => u.EmployeeId);
 
         string PostedByName(Guid userId) =>

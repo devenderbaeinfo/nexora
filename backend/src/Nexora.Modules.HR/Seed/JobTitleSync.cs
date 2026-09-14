@@ -1,6 +1,5 @@
 using Nexora.Modules.Identity.Entities;
 using Nexora.Modules.HR.Entities;
-using Nexora.Api.Persistence;
 using Microsoft.EntityFrameworkCore;
 
 namespace Nexora.Modules.HR.Seed;
@@ -16,13 +15,13 @@ public static class JobTitleSync
     public static async Task RunAsync(IServiceProvider services)
     {
         using var scope = services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<NexoraDbContext>();
+        var db = scope.ServiceProvider.GetRequiredService<DbContext>();
 
-        var tenantIds = await db.Tenants.IgnoreQueryFilters().Select(t => t.Id).ToListAsync();
+        var tenantIds = await db.Set<Tenant>().IgnoreQueryFilters().Select(t => t.Id).ToListAsync();
         // Case-insensitive to match the (TenantId, Name) unique index's default SQL Server
         // collation — a HashSet with the default ordinal comparer would treat "Intern" and
         // "intern" as different, seed a duplicate insert, and blow up the unique constraint.
-        var existingByTenant = (await db.JobTitles.IgnoreQueryFilters().ToListAsync())
+        var existingByTenant = (await db.Set<JobTitle>().IgnoreQueryFilters().ToListAsync())
             .GroupBy(j => j.TenantId)
             .ToDictionary(g => g.Key, g => g.Select(j => j.Name).ToHashSet(StringComparer.OrdinalIgnoreCase));
 
@@ -32,7 +31,7 @@ public static class JobTitleSync
             foreach (var title in DefaultTitles)
             {
                 if (existing.Contains(title)) continue;
-                db.JobTitles.Add(new JobTitle { TenantId = tenantId, Name = title, SystemRole = RoleTemplates.Employee });
+                db.Set<JobTitle>().Add(new JobTitle { TenantId = tenantId, Name = title, SystemRole = RoleTemplates.Employee });
             }
         }
 

@@ -1,6 +1,5 @@
 using Nexora.Shared.Authorization;
 using Nexora.Modules.Identity.Entities;
-using Nexora.Api.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -18,14 +17,14 @@ public record AuditLogRowDto(Guid Id, DateTimeOffset CreatedAtUtc, string? Actor
 [Route("api/audit-log")]
 public class AuditLogController : ControllerBase
 {
-    private readonly NexoraDbContext _db;
-    public AuditLogController(NexoraDbContext db) => _db = db;
+    private readonly DbContext _db;
+    public AuditLogController(DbContext db) => _db = db;
 
     [HttpGet]
     [RequirePermission(Permission.Admin.ViewAuditLog)]
     public async Task<ActionResult<List<AuditLogRowDto>>> List([FromQuery] string? action, [FromQuery] int take = 100)
     {
-        var query = _db.AuditLogs.OrderByDescending(a => a.CreatedAtUtc).AsQueryable();
+        var query = _db.Set<AuditLog>().OrderByDescending(a => a.CreatedAtUtc).AsQueryable();
         if (!string.IsNullOrWhiteSpace(action)) query = query.Where(a => a.Action.Contains(action));
 
         var rows = await query.Take(Math.Clamp(take, 1, 500)).ToListAsync();
@@ -33,7 +32,7 @@ public class AuditLogController : ControllerBase
         var actorIds = rows.Where(r => r.ActorUserId is not null).Select(r => r.ActorUserId!.Value).Distinct().ToList();
         var users = await _db.Users.Where(u => actorIds.Contains(u.Id)).ToDictionaryAsync(u => u.Id, u => u.Id);
         var employeeIdByUserId = await _db.Users.Where(u => actorIds.Contains(u.Id)).ToDictionaryAsync(u => u.Id, u => u.EmployeeId);
-        var employeeNames = await _db.Employees
+        var employeeNames = await _db.Set<Employee>()
             .Where(e => employeeIdByUserId.Values.Contains(e.Id))
             .ToDictionaryAsync(e => e.Id, e => $"{e.FirstName} {e.LastName}");
 

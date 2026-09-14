@@ -3,7 +3,6 @@ using Nexora.Shared.Authorization;
 using Nexora.Modules.Identity.Contracts;
 using Nexora.Shared.Common;
 using Nexora.Modules.Identity.Entities;
-using Nexora.Api.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -20,8 +19,8 @@ namespace Nexora.Modules.Identity.Controllers;
 [Route("api/roles")]
 public class RolesController : ControllerBase
 {
-    private readonly NexoraDbContext _db;
-    public RolesController(NexoraDbContext db) => _db = db;
+    private readonly DbContext _db;
+    public RolesController(DbContext db) => _db = db;
 
     private Guid CurrentUserId => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub")!);
     private Guid TenantId => Guid.Parse(User.FindFirstValue("tenant_id")!);
@@ -39,11 +38,11 @@ public class RolesController : ControllerBase
     {
         var roles = await _db.Roles.IgnoreQueryFilters().Where(r => r.TenantId == TenantId)
             .OrderByDescending(r => r.IsSystemRole).ThenBy(r => r.Name).ToListAsync();
-        var permissionsByRole = await _db.RolePermissions
+        var permissionsByRole = await _db.Set<RolePermission>()
             .GroupBy(rp => rp.RoleId)
             .Select(g => new { RoleId = g.Key, Keys = g.Select(rp => rp.PermissionKey).ToList() })
             .ToDictionaryAsync(x => x.RoleId, x => x.Keys);
-        var jobTitleCounts = await _db.JobTitles
+        var jobTitleCounts = await _db.Set<JobTitle>()
             .GroupBy(j => j.SystemRole)
             .Select(g => new { Role = g.Key, Count = g.Count() })
             .ToDictionaryAsync(x => x.Role, x => x.Count);
@@ -76,10 +75,10 @@ public class RolesController : ControllerBase
         _db.Roles.Add(role);
         foreach (var key in request.Permissions.Distinct())
         {
-            _db.RolePermissions.Add(new RolePermission { RoleId = role.Id, PermissionKey = key });
+            _db.Set<RolePermission>().Add(new RolePermission { RoleId = role.Id, PermissionKey = key });
         }
 
-        _db.AuditLogs.Add(new AuditLog
+        _db.Set<AuditLog>().Add(new AuditLog
         {
             ActorUserId = CurrentUserId,
             Action = "role.create",
@@ -102,16 +101,16 @@ public class RolesController : ControllerBase
         var invalid = request.Permissions.Where(p => !ValidPermissionKeys.Contains(p)).ToList();
         if (invalid.Count > 0) return BadRequest($"Unknown permission key(s): {string.Join(", ", invalid)}.");
 
-        var existing = await _db.RolePermissions.Where(rp => rp.RoleId == id).ToListAsync();
-        _db.RolePermissions.RemoveRange(existing);
+        var existing = await _db.Set<RolePermission>().Where(rp => rp.RoleId == id).ToListAsync();
+        _db.Set<RolePermission>().RemoveRange(existing);
         foreach (var key in request.Permissions.Distinct())
         {
-            _db.RolePermissions.Add(new RolePermission { RoleId = id, PermissionKey = key });
+            _db.Set<RolePermission>().Add(new RolePermission { RoleId = id, PermissionKey = key });
         }
 
         role.IsCustomized = true;
 
-        _db.AuditLogs.Add(new AuditLog
+        _db.Set<AuditLog>().Add(new AuditLog
         {
             ActorUserId = CurrentUserId,
             Action = "role.update_permissions",
@@ -136,17 +135,17 @@ public class RolesController : ControllerBase
         if (role is null) return NotFound();
         if (role.IsSystemRole) return BadRequest("System roles can't be deleted.");
 
-        var inUseByJobTitle = await _db.JobTitles.AnyAsync(j => j.SystemRole == role.Name);
+        var inUseByJobTitle = await _db.Set<JobTitle>().AnyAsync(j => j.SystemRole == role.Name);
         if (inUseByJobTitle) return Conflict("This role is still mapped to one or more job titles.");
 
         var inUseByUser = await _db.UserRoles.AnyAsync(ur => ur.RoleId == id);
         if (inUseByUser) return Conflict("This role is still assigned to one or more users.");
 
-        var permissions = await _db.RolePermissions.Where(rp => rp.RoleId == id).ToListAsync();
-        _db.RolePermissions.RemoveRange(permissions);
+        var permissions = await _db.Set<RolePermission>().Where(rp => rp.RoleId == id).ToListAsync();
+        _db.Set<RolePermission>().RemoveRange(permissions);
         _db.Roles.Remove(role);
 
-        _db.AuditLogs.Add(new AuditLog
+        _db.Set<AuditLog>().Add(new AuditLog
         {
             ActorUserId = CurrentUserId,
             Action = "role.delete",
@@ -175,12 +174,12 @@ public class RolesController : ControllerBase
         var roleExists = await _db.Roles.IgnoreQueryFilters().AnyAsync(r => r.Id == id && r.TenantId == TenantId);
         if (!roleExists) return NotFound();
 
-        var scopes = await _db.PermissionScopes.Where(s => s.RoleId == id).ToListAsync();
+        var scopes = await _db.Set<PermissionScope>().Where(s => s.RoleId == id).ToListAsync();
         var result = new List<RoleScopeDto>();
         foreach (var scope in scopes)
         {
             var specificIds = scope.ScopeType == DataScopeType.Specific
-                ? await _db.PermissionScopeRecords.Where(r => r.PermissionScopeId == scope.Id).Select(r => r.RecordId).ToListAsync()
+                ? await _db.Set<PermissionScopeRecord>().Where(r => r.PermissionScopeId == scope.Id).Select(r => r.RecordId).ToListAsync()
                 : [];
             result.Add(new RoleScopeDto(scope.PermissionKey, scope.ScopeType.ToString(), specificIds));
         }
@@ -199,14 +198,14 @@ public class RolesController : ControllerBase
         if (!Enum.TryParse<DataScopeType>(request.ScopeType, out var scopeType)) return BadRequest("Unknown scope type.");
         if (!DataScopeCatalog.AllowedScopeTypesFor(permissionKey).Contains(scopeType)) return BadRequest("This scope type isn't valid for this permission.");
 
-        var existing = await _db.PermissionScopes.FirstOrDefaultAsync(s => s.RoleId == id && s.PermissionKey == permissionKey);
+        var existing = await _db.Set<PermissionScope>().FirstOrDefaultAsync(s => s.RoleId == id && s.PermissionKey == permissionKey);
 
         if (scopeType == DataScopeType.All)
         {
             if (existing is not null)
             {
-                _db.PermissionScopeRecords.RemoveRange(_db.PermissionScopeRecords.Where(r => r.PermissionScopeId == existing.Id));
-                _db.PermissionScopes.Remove(existing);
+                _db.Set<PermissionScopeRecord>().RemoveRange(_db.Set<PermissionScopeRecord>().Where(r => r.PermissionScopeId == existing.Id));
+                _db.Set<PermissionScope>().Remove(existing);
             }
         }
         else
@@ -214,23 +213,23 @@ public class RolesController : ControllerBase
             if (existing is null)
             {
                 existing = new PermissionScope { RoleId = id, PermissionKey = permissionKey };
-                _db.PermissionScopes.Add(existing);
+                _db.Set<PermissionScope>().Add(existing);
                 await _db.SaveChangesAsync(); // need existing.Id before adding child records below
             }
             existing.ScopeType = scopeType;
 
-            var oldRecords = await _db.PermissionScopeRecords.Where(r => r.PermissionScopeId == existing.Id).ToListAsync();
-            _db.PermissionScopeRecords.RemoveRange(oldRecords);
+            var oldRecords = await _db.Set<PermissionScopeRecord>().Where(r => r.PermissionScopeId == existing.Id).ToListAsync();
+            _db.Set<PermissionScopeRecord>().RemoveRange(oldRecords);
             if (scopeType == DataScopeType.Specific)
             {
                 foreach (var recordId in (request.SpecificRecordIds ?? []).Distinct())
                 {
-                    _db.PermissionScopeRecords.Add(new PermissionScopeRecord { PermissionScopeId = existing.Id, RecordId = recordId });
+                    _db.Set<PermissionScopeRecord>().Add(new PermissionScopeRecord { PermissionScopeId = existing.Id, RecordId = recordId });
                 }
             }
         }
 
-        _db.AuditLogs.Add(new AuditLog
+        _db.Set<AuditLog>().Add(new AuditLog
         {
             ActorUserId = CurrentUserId,
             Action = "role.update_scope",
@@ -257,7 +256,7 @@ public class RolesController : ControllerBase
         var roleExists = await _db.Roles.IgnoreQueryFilters().AnyAsync(r => r.Id == id && r.TenantId == TenantId);
         if (!roleExists) return NotFound();
 
-        var fields = await _db.RoleFieldPermissions.Where(f => f.RoleId == id).ToListAsync();
+        var fields = await _db.Set<RoleFieldPermission>().Where(f => f.RoleId == id).ToListAsync();
         return Ok(fields.Select(f => new RoleFieldPermissionDto(f.Resource, f.FieldName, f.Access.ToString())).ToList());
     }
 
@@ -272,17 +271,17 @@ public class RolesController : ControllerBase
         if (!FieldPermissionCatalog.FieldsByResource.TryGetValue(request.Resource, out var validFields))
             return BadRequest("Unknown resource.");
 
-        var existing = await _db.RoleFieldPermissions.Where(f => f.RoleId == id && f.Resource == request.Resource).ToListAsync();
-        _db.RoleFieldPermissions.RemoveRange(existing);
+        var existing = await _db.Set<RoleFieldPermission>().Where(f => f.RoleId == id && f.Resource == request.Resource).ToListAsync();
+        _db.Set<RoleFieldPermission>().RemoveRange(existing);
 
         foreach (var field in request.Fields)
         {
             if (!validFields.Contains(field.FieldName)) return BadRequest($"Unknown field: {field.FieldName}.");
             if (!Enum.TryParse<FieldAccessLevel>(field.Access, out var access)) return BadRequest($"Unknown access level: {field.Access}.");
-            _db.RoleFieldPermissions.Add(new RoleFieldPermission { RoleId = id, Resource = request.Resource, FieldName = field.FieldName, Access = access });
+            _db.Set<RoleFieldPermission>().Add(new RoleFieldPermission { RoleId = id, Resource = request.Resource, FieldName = field.FieldName, Access = access });
         }
 
-        _db.AuditLogs.Add(new AuditLog
+        _db.Set<AuditLog>().Add(new AuditLog
         {
             ActorUserId = CurrentUserId,
             Action = "role.update_field_permissions",

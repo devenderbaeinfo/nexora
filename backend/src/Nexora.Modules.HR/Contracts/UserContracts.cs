@@ -1,4 +1,4 @@
-namespace Nexora.Modules.Identity.Contracts;
+namespace Nexora.Modules.HR.Contracts;
 
 public record CreateUserRequest(
     string FirstName, string LastName, string WorkEmail,

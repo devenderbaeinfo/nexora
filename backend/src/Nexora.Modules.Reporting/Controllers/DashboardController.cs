@@ -3,10 +3,9 @@ using Nexora.Shared.Authorization;
 using Nexora.Modules.Reporting.Contracts;
 using Nexora.Modules.Identity.Entities;
 using Nexora.Modules.HR.Entities;
-using Nexora.Modules.Projects.Entities;
-using Nexora.Modules.Projects.Entities;
+using Nexora.Modules.Set<ProjectEntity>().Entities;
+using Nexora.Modules.Set<ProjectEntity>().Entities;
 using Nexora.Modules.HR.Entities;
-using Nexora.Api.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -21,8 +20,8 @@ namespace Nexora.Modules.Reporting.Controllers;
 [Route("api/dashboard")]
 public class DashboardController : ControllerBase
 {
-    private readonly NexoraDbContext _db;
-    public DashboardController(NexoraDbContext db) => _db = db;
+    private readonly DbContext _db;
+    public DashboardController(DbContext db) => _db = db;
 
     private Guid? CurrentEmployeeId =>
         Guid.TryParse(User.FindFirstValue("employee_id"), out var id) ? id : null;
@@ -33,30 +32,30 @@ public class DashboardController : ControllerBase
         if (CurrentEmployeeId is not { } employeeId)
             return Ok(new DashboardSummaryDto(0, 0, 0, 0, 0, 0, 0));
 
-        var directReportIds = await _db.Employees
+        var directReportIds = await _db.Set<Employee>()
             .Where(e => e.ReportingManagerId == employeeId)
             .Select(e => e.Id)
             .ToListAsync();
 
-        var pendingLeave = await _db.LeaveRequests
+        var pendingLeave = await _db.Set<LeaveRequest>()
             .Where(r => directReportIds.Contains(r.EmployeeId) && r.Status == LeaveRequestStatus.PendingManagerApproval)
             .CountAsync();
 
-        var pendingExpense = await _db.ReimbursementRequests
+        var pendingExpense = await _db.Set<ReimbursementRequest>()
             .Where(r => directReportIds.Contains(r.EmployeeId) && r.Status == Erp.Domain.Reimbursement.ReimbursementStatus.Pending)
             .CountAsync();
 
-        var managedProjectIds = await _db.Projects
+        var managedProjectIds = await _db.Set<ProjectEntity>()
             .Where(p => p.ProjectManagerId == employeeId)
             .Select(p => p.Id)
             .ToListAsync();
 
-        var pendingProjectExpense = await _db.ProjectExpenses
+        var pendingProjectExpense = await _db.Set<ProjectExpense>()
             .Where(e => managedProjectIds.Contains(e.ProjectId) && e.Status == ProjectExpenseStatus.Pending)
             .CountAsync();
 
-        var managedProjects = await _db.Projects.Where(p => managedProjectIds.Contains(p.Id)).ToListAsync();
-        var managedProjectExpenses = await _db.ProjectExpenses
+        var managedProjects = await _db.Set<ProjectEntity>().Where(p => managedProjectIds.Contains(p.Id)).ToListAsync();
+        var managedProjectExpenses = await _db.Set<ProjectExpense>()
             .Where(e => managedProjectIds.Contains(e.ProjectId) && e.Status == ProjectExpenseStatus.Approved)
             .ToListAsync();
 
@@ -76,7 +75,7 @@ public class DashboardController : ControllerBase
     [RequirePermission(Permission.Attendance.ViewAll)]
     public async Task<ActionResult<HrTrendsDto>> HrTrends()
     {
-        var employees = await _db.Employees.Select(e => new { e.Id, e.HireDate, e.TerminationDate, e.Status }).ToListAsync();
+        var employees = await _db.Set<Employee>().Select(e => new { e.Id, e.HireDate, e.TerminationDate, e.Status }).ToListAsync();
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
         var firstOfThisMonth = new DateOnly(today.Year, today.Month, 1);
 
@@ -92,7 +91,7 @@ public class DashboardController : ControllerBase
 
         var activeEmployeeIds = employees.Where(e => e.Status == EmploymentStatus.Active).Select(e => e.Id).ToHashSet();
         var windowStart = today.AddDays(-13);
-        var entries = await _db.AttendanceEntries
+        var entries = await _db.Set<AttendanceEntry>()
             .Where(a => a.WorkDate >= windowStart && a.WorkDate <= today)
             .Select(a => new { a.WorkDate, a.EmployeeId })
             .ToListAsync();
@@ -126,7 +125,7 @@ public class DashboardController : ControllerBase
         double? employeesDelta = null;
         if (Can(Permission.People.View))
         {
-            var employees = await _db.Employees.Select(e => new { e.HireDate, e.TerminationDate }).ToListAsync();
+            var employees = await _db.Set<Employee>().Select(e => new { e.HireDate, e.TerminationDate }).ToListAsync();
             totalEmployees = employees.Count(e => e.HireDate <= today && (e.TerminationDate == null || e.TerminationDate > today));
             var lastMonthCount = employees.Count(e => e.HireDate <= prevMonthEnd && (e.TerminationDate == null || e.TerminationDate > prevMonthEnd));
             employeesDelta = lastMonthCount == 0 ? null : Math.Round((totalEmployees.Value - lastMonthCount) / (double)lastMonthCount * 100, 1);
@@ -136,18 +135,18 @@ public class DashboardController : ControllerBase
         List<UpcomingLeaveDto>? upcomingLeaves = null;
         if (Can(Permission.Attendance.ViewAll) || Can(Permission.Leave.ApproveAsHr))
         {
-            onLeaveToday = await _db.LeaveRequests
+            onLeaveToday = await _db.Set<LeaveRequest>()
                 .Where(r => r.Status == LeaveRequestStatus.Approved && r.StartDate <= today && r.EndDate >= today)
                 .Select(r => r.EmployeeId).Distinct().CountAsync();
 
-            var upcomingRows = await _db.LeaveRequests
+            var upcomingRows = await _db.Set<LeaveRequest>()
                 .Where(r => r.Status == LeaveRequestStatus.Approved && r.StartDate > today)
                 .OrderBy(r => r.StartDate)
                 .Take(10)
                 .Select(r => new { r.EmployeeId, r.StartDate, r.EndDate, r.DaysRequested })
                 .ToListAsync();
             var employeeIds = upcomingRows.Select(r => r.EmployeeId).ToHashSet();
-            var names = await _db.Employees
+            var names = await _db.Set<Employee>()
                 .Where(e => employeeIds.Contains(e.Id))
                 .ToDictionaryAsync(e => e.Id, e => $"{e.FirstName} {e.LastName}");
             upcomingLeaves = upcomingRows
@@ -160,11 +159,11 @@ public class DashboardController : ControllerBase
         List<ExpenseCategoryDto>? expenseByCategory = null;
         if (Can(Permission.Accounting.View) || Can(Permission.Expense.ApproveAsFinance))
         {
-            var reimbursements = await _db.ReimbursementRequests
+            var reimbursements = await _db.Set<ReimbursementRequest>()
                 .Where(r => r.Status == ReimbursementStatus.Approved && r.IncurredOn >= prevMonthStart)
                 .Select(r => new { r.Amount, r.Category, r.IncurredOn })
                 .ToListAsync();
-            var projectExpenses = await _db.ProjectExpenses
+            var projectExpenses = await _db.Set<ProjectExpense>()
                 .Where(e => e.Status == ProjectExpenseStatus.Approved && e.IncurredOn >= prevMonthStart)
                 .Select(e => new { e.Amount, e.Category, e.IncurredOn })
                 .ToListAsync();
@@ -194,20 +193,20 @@ public class DashboardController : ControllerBase
         double? payrollCostDelta = null;
         if (Can(Permission.Payroll.View) || Can(Permission.Payroll.Manage) || Can(Permission.Payroll.Approve))
         {
-            var currentRun = await _db.PayrollRuns.FirstOrDefaultAsync(r => r.PeriodMonth == today.Month && r.PeriodYear == today.Year);
+            var currentRun = await _db.Set<PayrollRun>().FirstOrDefaultAsync(r => r.PeriodMonth == today.Month && r.PeriodYear == today.Year);
             payrollCostMtd = currentRun is null
                 ? 0
-                : await _db.Payslips.Where(p => p.PayrollRunId == currentRun.Id).SumAsync(p => (decimal?)p.NetPay) ?? 0;
+                : await _db.Set<Payslip>().Where(p => p.PayrollRunId == currentRun.Id).SumAsync(p => (decimal?)p.NetPay) ?? 0;
 
-            var prevRun = await _db.PayrollRuns.FirstOrDefaultAsync(r => r.PeriodMonth == prevMonthStart.Month && r.PeriodYear == prevMonthStart.Year);
+            var prevRun = await _db.Set<PayrollRun>().FirstOrDefaultAsync(r => r.PeriodMonth == prevMonthStart.Month && r.PeriodYear == prevMonthStart.Year);
             var prevPayrollCost = prevRun is null
                 ? 0m
-                : await _db.Payslips.Where(p => p.PayrollRunId == prevRun.Id).SumAsync(p => (decimal?)p.NetPay) ?? 0;
+                : await _db.Set<Payslip>().Where(p => p.PayrollRunId == prevRun.Id).SumAsync(p => (decimal?)p.NetPay) ?? 0;
             payrollCostDelta = prevPayrollCost == 0 ? null : (double)Math.Round((payrollCostMtd.Value - prevPayrollCost) / prevPayrollCost * 100, 1);
         }
 
         string? baseCurrency = (expensesMtd != null || payrollCostMtd != null)
-            ? await _db.Tenants.Select(t => t.BaseCurrencyCode).FirstOrDefaultAsync()
+            ? await _db.Set<Tenant>().Select(t => t.BaseCurrencyCode).FirstOrDefaultAsync()
             : null;
 
         return Ok(new DashboardKpisDto(

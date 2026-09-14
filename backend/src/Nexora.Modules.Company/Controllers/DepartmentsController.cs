@@ -1,7 +1,6 @@
 using Nexora.Shared.Authorization;
 using Nexora.Modules.Identity.Entities;
 using Nexora.Modules.HR.Entities;
-using Nexora.Api.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -16,14 +15,14 @@ public record CreateDepartmentRequest(string Name);
 [Route("api/departments")]
 public class DepartmentsController : ControllerBase
 {
-    private readonly NexoraDbContext _db;
-    public DepartmentsController(NexoraDbContext db) => _db = db;
+    private readonly DbContext _db;
+    public DepartmentsController(DbContext db) => _db = db;
 
     [HttpGet]
     [RequirePermission(Permission.People.View)]
     public async Task<ActionResult<List<DepartmentDto>>> List()
     {
-        var departments = await _db.Departments
+        var departments = await _db.Set<Department>()
             .OrderBy(d => d.Name)
             .Select(d => new DepartmentDto(d.Id, d.Name))
             .ToListAsync();
@@ -38,7 +37,7 @@ public class DepartmentsController : ControllerBase
         if (request.Name.Trim().Length > 200) return BadRequest("Name can't be longer than 200 characters.");
 
         var department = new Department { Name = request.Name.Trim() };
-        _db.Departments.Add(department);
+        _db.Set<Department>().Add(department);
         await _db.SaveChangesAsync();
 
         return CreatedAtAction(nameof(List), new DepartmentDto(department.Id, department.Name));

@@ -3,7 +3,7 @@ using Nexora.Shared.Common;
 namespace Nexora.Shared.Events;
 
 // The Outbox row itself: written in the same SaveChanges/transaction as whatever business
-// data raised the event (see NexoraDbContext.EnqueueOutboxMessages), so "the business operation
+// data raised the event (see DbContext.EnqueueOutboxMessages), so "the business operation
 // succeeded but the event was lost" can't happen — either both commit or neither does.
 // OutboxDispatcherService is the only thing that ever reads/updates these.
 public class OutboxMessage : TenantEntity

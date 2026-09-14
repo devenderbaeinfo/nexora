@@ -1,32 +1,31 @@
 using System.Security.Claims;
 using Nexora.Shared.Authorization;
-using Nexora.Modules.Identity.Contracts;
+using Nexora.Modules.HR.Contracts;
 using Nexora.Modules.Identity.Entities;
 using Nexora.Modules.HR.Entities;
 using Nexora.Modules.Identity.Services;
-using Nexora.Api.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
-namespace Nexora.Modules.Identity.Controllers;
+namespace Nexora.Modules.HR.Controllers;
 
 // Creates a login-enabled person (Employee record + AppUser + one role) within the caller's
 // own tenant. Who may create whom is fixed by RoleTemplates.AssignableRolesByCreatorRole:
 // an Admin can only produce HR/Manager accounts, HR can only produce Employee/Manager accounts —
 // enforced here, not just in the UI, since the UI is not a trust boundary.
-// TenantId on the new AppUser is left unset — NexoraDbContext.StampTenantAndTimestamps fills it
+// TenantId on the new AppUser is left unset — DbContext.StampTenantAndTimestamps fills it
 // in from the caller's own tenant automatically (see the AppUser/AppRole handling there).
 [ApiController]
 [Authorize]
 [Route("api/users")]
 public class UsersController : ControllerBase
 {
-    private readonly NexoraDbContext _db;
+    private readonly DbContext _db;
     private readonly UserManager<AppUser> _userManager;
 
-    public UsersController(NexoraDbContext db, UserManager<AppUser> userManager)
+    public UsersController(DbContext db, UserManager<AppUser> userManager)
     {
         _db = db;
         _userManager = userManager;
@@ -58,8 +57,8 @@ public class UsersController : ControllerBase
         // right after someone remaps a Job Title, with no separate refresh step.
         var visibleRoles = (await AssignableRoleResolver.ResolveAsync(_db, TenantId, creatorRole)).ToHashSet();
 
-        var employees = await _db.Employees.ToListAsync();
-        var jobTitleRoles = await _db.JobTitles.ToDictionaryAsync(j => j.Id, j => j.SystemRole);
+        var employees = await _db.Set<Employee>().ToListAsync();
+        var jobTitleRoles = await _db.Set<JobTitle>().ToDictionaryAsync(j => j.Id, j => j.SystemRole);
         var employeeIds = employees.Select(e => e.Id).ToList();
 
         // Deactivated accounts have nothing left to manage here (no password to reset, no
@@ -111,7 +110,7 @@ public class UsersController : ControllerBase
         targetUser.PasswordChangedAtUtc = DateTimeOffset.UtcNow;
         await _userManager.UpdateAsync(targetUser);
 
-        _db.AuditLogs.Add(new Erp.Domain.Audit.AuditLog
+        _db.Set<AuditLog>().Add(new Erp.Domain.Audit.AuditLog
         {
             ActorUserId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub")!),
             Action = "auth.password_reset_by_admin",
@@ -139,10 +138,10 @@ public class UsersController : ControllerBase
         var creatorRole = await CurrentCreatorRoleAsync();
         if (creatorRole is null) return Forbid();
 
-        var departmentExists = await _db.Departments.AnyAsync(d => d.Id == request.DepartmentId);
+        var departmentExists = await _db.Set<Department>().AnyAsync(d => d.Id == request.DepartmentId);
         if (!departmentExists) return BadRequest("Unknown department.");
 
-        var jobTitle = await _db.JobTitles.FirstOrDefaultAsync(j => j.Id == request.JobTitleId);
+        var jobTitle = await _db.Set<JobTitle>().FirstOrDefaultAsync(j => j.Id == request.JobTitleId);
         if (jobTitle is null) return BadRequest("Unknown job title.");
 
         // The role this person gets follows entirely from their Job Title now — no separate
@@ -154,7 +153,7 @@ public class UsersController : ControllerBase
             return Forbid();
         }
 
-        var emailInUse = await _db.Employees.AnyAsync(e => e.WorkEmail == request.WorkEmail);
+        var emailInUse = await _db.Set<Employee>().AnyAsync(e => e.WorkEmail == request.WorkEmail);
         if (emailInUse) return Conflict("An employee with this work email already exists.");
 
         if (request.ReportingManagerId is null && !request.AcknowledgeNoManager)
@@ -163,7 +162,7 @@ public class UsersController : ControllerBase
         }
         if (request.ReportingManagerId is { } newManagerId)
         {
-            var managerExists = await _db.Employees.AnyAsync(e => e.Id == newManagerId);
+            var managerExists = await _db.Set<Employee>().AnyAsync(e => e.Id == newManagerId);
             if (!managerExists) return BadRequest("Unknown manager.");
         }
 
@@ -177,9 +176,9 @@ public class UsersController : ControllerBase
             ReportingManagerId = request.ReportingManagerId,
             HireDate = request.HireDate,
         };
-        _db.Employees.Add(employee);
+        _db.Set<Employee>().Add(employee);
         employee.AddDomainEvent(new EmployeeCreatedEvent(employee.Id, $"{employee.FirstName} {employee.LastName}"));
-        _db.EmployeeAssignmentHistories.Add(new EmployeeAssignmentHistory
+        _db.Set<EmployeeAssignmentHistory>().Add(new EmployeeAssignmentHistory
         {
             EmployeeId = employee.Id,
             DepartmentId = employee.DepartmentId,
@@ -193,14 +192,14 @@ public class UsersController : ControllerBase
         // request they submit gets rejected as "insufficient balance". HR picks exactly which
         // leave types this hire gets and how many days of each (LeaveAllotments); if they don't
         // specify anything, fall back to every leave type at its configured default.
-        var leaveTypes = await _db.LeaveTypes.ToListAsync();
+        var leaveTypes = await _db.Set<LeaveType>().ToListAsync();
         var allotments = request.LeaveAllotments is { Count: > 0 }
             ? request.LeaveAllotments.Where(a => leaveTypes.Any(t => t.Id == a.LeaveTypeId)).ToList()
             : leaveTypes.Select(t => new LeaveAllotmentInput(t.Id, t.AnnualAllowance)).ToList();
 
         foreach (var allotment in allotments)
         {
-            _db.LeaveBalances.Add(new Erp.Domain.Timecard.LeaveBalance
+            _db.Set<LeaveBalance>().Add(new Erp.Domain.Timecard.LeaveBalance
             {
                 EmployeeId = employee.Id,
                 LeaveTypeId = allotment.LeaveTypeId,
@@ -260,7 +259,7 @@ public class UsersController : ControllerBase
         // them as Active even though their account can no longer sign in.
         if (targetUser.EmployeeId is { } employeeId)
         {
-            var employee = await _db.Employees.FirstOrDefaultAsync(e => e.Id == employeeId);
+            var employee = await _db.Set<Employee>().FirstOrDefaultAsync(e => e.Id == employeeId);
             if (employee is not null)
             {
                 employee.Status = EmploymentStatus.Terminated;
@@ -268,7 +267,7 @@ public class UsersController : ControllerBase
             }
         }
 
-        _db.AuditLogs.Add(new Erp.Domain.Audit.AuditLog
+        _db.Set<AuditLog>().Add(new Erp.Domain.Audit.AuditLog
         {
             ActorUserId = CurrentUserId,
             Action = "admin.deactivate_user",

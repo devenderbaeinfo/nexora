@@ -1,10 +1,10 @@
 using System.Security.Claims;
 using Nexora.Shared.Authorization;
 using Nexora.Modules.HR.Contracts;
+using Nexora.Modules.Identity.Authorization;
 using Nexora.Modules.Identity.Entities;
 using Nexora.Modules.HR.Entities;
 using Nexora.Shared.Authorization;
-using Nexora.Api.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -16,10 +16,10 @@ namespace Nexora.Modules.HR.Controllers;
 [Route("api/employees")]
 public class EmployeesController : ControllerBase
 {
-    private readonly NexoraDbContext _db;
-    private readonly DataScopeService _scope;
+    private readonly DbContext _db;
+    private readonly IDataScopeService _scope;
 
-    public EmployeesController(NexoraDbContext db, DataScopeService scope)
+    public EmployeesController(DbContext db, IDataScopeService scope)
     {
         _db = db;
         _scope = scope;
@@ -43,9 +43,9 @@ public class EmployeesController : ControllerBase
             case DataScopeType.Department:
             {
                 if (CurrentEmployeeId is not { } employeeId) return [];
-                var me = await _db.Employees.FirstOrDefaultAsync(e => e.Id == employeeId);
+                var me = await _db.Set<Employee>().FirstOrDefaultAsync(e => e.Id == employeeId);
                 if (me is null) return [];
-                var ids = await _db.Employees.Where(e => e.DepartmentId == me.DepartmentId).Select(e => e.Id).ToListAsync();
+                var ids = await _db.Set<Employee>().Where(e => e.DepartmentId == me.DepartmentId).Select(e => e.Id).ToListAsync();
                 return ids.ToHashSet();
             }
 
@@ -62,9 +62,9 @@ public class EmployeesController : ControllerBase
     {
         if (CurrentEmployeeId is not { } managerId) return Ok(new List<EmployeeListItem>());
 
-        var departments = await _db.Departments.ToDictionaryAsync(d => d.Id, d => d.Name);
-        var jobTitles = await _db.JobTitles.ToDictionaryAsync(j => j.Id, j => j.Name);
-        var employees = await _db.Employees
+        var departments = await _db.Set<Department>().ToDictionaryAsync(d => d.Id, d => d.Name);
+        var jobTitles = await _db.Set<JobTitle>().ToDictionaryAsync(j => j.Id, j => j.Name);
+        var employees = await _db.Set<Employee>()
             .Where(e => e.ReportingManagerId == managerId)
             .OrderBy(e => e.FirstName)
             .ToListAsync();
@@ -83,13 +83,13 @@ public class EmployeesController : ControllerBase
     {
         if (CurrentEmployeeId is not { } employeeId) return NotFound();
 
-        var employee = await _db.Employees.FirstOrDefaultAsync(e => e.Id == employeeId);
+        var employee = await _db.Set<Employee>().FirstOrDefaultAsync(e => e.Id == employeeId);
         if (employee is null) return NotFound();
 
-        var department = await _db.Departments.FirstOrDefaultAsync(d => d.Id == employee.DepartmentId);
-        var jobTitle = await _db.JobTitles.FirstOrDefaultAsync(j => j.Id == employee.JobTitleId);
+        var department = await _db.Set<Department>().FirstOrDefaultAsync(d => d.Id == employee.DepartmentId);
+        var jobTitle = await _db.Set<JobTitle>().FirstOrDefaultAsync(j => j.Id == employee.JobTitleId);
         var location = employee.LocationId is { } locationId
-            ? await _db.Locations.FirstOrDefaultAsync(l => l.Id == locationId)
+            ? await _db.Set<Location>().FirstOrDefaultAsync(l => l.Id == locationId)
             : null;
 
         return Ok(new EmployeeProfileDto(
@@ -97,7 +97,7 @@ public class EmployeesController : ControllerBase
             jobTitle?.Name ?? "—", department?.Name ?? "—", location?.Name, employee.Status.ToString(), employee.HireDate));
     }
 
-    // No explicit tenant filter here — NexoraDbContext's global query filter already
+    // No explicit tenant filter here — DbContext's global query filter already
     // restricts every query on this DbContext instance to the caller's own tenant.
     [HttpGet]
     [RequirePermission(Permission.People.View)]
@@ -106,10 +106,10 @@ public class EmployeesController : ControllerBase
         var scopeDecision = await _scope.ResolveAsync(User, Permission.People.View);
         var allowedIds = await ResolveAllowedEmployeeIdsAsync(scopeDecision);
 
-        var departments = await _db.Departments.ToDictionaryAsync(d => d.Id, d => d.Name);
-        var jobTitles = await _db.JobTitles.ToDictionaryAsync(j => j.Id, j => j.Name);
+        var departments = await _db.Set<Department>().ToDictionaryAsync(d => d.Id, d => d.Name);
+        var jobTitles = await _db.Set<JobTitle>().ToDictionaryAsync(j => j.Id, j => j.Name);
 
-        var employeesQuery = _db.Employees.AsQueryable();
+        var employeesQuery = _db.Set<Employee>().AsQueryable();
         if (allowedIds is not null) employeesQuery = employeesQuery.Where(e => allowedIds.Contains(e.Id));
         var employees = await employeesQuery
             .OrderBy(e => e.FirstName)
@@ -137,16 +137,16 @@ public class EmployeesController : ControllerBase
         var allowedIds = await ResolveAllowedEmployeeIdsAsync(scopeDecision);
         if (allowedIds is not null && !allowedIds.Contains(id)) return Forbid();
 
-        var employee = await _db.Employees.FirstOrDefaultAsync(e => e.Id == id);
+        var employee = await _db.Set<Employee>().FirstOrDefaultAsync(e => e.Id == id);
         if (employee is null) return NotFound();
 
-        var department = await _db.Departments.FirstOrDefaultAsync(d => d.Id == employee.DepartmentId);
-        var jobTitle = await _db.JobTitles.FirstOrDefaultAsync(j => j.Id == employee.JobTitleId);
+        var department = await _db.Set<Department>().FirstOrDefaultAsync(d => d.Id == employee.DepartmentId);
+        var jobTitle = await _db.Set<JobTitle>().FirstOrDefaultAsync(j => j.Id == employee.JobTitleId);
         var location = employee.LocationId is { } locationId
-            ? await _db.Locations.FirstOrDefaultAsync(l => l.Id == locationId)
+            ? await _db.Set<Location>().FirstOrDefaultAsync(l => l.Id == locationId)
             : null;
         var manager = employee.ReportingManagerId is { } managerId
-            ? await _db.Employees.FirstOrDefaultAsync(e => e.Id == managerId)
+            ? await _db.Set<Employee>().FirstOrDefaultAsync(e => e.Id == managerId)
             : null;
 
         return Ok(new EmployeeDetailDto(
@@ -160,13 +160,13 @@ public class EmployeesController : ControllerBase
     [RequirePermission(Permission.People.Manage)]
     public async Task<ActionResult<EmployeeListItem>> Create(CreateEmployeeRequest request)
     {
-        var departmentExists = await _db.Departments.AnyAsync(d => d.Id == request.DepartmentId);
+        var departmentExists = await _db.Set<Department>().AnyAsync(d => d.Id == request.DepartmentId);
         if (!departmentExists) return BadRequest("Unknown department.");
 
-        var jobTitleExists = await _db.JobTitles.AnyAsync(j => j.Id == request.JobTitleId);
+        var jobTitleExists = await _db.Set<JobTitle>().AnyAsync(j => j.Id == request.JobTitleId);
         if (!jobTitleExists) return BadRequest("Unknown job title.");
 
-        var emailInUse = await _db.Employees.AnyAsync(e => e.WorkEmail == request.WorkEmail);
+        var emailInUse = await _db.Set<Employee>().AnyAsync(e => e.WorkEmail == request.WorkEmail);
         if (emailInUse) return Conflict("An employee with this work email already exists.");
 
         if (request.ReportingManagerId is null && !request.AcknowledgeNoManager)
@@ -175,7 +175,7 @@ public class EmployeesController : ControllerBase
         }
         if (request.ReportingManagerId is { } newManagerId)
         {
-            var managerExists = await _db.Employees.AnyAsync(e => e.Id == newManagerId);
+            var managerExists = await _db.Set<Employee>().AnyAsync(e => e.Id == newManagerId);
             if (!managerExists) return BadRequest("Unknown manager.");
         }
 
@@ -191,9 +191,9 @@ public class EmployeesController : ControllerBase
             HireDate = request.HireDate,
         };
 
-        _db.Employees.Add(employee);
+        _db.Set<Employee>().Add(employee);
         employee.AddDomainEvent(new EmployeeCreatedEvent(employee.Id, $"{employee.FirstName} {employee.LastName}"));
-        _db.EmployeeAssignmentHistories.Add(new EmployeeAssignmentHistory
+        _db.Set<EmployeeAssignmentHistory>().Add(new EmployeeAssignmentHistory
         {
             EmployeeId = employee.Id,
             DepartmentId = employee.DepartmentId,
@@ -205,8 +205,8 @@ public class EmployeesController : ControllerBase
 
         await _db.SaveChangesAsync();
 
-        var department = await _db.Departments.FirstAsync(d => d.Id == employee.DepartmentId);
-        var jobTitle = await _db.JobTitles.FirstAsync(j => j.Id == employee.JobTitleId);
+        var department = await _db.Set<Department>().FirstAsync(d => d.Id == employee.DepartmentId);
+        var jobTitle = await _db.Set<JobTitle>().FirstAsync(j => j.Id == employee.JobTitleId);
         return CreatedAtAction(nameof(List), new EmployeeListItem(
             employee.Id, employee.FirstName, employee.LastName, employee.WorkEmail,
             jobTitle.Name, department.Name, employee.Status.ToString()));
@@ -219,18 +219,18 @@ public class EmployeesController : ControllerBase
     [RequirePermission(Permission.People.Manage)]
     public async Task<IActionResult> SetManager(Guid id, SetReportingManagerRequest request)
     {
-        var employee = await _db.Employees.FirstOrDefaultAsync(e => e.Id == id);
+        var employee = await _db.Set<Employee>().FirstOrDefaultAsync(e => e.Id == id);
         if (employee is null) return NotFound();
 
         if (request.ReportingManagerId == id) return BadRequest("An employee can't be their own manager.");
         if (request.ReportingManagerId is { } managerId)
         {
-            var managerExists = await _db.Employees.AnyAsync(e => e.Id == managerId);
+            var managerExists = await _db.Set<Employee>().AnyAsync(e => e.Id == managerId);
             if (!managerExists) return BadRequest("Unknown manager.");
         }
 
         employee.ReportingManagerId = request.ReportingManagerId;
-        _db.EmployeeAssignmentHistories.Add(new EmployeeAssignmentHistory
+        _db.Set<EmployeeAssignmentHistory>().Add(new EmployeeAssignmentHistory
         {
             EmployeeId = employee.Id,
             DepartmentId = employee.DepartmentId,

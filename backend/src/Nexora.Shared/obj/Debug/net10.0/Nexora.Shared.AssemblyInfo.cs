@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Nexora.Shared")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+6a5ba73a84dffa297232f379d8a4ef680735c6c1")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+37efe5057610ae095f3282cb49609a3fd2c048e9")]
 [assembly: System.Reflection.AssemblyProductAttribute("Nexora.Shared")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Nexora.Shared")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

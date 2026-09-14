@@ -5,7 +5,6 @@ using Nexora.Shared.Common;
 using Nexora.Modules.Identity.Entities;
 using Nexora.Modules.HR.Entities;
 using Nexora.Modules.Identity.Services;
-using Nexora.Api.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -18,10 +17,10 @@ namespace Nexora.Modules.HR.Controllers;
 [Route("api/job-titles")]
 public class JobTitlesController : ControllerBase
 {
-    private readonly NexoraDbContext _db;
+    private readonly DbContext _db;
     private readonly UserManager<AppUser> _userManager;
 
-    public JobTitlesController(NexoraDbContext db, UserManager<AppUser> userManager)
+    public JobTitlesController(DbContext db, UserManager<AppUser> userManager)
     {
         _db = db;
         _userManager = userManager;
@@ -47,7 +46,7 @@ public class JobTitlesController : ControllerBase
     [RequirePermission(Permission.People.View)]
     public async Task<ActionResult<List<JobTitleDto>>> List()
     {
-        var titles = await _db.JobTitles.OrderBy(j => j.Name).ToListAsync();
+        var titles = await _db.Set<JobTitle>().OrderBy(j => j.Name).ToListAsync();
         return Ok(titles.Select(j => new JobTitleDto(j.Id, j.Name, j.SystemRole)).ToList());
     }
 
@@ -77,13 +76,13 @@ public class JobTitlesController : ControllerBase
             return Forbid();
         }
 
-        var exists = await _db.JobTitles.AnyAsync(j => j.Name == name);
+        var exists = await _db.Set<JobTitle>().AnyAsync(j => j.Name == name);
         if (exists) return Conflict("A job title with this name already exists.");
 
         var jobTitle = new JobTitle { Name = name, SystemRole = request.SystemRole };
-        _db.JobTitles.Add(jobTitle);
+        _db.Set<JobTitle>().Add(jobTitle);
 
-        _db.AuditLogs.Add(new AuditLog
+        _db.Set<AuditLog>().Add(new AuditLog
         {
             ActorUserId = CurrentUserId,
             Action = "job_title.create",
@@ -114,10 +113,10 @@ public class JobTitlesController : ControllerBase
             return Forbid();
         }
 
-        var jobTitle = await _db.JobTitles.FirstOrDefaultAsync(j => j.Id == id);
+        var jobTitle = await _db.Set<JobTitle>().FirstOrDefaultAsync(j => j.Id == id);
         if (jobTitle is null) return NotFound();
 
-        var nameTaken = await _db.JobTitles.AnyAsync(j => j.Id != id && j.Name == name);
+        var nameTaken = await _db.Set<JobTitle>().AnyAsync(j => j.Id != id && j.Name == name);
         if (nameTaken) return Conflict("A job title with this name already exists.");
 
         var previousName = jobTitle.Name;
@@ -127,7 +126,7 @@ public class JobTitlesController : ControllerBase
 
         if (previousRole != request.SystemRole)
         {
-            _db.AuditLogs.Add(new AuditLog
+            _db.Set<AuditLog>().Add(new AuditLog
             {
                 ActorUserId = CurrentUserId,
                 Action = "job_title.role_remap",
@@ -138,7 +137,7 @@ public class JobTitlesController : ControllerBase
         }
         if (previousName != name)
         {
-            _db.AuditLogs.Add(new AuditLog
+            _db.Set<AuditLog>().Add(new AuditLog
             {
                 ActorUserId = CurrentUserId,
                 Action = "job_title.rename",
@@ -159,7 +158,7 @@ public class JobTitlesController : ControllerBase
     [RequirePermission(Permission.People.Manage)]
     public async Task<IActionResult> Delete(Guid id)
     {
-        var jobTitle = await _db.JobTitles.FirstOrDefaultAsync(j => j.Id == id);
+        var jobTitle = await _db.Set<JobTitle>().FirstOrDefaultAsync(j => j.Id == id);
         if (jobTitle is null) return NotFound();
 
         var creatorRole = await CurrentCreatorRoleAsync();
@@ -169,12 +168,12 @@ public class JobTitlesController : ControllerBase
             return Forbid();
         }
 
-        var inUse = await _db.Employees.AnyAsync(e => e.JobTitleId == id);
+        var inUse = await _db.Set<Employee>().AnyAsync(e => e.JobTitleId == id);
         if (inUse) return Conflict("This job title is still held by one or more employees.");
 
-        _db.JobTitles.Remove(jobTitle);
+        _db.Set<JobTitle>().Remove(jobTitle);
 
-        _db.AuditLogs.Add(new AuditLog
+        _db.Set<AuditLog>().Add(new AuditLog
         {
             ActorUserId = CurrentUserId,
             Action = "job_title.delete",

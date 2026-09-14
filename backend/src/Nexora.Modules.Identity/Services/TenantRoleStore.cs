@@ -1,5 +1,4 @@
 using Nexora.Modules.Identity.Entities;
-using Nexora.Api.Persistence;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
@@ -14,7 +13,7 @@ namespace Nexora.Modules.Identity.Services;
 // works directly against our own (TenantId, NormalizedName) uniqueness instead.
 public static class TenantRoleStore
 {
-    public static async Task<AppRole> EnsureRoleAsync(NexoraDbContext db, Guid tenantId, string roleName)
+    public static async Task<AppRole> EnsureRoleAsync(DbContext db, Guid tenantId, string roleName)
     {
         var normalized = roleName.ToUpperInvariant();
         var existing = await db.Roles.IgnoreQueryFilters()
@@ -27,7 +26,7 @@ public static class TenantRoleStore
         return role;
     }
 
-    public static async Task AssignRoleAsync(NexoraDbContext db, Guid tenantId, Guid userId, string roleName)
+    public static async Task AssignRoleAsync(DbContext db, Guid tenantId, Guid userId, string roleName)
     {
         var role = await EnsureRoleAsync(db, tenantId, roleName);
 

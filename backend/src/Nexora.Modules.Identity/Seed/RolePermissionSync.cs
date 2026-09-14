@@ -1,5 +1,4 @@
 using Nexora.Modules.Identity.Entities;
-using Nexora.Api.Persistence;
 using Microsoft.EntityFrameworkCore;
 
 namespace Nexora.Modules.Identity.Seed;
@@ -21,7 +20,7 @@ public static class RolePermissionSync
     public static async Task RunAsync(IServiceProvider services)
     {
         using var scope = services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<NexoraDbContext>();
+        var db = scope.ServiceProvider.GetRequiredService<DbContext>();
 
         // Custom, tenant-created roles and any role an Admin has hand-edited are never
         // touched here — only the untouched, out-of-the-box system roles get topped up
@@ -30,7 +29,7 @@ public static class RolePermissionSync
             .Where(r => KnownRoles.Contains(r.Name!) && !r.IsCustomized)
             .ToList();
 
-        var existingKeysByRole = await db.RolePermissions.IgnoreQueryFilters()
+        var existingKeysByRole = await db.Set<RolePermission>().IgnoreQueryFilters()
             .GroupBy(rp => rp.RoleId)
             .Select(g => new { RoleId = g.Key, Keys = g.Select(rp => rp.PermissionKey).ToList() })
             .ToDictionaryAsync(x => x.RoleId, x => x.Keys.ToHashSet());
@@ -43,7 +42,7 @@ public static class RolePermissionSync
             foreach (var key in desired)
             {
                 if (existing.Contains(key)) continue;
-                db.RolePermissions.Add(new RolePermission { TenantId = role.TenantId, RoleId = role.Id, PermissionKey = key });
+                db.Set<RolePermission>().Add(new RolePermission { TenantId = role.TenantId, RoleId = role.Id, PermissionKey = key });
             }
         }
 

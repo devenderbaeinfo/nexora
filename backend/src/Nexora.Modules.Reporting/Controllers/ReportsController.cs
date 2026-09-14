@@ -2,10 +2,9 @@ using System.Security.Claims;
 using Nexora.Shared.Authorization;
 using Nexora.Modules.Reporting.Contracts;
 using Nexora.Modules.Identity.Entities;
-using Nexora.Modules.Projects.Entities;
-using Nexora.Modules.Projects.Entities;
+using Nexora.Modules.Set<ProjectEntity>().Entities;
+using Nexora.Modules.Set<ProjectEntity>().Entities;
 using Nexora.Modules.HR.Entities;
-using Nexora.Api.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -20,8 +19,8 @@ namespace Nexora.Modules.Reporting.Controllers;
 [Route("api/reports")]
 public class ReportsController : ControllerBase
 {
-    private readonly NexoraDbContext _db;
-    public ReportsController(NexoraDbContext db) => _db = db;
+    private readonly DbContext _db;
+    public ReportsController(DbContext db) => _db = db;
 
     private Guid? CurrentEmployeeId =>
         Guid.TryParse(User.FindFirstValue("employee_id"), out var id) ? id : null;
@@ -32,31 +31,31 @@ public class ReportsController : ControllerBase
     {
         if (CurrentEmployeeId is not { } managerId) return Ok(new List<TeamReportRowDto>());
 
-        var reports = await _db.Employees.Where(e => e.ReportingManagerId == managerId).ToListAsync();
+        var reports = await _db.Set<Employee>().Where(e => e.ReportingManagerId == managerId).ToListAsync();
         var reportIds = reports.Select(e => e.Id).ToList();
 
         var year = DateTime.UtcNow.Year;
         var month = DateTime.UtcNow.Month;
 
-        var pendingLeaveByEmployee = await _db.LeaveRequests
+        var pendingLeaveByEmployee = await _db.Set<LeaveRequest>()
             .Where(r => reportIds.Contains(r.EmployeeId) && r.Status == LeaveRequestStatus.PendingManagerApproval)
             .GroupBy(r => r.EmployeeId)
             .Select(g => new { EmployeeId = g.Key, Count = g.Count() })
             .ToDictionaryAsync(x => x.EmployeeId, x => x.Count);
 
-        var leaveDaysByEmployee = await _db.LeaveRequests
+        var leaveDaysByEmployee = await _db.Set<LeaveRequest>()
             .Where(r => reportIds.Contains(r.EmployeeId) && r.Status == LeaveRequestStatus.Approved && r.StartDate.Year == year)
             .GroupBy(r => r.EmployeeId)
             .Select(g => new { EmployeeId = g.Key, Days = g.Sum(r => r.DaysRequested) })
             .ToDictionaryAsync(x => x.EmployeeId, x => x.Days);
 
-        var attendanceDaysByEmployee = await _db.AttendanceEntries
+        var attendanceDaysByEmployee = await _db.Set<AttendanceEntry>()
             .Where(a => reportIds.Contains(a.EmployeeId) && a.WorkDate.Year == year && a.WorkDate.Month == month)
             .GroupBy(a => a.EmployeeId)
             .Select(g => new { EmployeeId = g.Key, Days = g.Count() })
             .ToDictionaryAsync(x => x.EmployeeId, x => x.Days);
 
-        var jobTitles = await _db.JobTitles.ToDictionaryAsync(j => j.Id, j => j.Name);
+        var jobTitles = await _db.Set<JobTitle>().ToDictionaryAsync(j => j.Id, j => j.Name);
 
         return Ok(reports.Select(e => new TeamReportRowDto(
             e.Id, $"{e.FirstName} {e.LastName}", jobTitles.GetValueOrDefault(e.JobTitleId, "—"),
@@ -71,9 +70,9 @@ public class ReportsController : ControllerBase
     {
         if (CurrentEmployeeId is not { } pmId) return Ok(new List<ProjectReportRowDto>());
 
-        var projects = await _db.Projects.Where(p => p.ProjectManagerId == pmId).ToListAsync();
+        var projects = await _db.Set<ProjectEntity>().Where(p => p.ProjectManagerId == pmId).ToListAsync();
         var projectIds = projects.Select(p => p.Id).ToList();
-        var expenses = await _db.ProjectExpenses.Where(e => projectIds.Contains(e.ProjectId)).ToListAsync();
+        var expenses = await _db.Set<ProjectExpense>().Where(e => projectIds.Contains(e.ProjectId)).ToListAsync();
 
         return Ok(projects.Select(p =>
         {
@@ -92,19 +91,19 @@ public class ReportsController : ControllerBase
     {
         if (CurrentEmployeeId is not { } managerId) return Ok(new List<ExpenseReportRowDto>());
 
-        var reportIds = await _db.Employees
+        var reportIds = await _db.Set<Employee>()
             .Where(e => e.ReportingManagerId == managerId)
             .Select(e => e.Id)
             .ToListAsync();
-        var managedProjectIds = await _db.Projects
+        var managedProjectIds = await _db.Set<ProjectEntity>()
             .Where(p => p.ProjectManagerId == managerId)
             .Select(p => p.Id)
             .ToListAsync();
 
-        var reimbursements = await _db.ReimbursementRequests
+        var reimbursements = await _db.Set<ReimbursementRequest>()
             .Where(r => reportIds.Contains(r.EmployeeId) && r.Status != ReimbursementStatus.Rejected)
             .ToListAsync();
-        var projectExpenses = await _db.ProjectExpenses
+        var projectExpenses = await _db.Set<ProjectExpense>()
             .Where(e => managedProjectIds.Contains(e.ProjectId) && e.Status != ProjectExpenseStatus.Rejected)
             .ToListAsync();
 
@@ -126,8 +125,8 @@ public class ReportsController : ControllerBase
     [RequirePermission(Permission.Accounting.View)]
     public async Task<ActionResult<List<ExpenseReportRowDto>>> ExpensesAll()
     {
-        var reimbursements = await _db.ReimbursementRequests.Where(r => r.Status != ReimbursementStatus.Rejected).ToListAsync();
-        var projectExpenses = await _db.ProjectExpenses.Where(e => e.Status != ProjectExpenseStatus.Rejected).ToListAsync();
+        var reimbursements = await _db.Set<ReimbursementRequest>().Where(r => r.Status != ReimbursementStatus.Rejected).ToListAsync();
+        var projectExpenses = await _db.Set<ProjectExpense>().Where(e => e.Status != ProjectExpenseStatus.Rejected).ToListAsync();
 
         var categories = reimbursements.Select(r => r.Category)
             .Concat(projectExpenses.Select(e => e.Category))

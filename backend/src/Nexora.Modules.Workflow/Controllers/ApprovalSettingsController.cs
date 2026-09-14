@@ -1,7 +1,6 @@
 using Nexora.Shared.Authorization;
 using Nexora.Modules.Identity.Entities;
 using Nexora.Modules.Workflow.Entities;
-using Nexora.Api.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -19,16 +18,16 @@ public record SetFallbackApproverRequest(Guid? FallbackApproverEmployeeId);
 [Route("api/approval-settings")]
 public class ApprovalSettingsController : ControllerBase
 {
-    private readonly NexoraDbContext _db;
-    public ApprovalSettingsController(NexoraDbContext db) => _db = db;
+    private readonly DbContext _db;
+    public ApprovalSettingsController(DbContext db) => _db = db;
 
     [HttpGet]
     [RequirePermission(Permission.Admin.ManageOrgStructure)]
     public async Task<ActionResult<ApprovalSettingsDto>> Get()
     {
-        var settings = await _db.TenantApprovalSettings.FirstOrDefaultAsync();
+        var settings = await _db.Set<TenantApprovalSettings>().FirstOrDefaultAsync();
         var approver = settings?.FallbackApproverEmployeeId is { } id
-            ? await _db.Employees.FirstOrDefaultAsync(e => e.Id == id)
+            ? await _db.Set<Employee>().FirstOrDefaultAsync(e => e.Id == id)
             : null;
 
         return Ok(new ApprovalSettingsDto(
@@ -42,15 +41,15 @@ public class ApprovalSettingsController : ControllerBase
     {
         if (request.FallbackApproverEmployeeId is { } employeeId)
         {
-            var exists = await _db.Employees.AnyAsync(e => e.Id == employeeId);
+            var exists = await _db.Set<Employee>().AnyAsync(e => e.Id == employeeId);
             if (!exists) return BadRequest("Unknown employee.");
         }
 
-        var settings = await _db.TenantApprovalSettings.FirstOrDefaultAsync();
+        var settings = await _db.Set<TenantApprovalSettings>().FirstOrDefaultAsync();
         if (settings is null)
         {
             settings = new TenantApprovalSettings();
-            _db.TenantApprovalSettings.Add(settings);
+            _db.Set<TenantApprovalSettings>().Add(settings);
         }
         settings.FallbackApproverEmployeeId = request.FallbackApproverEmployeeId;
 

@@ -1,5 +1,4 @@
 using Nexora.Modules.Workflow.Entities;
-using Nexora.Api.Persistence;
 using Microsoft.EntityFrameworkCore;
 
 namespace Nexora.Modules.Workflow.Services;
@@ -20,8 +19,8 @@ public interface IApprovalWorkflowService
 
 public class ApprovalWorkflowService : IApprovalWorkflowService
 {
-    private readonly NexoraDbContext _db;
-    public ApprovalWorkflowService(NexoraDbContext db) => _db = db;
+    private readonly DbContext _db;
+    public ApprovalWorkflowService(DbContext db) => _db = db;
 
     public async Task<WorkflowInstance> StartAsync(string entityType, Guid entityId)
     {

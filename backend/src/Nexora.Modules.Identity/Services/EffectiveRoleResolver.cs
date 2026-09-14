@@ -1,5 +1,4 @@
 using Nexora.Modules.Identity.Entities;
-using Nexora.Api.Persistence;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
@@ -15,14 +14,14 @@ namespace Nexora.Modules.Identity.Services;
 // AspNetUserRoles assignment, since there's no Job Title to derive a role from.
 public static class EffectiveRoleResolver
 {
-    public static async Task<string?> ResolveAsync(NexoraDbContext db, UserManager<AppUser> userManager, AppUser user)
+    public static async Task<string?> ResolveAsync(DbContext db, UserManager<AppUser> userManager, AppUser user)
     {
         if (user.EmployeeId is { } employeeId)
         {
-            var employee = await db.Employees.IgnoreQueryFilters().FirstOrDefaultAsync(e => e.Id == employeeId);
+            var employee = await db.Set<Employee>().IgnoreQueryFilters().FirstOrDefaultAsync(e => e.Id == employeeId);
             if (employee is not null)
             {
-                var jobTitle = await db.JobTitles.IgnoreQueryFilters().FirstOrDefaultAsync(j => j.Id == employee.JobTitleId);
+                var jobTitle = await db.Set<JobTitle>().IgnoreQueryFilters().FirstOrDefaultAsync(j => j.Id == employee.JobTitleId);
                 if (jobTitle is not null) return jobTitle.SystemRole;
             }
         }

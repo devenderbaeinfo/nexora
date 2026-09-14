@@ -5,7 +5,6 @@ using Nexora.Modules.HR.Services;
 using Nexora.Shared.Common;
 using Nexora.Modules.Identity.Entities;
 using Nexora.Modules.HR.Entities;
-using Nexora.Api.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -24,10 +23,10 @@ public class EmployeeDocumentsController : ControllerBase
         "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     };
 
-    private readonly NexoraDbContext _db;
+    private readonly DbContext _db;
     private readonly EmployeeDocumentStorage _storage;
 
-    public EmployeeDocumentsController(NexoraDbContext db, EmployeeDocumentStorage storage)
+    public EmployeeDocumentsController(DbContext db, EmployeeDocumentStorage storage)
     {
         _db = db;
         _storage = storage;
@@ -47,7 +46,7 @@ public class EmployeeDocumentsController : ControllerBase
     public async Task<ActionResult<List<EmployeeDocumentDto>>> Mine()
     {
         if (CurrentEmployeeId is not { } employeeId) return Ok(new List<EmployeeDocumentDto>());
-        return Ok(await BuildDtos(_db.EmployeeDocuments.Where(d => d.EmployeeId == employeeId)));
+        return Ok(await BuildDtos(_db.Set<EmployeeDocument>().Where(d => d.EmployeeId == employeeId)));
     }
 
     [HttpGet("employees/{employeeId:guid}")]
@@ -55,7 +54,7 @@ public class EmployeeDocumentsController : ControllerBase
     public async Task<ActionResult<List<EmployeeDocumentDto>>> ForEmployee(Guid employeeId)
     {
         if (!CanManage && employeeId != CurrentEmployeeId) return Forbid();
-        return Ok(await BuildDtos(_db.EmployeeDocuments.Where(d => d.EmployeeId == employeeId)));
+        return Ok(await BuildDtos(_db.Set<EmployeeDocument>().Where(d => d.EmployeeId == employeeId)));
     }
 
     [HttpPost]
@@ -68,7 +67,7 @@ public class EmployeeDocumentsController : ControllerBase
         if (file.Length > MaxFileSizeBytes) return BadRequest("File exceeds the 10 MB limit.");
         if (!AllowedContentTypes.Contains(file.ContentType)) return BadRequest("Unsupported file type.");
 
-        var employeeExists = await _db.Employees.AnyAsync(e => e.Id == employeeId);
+        var employeeExists = await _db.Set<Employee>().AnyAsync(e => e.Id == employeeId);
         if (!employeeExists) return BadRequest("Unknown employee.");
 
         var storedFileName = await _storage.SaveAsync(TenantId, file);
@@ -84,9 +83,9 @@ public class EmployeeDocumentsController : ControllerBase
             ExpiresOn = expiresOn,
             UploadedByUserId = CurrentUserId,
         };
-        _db.EmployeeDocuments.Add(document);
+        _db.Set<EmployeeDocument>().Add(document);
 
-        _db.AuditLogs.Add(new AuditLog
+        _db.Set<AuditLog>().Add(new AuditLog
         {
             ActorUserId = CurrentUserId,
             Action = "employee_docs.upload",
@@ -102,7 +101,7 @@ public class EmployeeDocumentsController : ControllerBase
     [RequirePermission(Permission.EmployeeDocs.View)]
     public async Task<IActionResult> Download(Guid id)
     {
-        var document = await _db.EmployeeDocuments.FirstOrDefaultAsync(d => d.Id == id);
+        var document = await _db.Set<EmployeeDocument>().FirstOrDefaultAsync(d => d.Id == id);
         if (document is null) return NotFound();
         if (!CanManage && document.EmployeeId != CurrentEmployeeId) return Forbid();
 
@@ -116,12 +115,12 @@ public class EmployeeDocumentsController : ControllerBase
     [RequirePermission(Permission.EmployeeDocs.Manage)]
     public async Task<IActionResult> Verify(Guid id, VerifyEmployeeDocumentRequest request)
     {
-        var document = await _db.EmployeeDocuments.FirstOrDefaultAsync(d => d.Id == id);
+        var document = await _db.Set<EmployeeDocument>().FirstOrDefaultAsync(d => d.Id == id);
         if (document is null) return NotFound();
 
         document.Status = request.Status;
 
-        _db.AuditLogs.Add(new AuditLog
+        _db.Set<AuditLog>().Add(new AuditLog
         {
             ActorUserId = CurrentUserId,
             Action = "employee_docs.verify",
@@ -136,7 +135,7 @@ public class EmployeeDocumentsController : ControllerBase
     private async Task<List<EmployeeDocumentDto>> BuildDtos(IQueryable<EmployeeDocument> query)
     {
         var documents = await query.OrderByDescending(d => d.CreatedAtUtc).ToListAsync();
-        var employees = await _db.Employees.ToDictionaryAsync(e => e.Id, e => $"{e.FirstName} {e.LastName}");
+        var employees = await _db.Set<Employee>().ToDictionaryAsync(e => e.Id, e => $"{e.FirstName} {e.LastName}");
 
         return documents.Select(d => new EmployeeDocumentDto(
             d.Id, d.EmployeeId, employees.TryGetValue(d.EmployeeId, out var name) ? name : "—",

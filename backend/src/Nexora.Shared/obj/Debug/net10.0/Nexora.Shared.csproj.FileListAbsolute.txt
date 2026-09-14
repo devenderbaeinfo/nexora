@@ -4,3 +4,12 @@ C:\Users\Deven\Desktop\erp\nexora\backend\src\Nexora.Shared\obj\Debug\net10.0\Ne
 C:\Users\Deven\Desktop\erp\nexora\backend\src\Nexora.Shared\obj\Debug\net10.0\Nexora.Shared.AssemblyInfo.cs
 C:\Users\Deven\Desktop\erp\nexora\backend\src\Nexora.Shared\obj\Debug\net10.0\Nexora.Shared.csproj.CoreCompileInputs.cache
 C:\Users\Deven\Desktop\erp\nexora\backend\src\Nexora.Shared\obj\Debug\net10.0\Nexora.Shared.sourcelink.json
+C:\Users\Deven\Desktop\erp\nexora\backend\src\Nexora.Shared\bin\Debug\net10.0\Nexora.Shared.deps.json
+C:\Users\Deven\Desktop\erp\nexora\backend\src\Nexora.Shared\bin\Debug\net10.0\Nexora.Shared.runtimeconfig.json
+C:\Users\Deven\Desktop\erp\nexora\backend\src\Nexora.Shared\bin\Debug\net10.0\Nexora.Shared.dll
+C:\Users\Deven\Desktop\erp\nexora\backend\src\Nexora.Shared\bin\Debug\net10.0\Nexora.Shared.pdb
+C:\Users\Deven\Desktop\erp\nexora\backend\src\Nexora.Shared\obj\Debug\net10.0\Nexora.Shared.dll
+C:\Users\Deven\Desktop\erp\nexora\backend\src\Nexora.Shared\obj\Debug\net10.0\refint\Nexora.Shared.dll
+C:\Users\Deven\Desktop\erp\nexora\backend\src\Nexora.Shared\obj\Debug\net10.0\Nexora.Shared.pdb
+C:\Users\Deven\Desktop\erp\nexora\backend\src\Nexora.Shared\obj\Debug\net10.0\Nexora.Shared.genruntimeconfig.cache
+C:\Users\Deven\Desktop\erp\nexora\backend\src\Nexora.Shared\obj\Debug\net10.0\ref\Nexora.Shared.dll

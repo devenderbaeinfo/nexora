@@ -1,5 +1,4 @@
 using Nexora.Modules.Identity.Entities;
-using Nexora.Api.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -16,8 +15,8 @@ public record SearchResultDto(string Kind, string Title, string Subtitle, Guid I
 [Route("api/search")]
 public class SearchController : ControllerBase
 {
-    private readonly NexoraDbContext _db;
-    public SearchController(NexoraDbContext db) => _db = db;
+    private readonly DbContext _db;
+    public SearchController(DbContext db) => _db = db;
 
     private bool Has(string perm) => User.HasClaim("perm", perm);
 
@@ -32,7 +31,7 @@ public class SearchController : ControllerBase
 
         if (Has(Permission.People.View))
         {
-            var employees = await _db.Employees
+            var employees = await _db.Set<Employee>()
                 .Where(e => EF.Functions.Like(e.FirstName + " " + e.LastName, $"%{term}%") || EF.Functions.Like(e.WorkEmail, $"%{term}%"))
                 .OrderBy(e => e.FirstName)
                 .Take(6)
@@ -43,7 +42,7 @@ public class SearchController : ControllerBase
 
         if (Has(Permission.Project.View))
         {
-            var projects = await _db.Projects
+            var projects = await _db.Set<ProjectEntity>()
                 .Where(p => EF.Functions.Like(p.Name, $"%{term}%"))
                 .OrderBy(p => p.Name)
                 .Take(6)

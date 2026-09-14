@@ -1,19 +1,18 @@
 using System.Security.Claims;
 using Nexora.Shared.Authorization;
-using Nexora.Modules.Projects.Contracts;
+using Nexora.Modules.Set<ProjectEntity>().Contracts;
 using Nexora.Modules.Finance.Entities;
 using Nexora.Shared.Common;
 using Nexora.Modules.Identity.Entities;
-using Nexora.Modules.Projects.Entities;
+using Nexora.Modules.Set<ProjectEntity>().Entities;
 using Nexora.Modules.Workflow.Entities;
 using Nexora.Modules.Finance.Services;
-using Nexora.Api.Persistence;
 using Nexora.Modules.Workflow.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
-namespace Nexora.Modules.Projects.Controllers;
+namespace Nexora.Modules.Set<ProjectEntity>().Controllers;
 
 // Same Manager -> Finance shape as Leave's Manager -> HR chain, and deliberately built the
 // same way call-for-call: proof that ApprovalWorkflowService actually generalizes rather
@@ -23,11 +22,11 @@ namespace Nexora.Modules.Projects.Controllers;
 [Route("api/reimbursements")]
 public class ReimbursementController : ControllerBase
 {
-    private readonly NexoraDbContext _db;
+    private readonly DbContext _db;
     private readonly IApprovalWorkflowService _workflow;
     private readonly IAccountingPostingService _accounting;
 
-    public ReimbursementController(NexoraDbContext db, IApprovalWorkflowService workflow, IAccountingPostingService accounting)
+    public ReimbursementController(DbContext db, IApprovalWorkflowService workflow, IAccountingPostingService accounting)
     {
         _db = db;
         _workflow = workflow;
@@ -44,7 +43,7 @@ public class ReimbursementController : ControllerBase
     public async Task<ActionResult<List<ReimbursementDto>>> Mine()
     {
         if (CurrentEmployeeId is not { } employeeId) return Ok(new List<ReimbursementDto>());
-        return Ok(await BuildDtos(_db.ReimbursementRequests.Where(r => r.EmployeeId == employeeId)));
+        return Ok(await BuildDtos(_db.Set<ReimbursementRequest>().Where(r => r.EmployeeId == employeeId)));
     }
 
     [HttpGet("pending-manager-approval")]
@@ -53,12 +52,12 @@ public class ReimbursementController : ControllerBase
     {
         if (CurrentEmployeeId is not { } managerId) return Ok(new List<ReimbursementDto>());
 
-        var directReportIds = await _db.Employees
+        var directReportIds = await _db.Set<Employee>()
             .Where(e => e.ReportingManagerId == managerId)
             .Select(e => e.Id)
             .ToListAsync();
 
-        return Ok(await BuildDtos(_db.ReimbursementRequests
+        return Ok(await BuildDtos(_db.Set<ReimbursementRequest>()
             .Where(r => directReportIds.Contains(r.EmployeeId) && r.Status == ReimbursementStatus.Pending)));
     }
 
@@ -67,7 +66,7 @@ public class ReimbursementController : ControllerBase
     public async Task<ActionResult<List<ReimbursementDto>>> PendingFinanceApproval()
     {
         // Finance's queue is company-wide — the final gate after a request has cleared its own manager.
-        return Ok(await BuildDtos(_db.ReimbursementRequests.Where(r => r.Status == ReimbursementStatus.ManagerApproved)));
+        return Ok(await BuildDtos(_db.Set<ReimbursementRequest>().Where(r => r.Status == ReimbursementStatus.ManagerApproved)));
     }
 
     // Every reimbursement from a manager's direct reports, any status — not just the pending
@@ -78,18 +77,18 @@ public class ReimbursementController : ControllerBase
     {
         if (CurrentEmployeeId is not { } managerId) return Ok(new List<ReimbursementDto>());
 
-        var directReportIds = await _db.Employees
+        var directReportIds = await _db.Set<Employee>()
             .Where(e => e.ReportingManagerId == managerId)
             .Select(e => e.Id)
             .ToListAsync();
 
-        return Ok(await BuildDtos(_db.ReimbursementRequests.Where(r => directReportIds.Contains(r.EmployeeId))));
+        return Ok(await BuildDtos(_db.Set<ReimbursementRequest>().Where(r => directReportIds.Contains(r.EmployeeId))));
     }
 
     private async Task<List<ReimbursementDto>> BuildDtos(IQueryable<ReimbursementRequest> query)
     {
         var requests = await query.OrderByDescending(r => r.CreatedAtUtc).ToListAsync();
-        var employees = await _db.Employees.ToDictionaryAsync(e => e.Id, e => $"{e.FirstName} {e.LastName}");
+        var employees = await _db.Set<Employee>().ToDictionaryAsync(e => e.Id, e => $"{e.FirstName} {e.LastName}");
 
         return requests.Select(r => new ReimbursementDto(
             r.Id,
@@ -117,7 +116,7 @@ public class ReimbursementController : ControllerBase
             ReceiptUrl = request.ReceiptUrl,
             IncurredOn = request.IncurredOn,
         };
-        _db.ReimbursementRequests.Add(reimbursement);
+        _db.Set<ReimbursementRequest>().Add(reimbursement);
         await _db.SaveChangesAsync();
 
         var workflow = await _workflow.StartAsync(WorkflowDefinitions.Reimbursement, reimbursement.Id);
@@ -131,7 +130,7 @@ public class ReimbursementController : ControllerBase
     [Authorize]
     public async Task<IActionResult> Decide(Guid id, DecideReimbursementRequest decision)
     {
-        var reimbursement = await _db.ReimbursementRequests.FirstOrDefaultAsync(r => r.Id == id);
+        var reimbursement = await _db.Set<ReimbursementRequest>().FirstOrDefaultAsync(r => r.Id == id);
         if (reimbursement is null) return NotFound();
 
         var workflow = await _workflow.GetAsync(reimbursement.WorkflowInstanceId);
@@ -149,7 +148,7 @@ public class ReimbursementController : ControllerBase
     {
         if (!User.HasClaim("perm", Permission.Expense.ApproveAsManager)) return Forbid();
 
-        var employee = await _db.Employees.FirstOrDefaultAsync(e => e.Id == reimbursement.EmployeeId);
+        var employee = await _db.Set<Employee>().FirstOrDefaultAsync(e => e.Id == reimbursement.EmployeeId);
         if (employee?.ReportingManagerId != CurrentEmployeeId)
         {
             await LogDenied("expense.approve_as_manager", reimbursement.Id);
@@ -161,7 +160,7 @@ public class ReimbursementController : ControllerBase
 
         reimbursement.Status = outcome.IsRejected ? ReimbursementStatus.Rejected : ReimbursementStatus.ManagerApproved;
 
-        _db.AuditLogs.Add(new AuditLog
+        _db.Set<AuditLog>().Add(new AuditLog
         {
             ActorUserId = CurrentUserId,
             Action = decision.Approve ? "expense.approve_as_manager" : "expense.reject_as_manager",
@@ -185,7 +184,7 @@ public class ReimbursementController : ControllerBase
         {
             reimbursement.PostedForPayment = true;
 
-            var employee = await _db.Employees.FirstOrDefaultAsync(e => e.Id == reimbursement.EmployeeId);
+            var employee = await _db.Set<Employee>().FirstOrDefaultAsync(e => e.Id == reimbursement.EmployeeId);
             var employeeName = employee is null ? "—" : $"{employee.FirstName} {employee.LastName}";
 
             // Matches the product deck's own example exactly: Debit the category's expense
@@ -203,7 +202,7 @@ public class ReimbursementController : ControllerBase
             reimbursement.JournalEntryId = entry.Id;
         }
 
-        _db.AuditLogs.Add(new AuditLog
+        _db.Set<AuditLog>().Add(new AuditLog
         {
             ActorUserId = CurrentUserId,
             Action = decision.Approve ? "expense.approve_as_finance" : "expense.reject_as_finance",
@@ -217,7 +216,7 @@ public class ReimbursementController : ControllerBase
 
     private async Task LogDenied(string action, Guid entityId)
     {
-        _db.AuditLogs.Add(new AuditLog
+        _db.Set<AuditLog>().Add(new AuditLog
         {
             ActorUserId = CurrentUserId,
             Action = action,

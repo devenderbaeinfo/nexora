@@ -1,5 +1,4 @@
 using Nexora.Modules.Identity.Entities;
-using Nexora.Api.Persistence;
 using Microsoft.EntityFrameworkCore;
 
 namespace Nexora.Modules.Identity.Services;
@@ -10,7 +9,7 @@ namespace Nexora.Modules.Identity.Services;
 // principle carry Admin-level rights, exactly what HR is already barred from granting.
 public static class AssignableRoleResolver
 {
-    public static async Task<string[]> ResolveAsync(NexoraDbContext db, Guid tenantId, string creatorRole)
+    public static async Task<string[]> ResolveAsync(DbContext db, Guid tenantId, string creatorRole)
     {
         if (!RoleTemplates.AssignableRolesByCreatorRole.TryGetValue(creatorRole, out var baseRoles)) return [];
         if (creatorRole != RoleTemplates.Admin) return baseRoles;
@@ -32,7 +31,7 @@ public static class AssignableRoleResolver
     // creating a "Finance Director" title doesn't let HR hire into it — only an Admin can.
     // Excludes the Admin system role itself, same as Admin's own ResolveAsync result does —
     // nobody creates a Job Title for "Admin" outside tenant provisioning.
-    public static async Task<string[]> AllTaggableRoleNamesAsync(NexoraDbContext db, Guid tenantId)
+    public static async Task<string[]> AllTaggableRoleNamesAsync(DbContext db, Guid tenantId)
     {
         var baseRoles = RoleTemplates.AssignableRolesByCreatorRole[RoleTemplates.Admin];
         var customRoleNames = await db.Roles.IgnoreQueryFilters()

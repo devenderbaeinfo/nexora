@@ -5,7 +5,6 @@ using Nexora.Modules.Identity.Entities;
 using Nexora.Modules.HR.Entities;
 using Nexora.Shared.Tenancy;
 using Nexora.Modules.Identity.Services;
-using Nexora.Api.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -15,16 +14,16 @@ namespace Nexora.Modules.Platform.Controllers;
 
 // Reachable only by accounts in the reserved "platform" tenant holding platform.manage_tenants —
 // i.e. only a SuperAdmin. This is the one place in the codebase that deliberately writes rows
-// into a tenant other than the caller's own (see NexoraDbContext.StampTenantAndTimestamps).
+// into a tenant other than the caller's own (see DbContext.StampTenantAndTimestamps).
 [ApiController]
 [Authorize]
 [Route("api/platform/tenants")]
 public class PlatformController : ControllerBase
 {
-    private readonly NexoraDbContext _db;
+    private readonly DbContext _db;
     private readonly UserManager<AppUser> _userManager;
 
-    public PlatformController(NexoraDbContext db, UserManager<AppUser> userManager)
+    public PlatformController(DbContext db, UserManager<AppUser> userManager)
     {
         _db = db;
         _userManager = userManager;
@@ -36,7 +35,7 @@ public class PlatformController : ControllerBase
     [RequirePermission(Permission.Platform.ManageTenants)]
     public async Task<ActionResult<List<TenantSummaryDto>>> List()
     {
-        var tenants = await _db.Tenants
+        var tenants = await _db.Set<Tenant>()
             .IgnoreQueryFilters()
             .Where(t => t.Slug != "platform")
             .OrderBy(t => t.Name)
@@ -52,12 +51,12 @@ public class PlatformController : ControllerBase
         var slug = request.TenantSlug.Trim().ToLowerInvariant();
         if (slug is "platform" or "") return BadRequest("That workspace name isn't available.");
 
-        var slugTaken = await _db.Tenants.IgnoreQueryFilters().AnyAsync(t => t.Slug == slug);
+        var slugTaken = await _db.Set<Tenant>().IgnoreQueryFilters().AnyAsync(t => t.Slug == slug);
         if (slugTaken) return Conflict("That workspace name is already taken.");
 
         var baseCurrency = string.IsNullOrWhiteSpace(request.BaseCurrencyCode) ? "INR" : request.BaseCurrencyCode.Trim().ToUpperInvariant();
         var tenant = new Tenant { Name = request.TenantName.Trim(), Slug = slug, BaseCurrencyCode = baseCurrency };
-        _db.Tenants.Add(tenant);
+        _db.Set<Tenant>().Add(tenant);
         await _db.SaveChangesAsync();
 
         // Every system role is provisioned up front — Admin is the only one with a login today,
@@ -68,7 +67,7 @@ public class PlatformController : ControllerBase
 
             foreach (var perm in RoleTemplates.PermissionsFor(roleName))
             {
-                _db.RolePermissions.Add(new RolePermission { TenantId = tenant.Id, RoleId = role.Id, PermissionKey = perm });
+                _db.Set<RolePermission>().Add(new RolePermission { TenantId = tenant.Id, RoleId = role.Id, PermissionKey = perm });
             }
         }
         await _db.SaveChangesAsync();
@@ -78,7 +77,7 @@ public class PlatformController : ControllerBase
         // point: Admin can rename, add, or remove departments freely from there.
         foreach (var deptName in new[] { "Operations", "Human Resources", "Engineering", "Finance", "Sales", "Marketing" })
         {
-            _db.Departments.Add(new Department { TenantId = tenant.Id, Name = deptName });
+            _db.Set<Department>().Add(new Department { TenantId = tenant.Id, Name = deptName });
         }
         await _db.SaveChangesAsync();
 
@@ -118,7 +117,7 @@ public class PlatformController : ControllerBase
     [RequirePermission(Permission.Platform.ManageTenants)]
     public async Task<IActionResult> UpdateStatus(Guid id, UpdateTenantStatusRequest request)
     {
-        var tenant = await _db.Tenants.IgnoreQueryFilters().FirstOrDefaultAsync(t => t.Id == id);
+        var tenant = await _db.Set<Tenant>().IgnoreQueryFilters().FirstOrDefaultAsync(t => t.Id == id);
         if (tenant is null) return NotFound();
         if (tenant.Slug == "platform") return BadRequest("The platform tenant itself can't be suspended.");
 
@@ -135,7 +134,7 @@ public class PlatformController : ControllerBase
     [RequirePermission(Permission.Platform.ManageTenants)]
     public async Task<ActionResult<List<SuperAdminDto>>> ListSuperAdmins()
     {
-        var platformTenant = await _db.Tenants.IgnoreQueryFilters().FirstAsync(t => t.Slug == "platform");
+        var platformTenant = await _db.Set<Tenant>().IgnoreQueryFilters().FirstAsync(t => t.Slug == "platform");
         var role = await _db.Roles.IgnoreQueryFilters()
             .FirstOrDefaultAsync(r => r.TenantId == platformTenant.Id && r.NormalizedName == "SUPERADMIN");
         if (role is null) return Ok(new List<SuperAdminDto>());
@@ -156,7 +155,7 @@ public class PlatformController : ControllerBase
         var exists = await _userManager.Users.IgnoreQueryFilters().AnyAsync(u => u.NormalizedEmail == email.ToUpperInvariant());
         if (exists) return Conflict("An account with this email already exists.");
 
-        var platformTenant = await _db.Tenants.IgnoreQueryFilters().FirstAsync(t => t.Slug == "platform");
+        var platformTenant = await _db.Set<Tenant>().IgnoreQueryFilters().FirstAsync(t => t.Slug == "platform");
         var newSuperAdmin = new AppUser
         {
             TenantId = platformTenant.Id, UserName = email, Email = email, EmailConfirmed = true,

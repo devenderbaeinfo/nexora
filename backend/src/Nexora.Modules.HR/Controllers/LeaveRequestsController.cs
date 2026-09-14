@@ -5,7 +5,6 @@ using Nexora.Shared.Common;
 using Nexora.Modules.Identity.Entities;
 using Nexora.Modules.HR.Entities;
 using Nexora.Modules.Workflow.Entities;
-using Nexora.Api.Persistence;
 using Nexora.Modules.Workflow.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -18,10 +17,10 @@ namespace Nexora.Modules.HR.Controllers;
 [Route("api/leave-requests")]
 public class LeaveRequestsController : ControllerBase
 {
-    private readonly NexoraDbContext _db;
+    private readonly DbContext _db;
     private readonly IApprovalWorkflowService _workflow;
 
-    public LeaveRequestsController(NexoraDbContext db, IApprovalWorkflowService workflow)
+    public LeaveRequestsController(DbContext db, IApprovalWorkflowService workflow)
     {
         _db = db;
         _workflow = workflow;
@@ -35,14 +34,14 @@ public class LeaveRequestsController : ControllerBase
     // The Admin-configured catch-all approver for employees with no ReportingManagerId
     // (see ApprovalSettingsController / PPL-10) — null when nothing's been configured.
     private async Task<Guid?> FallbackApproverIdAsync() =>
-        (await _db.TenantApprovalSettings.FirstOrDefaultAsync())?.FallbackApproverEmployeeId;
+        (await _db.Set<TenantApprovalSettings>().FirstOrDefaultAsync())?.FallbackApproverEmployeeId;
 
     [HttpGet("mine")]
     [RequirePermission(Permission.Leave.View)]
     public async Task<ActionResult<List<LeaveRequestDto>>> Mine()
     {
         if (CurrentEmployeeId is not { } employeeId) return Ok(new List<LeaveRequestDto>());
-        return Ok(await BuildDtos(_db.LeaveRequests.Where(r => r.EmployeeId == employeeId)));
+        return Ok(await BuildDtos(_db.Set<LeaveRequest>().Where(r => r.EmployeeId == employeeId)));
     }
 
     [HttpGet("pending-manager-approval")]
@@ -52,7 +51,7 @@ public class LeaveRequestsController : ControllerBase
         // A manager only ever sees requests from people who report directly to them.
         if (CurrentEmployeeId is not { } managerId) return Ok(new List<LeaveRequestDto>());
 
-        var directReportIds = await _db.Employees
+        var directReportIds = await _db.Set<Employee>()
             .Where(e => e.ReportingManagerId == managerId)
             .Select(e => e.Id)
             .ToListAsync();
@@ -61,14 +60,14 @@ public class LeaveRequestsController : ControllerBase
         // additionally covers anyone with no ReportingManagerId at all.
         if (await FallbackApproverIdAsync() == managerId)
         {
-            var managerlessIds = await _db.Employees
+            var managerlessIds = await _db.Set<Employee>()
                 .Where(e => e.ReportingManagerId == null)
                 .Select(e => e.Id)
                 .ToListAsync();
             directReportIds = directReportIds.Union(managerlessIds).ToList();
         }
 
-        return Ok(await BuildDtos(_db.LeaveRequests
+        return Ok(await BuildDtos(_db.Set<LeaveRequest>()
             .Where(r => directReportIds.Contains(r.EmployeeId) && r.Status == LeaveRequestStatus.PendingManagerApproval)));
     }
 
@@ -80,7 +79,7 @@ public class LeaveRequestsController : ControllerBase
         // after a request has already cleared its own manager. Nothing still awaiting the
         // manager (or rejected by them) ever appears here — that's enforced by this filter,
         // not just by convention.
-        return Ok(await BuildDtos(_db.LeaveRequests.Where(r => r.Status == LeaveRequestStatus.PendingHrApproval)));
+        return Ok(await BuildDtos(_db.Set<LeaveRequest>().Where(r => r.Status == LeaveRequestStatus.PendingHrApproval)));
     }
 
     [HttpGet("balances/mine")]
@@ -90,8 +89,8 @@ public class LeaveRequestsController : ControllerBase
         if (CurrentEmployeeId is not { } employeeId) return Ok(new List<LeaveBalanceDto>());
 
         var year = DateTime.UtcNow.Year;
-        var leaveTypes = await _db.LeaveTypes.ToDictionaryAsync(t => t.Id, t => t.Name);
-        var balances = await _db.LeaveBalances
+        var leaveTypes = await _db.Set<LeaveType>().ToDictionaryAsync(t => t.Id, t => t.Name);
+        var balances = await _db.Set<LeaveBalance>()
             .Where(b => b.EmployeeId == employeeId && b.Year == year)
             .ToListAsync();
 
@@ -107,8 +106,8 @@ public class LeaveRequestsController : ControllerBase
     public async Task<ActionResult<List<EmployeeLeaveBalanceDto>>> BalancesFor(Guid employeeId)
     {
         var year = DateTime.UtcNow.Year;
-        var leaveTypes = await _db.LeaveTypes.OrderBy(t => t.Name).ToListAsync();
-        var balances = await _db.LeaveBalances
+        var leaveTypes = await _db.Set<LeaveType>().OrderBy(t => t.Name).ToListAsync();
+        var balances = await _db.Set<LeaveBalance>()
             .Where(b => b.EmployeeId == employeeId && b.Year == year)
             .ToDictionaryAsync(b => b.LeaveTypeId);
 
@@ -125,12 +124,12 @@ public class LeaveRequestsController : ControllerBase
     [RequirePermission(Permission.Leave.ConfigurePolicy)]
     public async Task<IActionResult> SetBalances(Guid employeeId, List<LeaveAllotmentInput> allotments)
     {
-        var employeeExists = await _db.Employees.AnyAsync(e => e.Id == employeeId);
+        var employeeExists = await _db.Set<Employee>().AnyAsync(e => e.Id == employeeId);
         if (!employeeExists) return NotFound();
 
-        var validLeaveTypeIds = await _db.LeaveTypes.Select(t => t.Id).ToHashSetAsync();
+        var validLeaveTypeIds = await _db.Set<LeaveType>().Select(t => t.Id).ToHashSetAsync();
         var year = DateTime.UtcNow.Year;
-        var existingBalances = await _db.LeaveBalances
+        var existingBalances = await _db.Set<LeaveBalance>()
             .Where(b => b.EmployeeId == employeeId && b.Year == year)
             .ToDictionaryAsync(b => b.LeaveTypeId);
 
@@ -144,11 +143,11 @@ public class LeaveRequestsController : ControllerBase
             }
             else
             {
-                _db.LeaveBalances.Add(new LeaveBalance { EmployeeId = employeeId, LeaveTypeId = allotment.LeaveTypeId, Year = year, Allotted = allotment.Allotted });
+                _db.Set<LeaveBalance>().Add(new LeaveBalance { EmployeeId = employeeId, LeaveTypeId = allotment.LeaveTypeId, Year = year, Allotted = allotment.Allotted });
             }
         }
 
-        _db.AuditLogs.Add(new AuditLog
+        _db.Set<AuditLog>().Add(new AuditLog
         {
             ActorUserId = CurrentUserId,
             Action = "leave.balances_set",
@@ -164,13 +163,13 @@ public class LeaveRequestsController : ControllerBase
     private async Task<List<LeaveRequestDto>> BuildDtos(IQueryable<LeaveRequest> query)
     {
         var requests = await query.OrderByDescending(r => r.CreatedAtUtc).ToListAsync();
-        var employees = await _db.Employees.ToDictionaryAsync(e => e.Id, e => $"{e.FirstName} {e.LastName}");
-        var leaveTypes = await _db.LeaveTypes.ToDictionaryAsync(t => t.Id, t => t.Name);
+        var employees = await _db.Set<Employee>().ToDictionaryAsync(e => e.Id, e => $"{e.FirstName} {e.LastName}");
+        var leaveTypes = await _db.Set<LeaveType>().ToDictionaryAsync(t => t.Id, t => t.Name);
 
         var actorUserIds = requests.SelectMany(r => new[] { r.ManagerActedByUserId, r.HrActedByUserId })
             .Where(id => id is not null).Select(id => id!.Value).Distinct().ToList();
         var actorEmployeeIds = await _db.Users.Where(u => actorUserIds.Contains(u.Id)).ToDictionaryAsync(u => u.Id, u => u.EmployeeId);
-        var actorNames = await _db.Employees
+        var actorNames = await _db.Set<Employee>()
             .Where(e => actorEmployeeIds.Values.Contains(e.Id))
             .ToDictionaryAsync(e => e.Id, e => $"{e.FirstName} {e.LastName}");
 
@@ -202,7 +201,7 @@ public class LeaveRequestsController : ControllerBase
         if (isHalfDay && request.StartDate != request.EndDate)
             return BadRequest("A half-day request must be for a single date.");
 
-        var leaveType = await _db.LeaveTypes.FirstOrDefaultAsync(t => t.Id == request.LeaveTypeId);
+        var leaveType = await _db.Set<LeaveType>().FirstOrDefaultAsync(t => t.Id == request.LeaveTypeId);
         if (leaveType is null) return BadRequest("Unknown leave type.");
         if (isHalfDay && !leaveType.AllowsHalfDay) return BadRequest("This leave type doesn't support half-day requests.");
 
@@ -219,7 +218,7 @@ public class LeaveRequestsController : ControllerBase
 
         // Conflict check: no overlapping pending/approved request, and no duplicate full-day
         // debit landing on a date that already has a half-day debit (or vice versa).
-        var hasOverlap = await _db.LeaveRequests.AnyAsync(r =>
+        var hasOverlap = await _db.Set<LeaveRequest>().AnyAsync(r =>
             r.EmployeeId == employeeId &&
             r.Status != LeaveRequestStatus.RejectedByManager && r.Status != LeaveRequestStatus.RejectedByHr && r.Status != LeaveRequestStatus.Cancelled &&
             r.StartDate <= request.EndDate && r.EndDate >= request.StartDate);
@@ -230,7 +229,7 @@ public class LeaveRequestsController : ControllerBase
         // request spanning or falling near a year boundary would look up a balance row that
         // was never created and silently read as zero.
         var year = DateTime.UtcNow.Year;
-        var balance = await _db.LeaveBalances.FirstOrDefaultAsync(b =>
+        var balance = await _db.Set<LeaveBalance>().FirstOrDefaultAsync(b =>
             b.EmployeeId == employeeId && b.LeaveTypeId == leaveType.Id && b.Year == year);
         var remaining = balance?.Remaining ?? 0;
         if (remaining < daysRequested)
@@ -247,7 +246,7 @@ public class LeaveRequestsController : ControllerBase
             Reason = request.Reason,
             MedicalCertificateUrl = request.MedicalCertificateUrl,
         };
-        _db.LeaveRequests.Add(leaveRequest);
+        _db.Set<LeaveRequest>().Add(leaveRequest);
         await _db.SaveChangesAsync();
 
         var workflow = await _workflow.StartAsync(WorkflowDefinitions.LeaveRequest, leaveRequest.Id);
@@ -265,7 +264,7 @@ public class LeaveRequestsController : ControllerBase
     [RequirePermission(Permission.Leave.Submit)]
     public async Task<IActionResult> Cancel(Guid id)
     {
-        var leaveRequest = await _db.LeaveRequests.FirstOrDefaultAsync(r => r.Id == id);
+        var leaveRequest = await _db.Set<LeaveRequest>().FirstOrDefaultAsync(r => r.Id == id);
         if (leaveRequest is null) return NotFound();
         if (leaveRequest.EmployeeId != CurrentEmployeeId) return Forbid();
 
@@ -276,7 +275,7 @@ public class LeaveRequestsController : ControllerBase
 
         leaveRequest.Status = LeaveRequestStatus.Cancelled;
 
-        _db.AuditLogs.Add(new AuditLog
+        _db.Set<AuditLog>().Add(new AuditLog
         {
             ActorUserId = CurrentUserId,
             Action = "leave.cancel",
@@ -296,10 +295,10 @@ public class LeaveRequestsController : ControllerBase
     [Authorize]
     public async Task<ActionResult<LeaveReviewContextDto>> Context(Guid id)
     {
-        var leaveRequest = await _db.LeaveRequests.FirstOrDefaultAsync(r => r.Id == id);
+        var leaveRequest = await _db.Set<LeaveRequest>().FirstOrDefaultAsync(r => r.Id == id);
         if (leaveRequest is null) return NotFound();
 
-        var employee = await _db.Employees.FirstOrDefaultAsync(e => e.Id == leaveRequest.EmployeeId);
+        var employee = await _db.Set<Employee>().FirstOrDefaultAsync(e => e.Id == leaveRequest.EmployeeId);
         if (employee is null) return NotFound();
 
         var isAssignedManager = User.HasClaim("perm", Permission.Leave.ApproveAsManager) &&
@@ -310,12 +309,12 @@ public class LeaveRequestsController : ControllerBase
         if (!isAssignedManager && !isHr && !isSelf) return Forbid();
 
         var year = DateTime.UtcNow.Year;
-        var balance = await _db.LeaveBalances.FirstOrDefaultAsync(b =>
+        var balance = await _db.Set<LeaveBalance>().FirstOrDefaultAsync(b =>
             b.EmployeeId == employee.Id && b.LeaveTypeId == leaveRequest.LeaveTypeId && b.Year == year);
-        var leaveTypeNames = await _db.LeaveTypes.ToDictionaryAsync(t => t.Id, t => t.Name);
-        var departmentName = (await _db.Departments.FirstOrDefaultAsync(d => d.Id == employee.DepartmentId))?.Name ?? "—";
+        var leaveTypeNames = await _db.Set<LeaveType>().ToDictionaryAsync(t => t.Id, t => t.Name);
+        var departmentName = (await _db.Set<Department>().FirstOrDefaultAsync(d => d.Id == employee.DepartmentId))?.Name ?? "—";
 
-        var history = await _db.LeaveRequests
+        var history = await _db.Set<LeaveRequest>()
             .Where(r => r.EmployeeId == employee.Id && r.Id != id)
             .OrderByDescending(r => r.CreatedAtUtc)
             .Take(5)
@@ -336,7 +335,7 @@ public class LeaveRequestsController : ControllerBase
     [Authorize]
     public async Task<IActionResult> Decide(Guid id, DecideLeaveRequest decision)
     {
-        var leaveRequest = await _db.LeaveRequests.FirstOrDefaultAsync(r => r.Id == id);
+        var leaveRequest = await _db.Set<LeaveRequest>().FirstOrDefaultAsync(r => r.Id == id);
         if (leaveRequest is null) return NotFound();
 
         // Cancellation lives outside the workflow engine's own state (the instance itself
@@ -360,7 +359,7 @@ public class LeaveRequestsController : ControllerBase
     {
         if (!User.HasClaim("perm", Permission.Leave.ApproveAsManager)) return Forbid();
 
-        var employee = await _db.Employees.FirstOrDefaultAsync(e => e.Id == leaveRequest.EmployeeId);
+        var employee = await _db.Set<Employee>().FirstOrDefaultAsync(e => e.Id == leaveRequest.EmployeeId);
         var isAssignedManager = employee?.ReportingManagerId == CurrentEmployeeId;
         var isFallbackManager = employee?.ReportingManagerId is null && await FallbackApproverIdAsync() == CurrentEmployeeId;
         if (!isAssignedManager && !isFallbackManager)
@@ -391,7 +390,7 @@ public class LeaveRequestsController : ControllerBase
             leaveRequest.HrApprovalStatus = ApprovalStageStatus.Pending;
         }
 
-        _db.AuditLogs.Add(new AuditLog
+        _db.Set<AuditLog>().Add(new AuditLog
         {
             ActorUserId = CurrentUserId,
             Action = decision.Approve ? "leave.approve_as_manager" : "leave.reject_as_manager",
@@ -430,7 +429,7 @@ public class LeaveRequestsController : ControllerBase
         if (outcome.IsFullyApproved)
         {
             var year = DateTime.UtcNow.Year;
-            var balance = await _db.LeaveBalances.FirstOrDefaultAsync(b =>
+            var balance = await _db.Set<LeaveBalance>().FirstOrDefaultAsync(b =>
                 b.EmployeeId == leaveRequest.EmployeeId && b.LeaveTypeId == leaveRequest.LeaveTypeId && b.Year == year);
             if (balance is not null)
             {
@@ -439,7 +438,7 @@ public class LeaveRequestsController : ControllerBase
             }
         }
 
-        _db.AuditLogs.Add(new AuditLog
+        _db.Set<AuditLog>().Add(new AuditLog
         {
             ActorUserId = CurrentUserId,
             Action = decision.Approve ? "leave.approve_as_hr" : "leave.reject_as_hr",
@@ -453,7 +452,7 @@ public class LeaveRequestsController : ControllerBase
 
     private async Task LogDenied(string action, Guid entityId)
     {
-        _db.AuditLogs.Add(new AuditLog
+        _db.Set<AuditLog>().Add(new AuditLog
         {
             ActorUserId = CurrentUserId,
             Action = action,

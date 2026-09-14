@@ -17,7 +17,7 @@ public static class RoleTemplates
     // and only as part of provisioning a brand-new tenant (see PlatformController).
     // HR can create Employee/Manager accounts, always scoped to their own tenant — nothing
     // in this codebase lets one tenant's HR (or BAE's own platform account) touch another
-    // tenant's users; every query here runs inside NexoraDbContext's per-tenant filter.
+    // tenant's users; every query here runs inside DbContext's per-tenant filter.
     public static readonly Dictionary<string, string[]> AssignableRolesByCreatorRole = new()
     {
         [Admin] = [Hr, Manager, Finance, Employee],
@@ -51,7 +51,7 @@ public static class RoleTemplates
             Permission.EmployeeDocs.View, Permission.EmployeeDocs.Manage,
             Permission.Attendance.ClockInOut, Permission.Attendance.ViewAll, Permission.Attendance.Correct,
             Permission.Fnf.View, Permission.Fnf.Manage,
-            Permission.Announcements.Manage,
+            Permission.Set<Announcement>().Manage,
             Permission.Payroll.View, Permission.Payroll.Manage,
         ],
 

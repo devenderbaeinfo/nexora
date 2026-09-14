@@ -1,5 +1,4 @@
 using Nexora.Modules.Finance.Entities;
-using Nexora.Api.Persistence;
 using Microsoft.EntityFrameworkCore;
 
 namespace Nexora.Modules.Finance.Seed;
@@ -22,10 +21,10 @@ public static class AccountSync
     public static async Task RunAsync(IServiceProvider services)
     {
         using var scope = services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<NexoraDbContext>();
+        var db = scope.ServiceProvider.GetRequiredService<DbContext>();
 
-        var tenants = await db.Tenants.IgnoreQueryFilters().ToListAsync();
-        var existingByTenant = (await db.Accounts.IgnoreQueryFilters().ToListAsync())
+        var tenants = await db.Set<Tenant>().IgnoreQueryFilters().ToListAsync();
+        var existingByTenant = (await db.Set<Account>().IgnoreQueryFilters().ToListAsync())
             .GroupBy(a => a.TenantId)
             .ToDictionary(g => g.Key, g => g.Select(a => a.Code).ToHashSet());
 
@@ -35,7 +34,7 @@ public static class AccountSync
             foreach (var (code, name, type, isCash) in DefaultAccounts)
             {
                 if (existing.Contains(code)) continue;
-                db.Accounts.Add(new Account { TenantId = tenant.Id, Code = code, Name = name, Type = type, Currency = tenant.BaseCurrencyCode, IsCashAccount = isCash });
+                db.Set<Account>().Add(new Account { TenantId = tenant.Id, Code = code, Name = name, Type = type, Currency = tenant.BaseCurrencyCode, IsCashAccount = isCash });
             }
         }
 

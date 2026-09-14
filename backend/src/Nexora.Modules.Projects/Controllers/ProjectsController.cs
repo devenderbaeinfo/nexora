@@ -1,24 +1,24 @@
 using System.Security.Claims;
 using Nexora.Shared.Authorization;
-using Nexora.Modules.Projects.Contracts;
+using Nexora.Modules.Set<ProjectEntity>().Contracts;
+using Nexora.Modules.Identity.Authorization;
 using Nexora.Modules.Identity.Entities;
-using Nexora.Modules.Projects.Entities;
+using Nexora.Modules.Set<ProjectEntity>().Entities;
 using Nexora.Shared.Authorization;
-using Nexora.Api.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
-namespace Nexora.Modules.Projects.Controllers;
+namespace Nexora.Modules.Set<ProjectEntity>().Controllers;
 
 [ApiController]
 [Authorize]
 [Route("api/projects")]
 public class ProjectsController : ControllerBase
 {
-    private readonly NexoraDbContext _db;
-    private readonly DataScopeService _scope;
-    public ProjectsController(NexoraDbContext db, DataScopeService scope)
+    private readonly DbContext _db;
+    private readonly IDataScopeService _scope;
+    public ProjectsController(DbContext db, IDataScopeService scope)
     {
         _db = db;
         _scope = scope;
@@ -42,18 +42,18 @@ public class ProjectsController : ControllerBase
             case DataScopeType.Mine:
             {
                 if (CurrentEmployeeId is not { } employeeId) return [];
-                var memberIds = await _db.ProjectMembers.Where(m => m.EmployeeId == employeeId).Select(m => m.ProjectId).ToListAsync();
-                var managedIds = await _db.Projects.Where(p => p.ProjectManagerId == employeeId).Select(p => p.Id).ToListAsync();
+                var memberIds = await _db.Set<ProjectMember>().Where(m => m.EmployeeId == employeeId).Select(m => m.ProjectId).ToListAsync();
+                var managedIds = await _db.Set<ProjectEntity>().Where(p => p.ProjectManagerId == employeeId).Select(p => p.Id).ToListAsync();
                 return memberIds.Concat(managedIds).ToHashSet();
             }
 
             case DataScopeType.Department:
             {
                 if (CurrentEmployeeId is not { } employeeId) return [];
-                var me = await _db.Employees.FirstOrDefaultAsync(e => e.Id == employeeId);
+                var me = await _db.Set<Employee>().FirstOrDefaultAsync(e => e.Id == employeeId);
                 if (me is null) return [];
-                var peerIds = await _db.Employees.Where(e => e.DepartmentId == me.DepartmentId).Select(e => e.Id).ToListAsync();
-                var ids = await _db.Projects.Where(p => peerIds.Contains(p.ProjectManagerId)).Select(p => p.Id).ToListAsync();
+                var peerIds = await _db.Set<Employee>().Where(e => e.DepartmentId == me.DepartmentId).Select(e => e.Id).ToListAsync();
+                var ids = await _db.Set<ProjectEntity>().Where(p => peerIds.Contains(p.ProjectManagerId)).Select(p => p.Id).ToListAsync();
                 return ids.ToHashSet();
             }
 
@@ -72,13 +72,13 @@ public class ProjectsController : ControllerBase
     {
         if (CurrentEmployeeId is not { } employeeId) return Ok(new List<MyProjectDto>());
 
-        var memberships = await _db.ProjectMembers.Where(m => m.EmployeeId == employeeId).ToListAsync();
+        var memberships = await _db.Set<ProjectMember>().Where(m => m.EmployeeId == employeeId).ToListAsync();
         var roleByProjectId = memberships.ToDictionary(m => m.ProjectId, m => m.RoleOnProject);
-        var managedProjectIds = await _db.Projects.Where(p => p.ProjectManagerId == employeeId).Select(p => p.Id).ToListAsync();
+        var managedProjectIds = await _db.Set<ProjectEntity>().Where(p => p.ProjectManagerId == employeeId).Select(p => p.Id).ToListAsync();
 
         var projectIds = roleByProjectId.Keys.Union(managedProjectIds).ToList();
-        var projects = await _db.Projects.Where(p => projectIds.Contains(p.Id)).ToListAsync();
-        var customers = await _db.Customers.ToDictionaryAsync(c => c.Id, c => c.Name);
+        var projects = await _db.Set<ProjectEntity>().Where(p => projectIds.Contains(p.Id)).ToListAsync();
+        var customers = await _db.Set<Customer>().ToDictionaryAsync(c => c.Id, c => c.Name);
 
         return Ok(projects.Select(project => new MyProjectDto(
             project.Id, project.Name,
@@ -97,10 +97,10 @@ public class ProjectsController : ControllerBase
         var allowedIds = await ResolveAllowedProjectIdsAsync(scopeDecision);
         var budgetAccess = await _scope.FieldAccessAsync(User, "Project", "BudgetAmount");
 
-        var customers = await _db.Customers.ToDictionaryAsync(c => c.Id, c => c.Name);
-        var employees = await _db.Employees.ToDictionaryAsync(e => e.Id, e => $"{e.FirstName} {e.LastName}");
+        var customers = await _db.Set<Customer>().ToDictionaryAsync(c => c.Id, c => c.Name);
+        var employees = await _db.Set<Employee>().ToDictionaryAsync(e => e.Id, e => $"{e.FirstName} {e.LastName}");
 
-        var projectsQuery = _db.Projects.AsQueryable();
+        var projectsQuery = _db.Set<ProjectEntity>().AsQueryable();
         if (allowedIds is not null) projectsQuery = projectsQuery.Where(p => allowedIds.Contains(p.Id));
         var projects = await projectsQuery.OrderBy(p => p.Name).ToListAsync();
 
@@ -120,10 +120,10 @@ public class ProjectsController : ControllerBase
         if (request.BudgetAmount < 0) return BadRequest("Budget can't be negative.");
         if (request.EndDate is { } end && end < request.StartDate) return BadRequest("End date can't be before the start date.");
 
-        var customer = await _db.Customers.FirstOrDefaultAsync(c => c.Id == request.CustomerId);
+        var customer = await _db.Set<Customer>().FirstOrDefaultAsync(c => c.Id == request.CustomerId);
         if (customer is null) return BadRequest("Unknown customer.");
 
-        var projectManager = await _db.Employees.FirstOrDefaultAsync(e => e.Id == request.ProjectManagerId);
+        var projectManager = await _db.Set<Employee>().FirstOrDefaultAsync(e => e.Id == request.ProjectManagerId);
         if (projectManager is null) return BadRequest("Unknown project manager.");
 
         var project = new ProjectEntity
@@ -135,7 +135,7 @@ public class ProjectsController : ControllerBase
             EndDate = request.EndDate,
             BudgetAmount = request.BudgetAmount,
         };
-        _db.Projects.Add(project);
+        _db.Set<ProjectEntity>().Add(project);
         await _db.SaveChangesAsync();
 
         return CreatedAtAction(nameof(List), new ProjectDto(
@@ -151,11 +151,11 @@ public class ProjectsController : ControllerBase
         var allowedIds = await ResolveAllowedProjectIdsAsync(scopeDecision);
         if (allowedIds is not null && !allowedIds.Contains(id)) return Forbid();
 
-        var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == id);
+        var project = await _db.Set<ProjectEntity>().FirstOrDefaultAsync(p => p.Id == id);
         if (project is null) return NotFound();
 
-        var customer = await _db.Customers.FirstOrDefaultAsync(c => c.Id == project.CustomerId);
-        var pm = await _db.Employees.FirstOrDefaultAsync(e => e.Id == project.ProjectManagerId);
+        var customer = await _db.Set<Customer>().FirstOrDefaultAsync(c => c.Id == project.CustomerId);
+        var pm = await _db.Set<Employee>().FirstOrDefaultAsync(e => e.Id == project.ProjectManagerId);
         var budgetAccess = await _scope.FieldAccessAsync(User, "Project", "BudgetAmount");
 
         return Ok(new ProjectDetailDto(
@@ -172,7 +172,7 @@ public class ProjectsController : ControllerBase
     [RequirePermission(Permission.Project.ManageBudget)]
     public async Task<IActionResult> UpdateSchedule(Guid id, UpdateProjectScheduleRequest request)
     {
-        var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == id);
+        var project = await _db.Set<ProjectEntity>().FirstOrDefaultAsync(p => p.Id == id);
         if (project is null) return NotFound();
         if (request.EndDate is not null && request.EndDate < request.StartDate)
             return BadRequest("End date can't be before the start date.");
@@ -189,8 +189,8 @@ public class ProjectsController : ControllerBase
     [RequirePermission(Permission.Project.View)]
     public async Task<ActionResult<List<ProjectMemberDto>>> Team(Guid id)
     {
-        var employees = await _db.Employees.ToDictionaryAsync(e => e.Id, e => $"{e.FirstName} {e.LastName}");
-        var members = await _db.ProjectMembers.Where(m => m.ProjectId == id).ToListAsync();
+        var employees = await _db.Set<Employee>().ToDictionaryAsync(e => e.Id, e => $"{e.FirstName} {e.LastName}");
+        var members = await _db.Set<ProjectMember>().Where(m => m.ProjectId == id).ToListAsync();
 
         return Ok(members.Select(m => new ProjectMemberDto(
             m.Id, m.EmployeeId, employees.TryGetValue(m.EmployeeId, out var name) ? name : "—", m.RoleOnProject,
@@ -201,17 +201,17 @@ public class ProjectsController : ControllerBase
     [RequirePermission(Permission.Project.ManageBudget)]
     public async Task<IActionResult> AddTeamMember(Guid id, AddProjectMemberRequest request)
     {
-        var projectExists = await _db.Projects.AnyAsync(p => p.Id == id);
+        var projectExists = await _db.Set<ProjectEntity>().AnyAsync(p => p.Id == id);
         if (!projectExists) return NotFound();
 
-        var employeeExists = await _db.Employees.AnyAsync(e => e.Id == request.EmployeeId);
+        var employeeExists = await _db.Set<Employee>().AnyAsync(e => e.Id == request.EmployeeId);
         if (!employeeExists) return BadRequest("Unknown employee.");
 
-        var alreadyMember = await _db.ProjectMembers.AnyAsync(m => m.ProjectId == id && m.EmployeeId == request.EmployeeId);
+        var alreadyMember = await _db.Set<ProjectMember>().AnyAsync(m => m.ProjectId == id && m.EmployeeId == request.EmployeeId);
         if (alreadyMember) return Conflict("This employee is already on the project.");
         if (request.CostRate < 0 || request.BillingRate < 0) return BadRequest("Rates can't be negative.");
 
-        _db.ProjectMembers.Add(new ProjectMember
+        _db.Set<ProjectMember>().Add(new ProjectMember
         {
             ProjectId = id,
             EmployeeId = request.EmployeeId,
@@ -228,7 +228,7 @@ public class ProjectsController : ControllerBase
     [RequirePermission(Permission.Project.ManageBudget)]
     public async Task<IActionResult> UpdateMemberRates(Guid id, Guid memberId, UpdateProjectMemberRatesRequest request)
     {
-        var member = await _db.ProjectMembers.FirstOrDefaultAsync(m => m.Id == memberId && m.ProjectId == id);
+        var member = await _db.Set<ProjectMember>().FirstOrDefaultAsync(m => m.Id == memberId && m.ProjectId == id);
         if (member is null) return NotFound();
         if (request.CostRate < 0 || request.BillingRate < 0) return BadRequest("Rates can't be negative.");
 
@@ -243,10 +243,10 @@ public class ProjectsController : ControllerBase
     [RequirePermission(Permission.Project.ManageBudget)]
     public async Task<IActionResult> RemoveTeamMember(Guid id, Guid memberId)
     {
-        var member = await _db.ProjectMembers.FirstOrDefaultAsync(m => m.Id == memberId && m.ProjectId == id);
+        var member = await _db.Set<ProjectMember>().FirstOrDefaultAsync(m => m.Id == memberId && m.ProjectId == id);
         if (member is null) return NotFound();
 
-        _db.ProjectMembers.Remove(member);
+        _db.Set<ProjectMember>().Remove(member);
         await _db.SaveChangesAsync();
         return NoContent();
     }
@@ -262,10 +262,10 @@ public class ProjectsController : ControllerBase
         var allowedIds = await ResolveAllowedProjectIdsAsync(scopeDecision);
         if (allowedIds is not null && !allowedIds.Contains(id)) return Forbid();
 
-        var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == id);
+        var project = await _db.Set<ProjectEntity>().FirstOrDefaultAsync(p => p.Id == id);
         if (project is null) return NotFound();
 
-        var expenses = await _db.ProjectExpenses.Where(e => e.ProjectId == id).ToListAsync();
+        var expenses = await _db.Set<ProjectExpense>().Where(e => e.ProjectId == id).ToListAsync();
         var approved = expenses.Where(e => e.Status == ProjectExpenseStatus.Approved).Sum(e => e.Amount);
         var pending = expenses.Where(e => e.Status is ProjectExpenseStatus.Pending or ProjectExpenseStatus.ManagerApproved).Sum(e => e.Amount);
         var remaining = project.BudgetAmount - approved - pending;
@@ -281,17 +281,17 @@ public class ProjectsController : ControllerBase
     [RequirePermission(Permission.Project.View)]
     public async Task<ActionResult<ProjectFinancialsDto>> Financials(Guid id)
     {
-        var projectExists = await _db.Projects.AnyAsync(p => p.Id == id);
+        var projectExists = await _db.Set<ProjectEntity>().AnyAsync(p => p.Id == id);
         if (!projectExists) return NotFound();
 
-        var rates = await _db.ProjectMembers.Where(m => m.ProjectId == id)
+        var rates = await _db.Set<ProjectMember>().Where(m => m.ProjectId == id)
             .ToDictionaryAsync(m => m.EmployeeId, m => (m.CostRate, m.BillingRate));
 
-        var hours = await _db.TimesheetEntries
+        var hours = await _db.Set<TimesheetEntry>()
             .Where(t => t.ProjectId == id && t.Status == Erp.Domain.Timecard.TimesheetStatus.Approved)
             .ToListAsync();
 
-        var expenses = await _db.ProjectExpenses
+        var expenses = await _db.Set<ProjectExpense>()
             .Where(e => e.ProjectId == id && e.Status == ProjectExpenseStatus.Approved)
             .ToListAsync();
 
@@ -342,7 +342,7 @@ public class ProjectsController : ControllerBase
     [RequirePermission(Permission.Project.View)]
     public async Task<ActionResult<List<ProjectMilestoneDto>>> Milestones(Guid id)
     {
-        var milestones = await _db.ProjectMilestones
+        var milestones = await _db.Set<ProjectMilestone>()
             .Where(m => m.ProjectId == id)
             .OrderBy(m => m.DueDate)
             .ToListAsync();
@@ -354,11 +354,11 @@ public class ProjectsController : ControllerBase
     [RequirePermission(Permission.Project.ManageBudget)]
     public async Task<IActionResult> AddMilestone(Guid id, CreateProjectMilestoneRequest request)
     {
-        var projectExists = await _db.Projects.AnyAsync(p => p.Id == id);
+        var projectExists = await _db.Set<ProjectEntity>().AnyAsync(p => p.Id == id);
         if (!projectExists) return NotFound();
         if (string.IsNullOrWhiteSpace(request.Name)) return BadRequest("Name is required.");
 
-        _db.ProjectMilestones.Add(new Erp.Domain.Project.ProjectMilestone
+        _db.Set<ProjectMilestone>().Add(new Erp.Domain.Project.ProjectMilestone
         {
             ProjectId = id,
             Name = request.Name.Trim(),
@@ -373,7 +373,7 @@ public class ProjectsController : ControllerBase
     [RequirePermission(Permission.Project.ManageBudget)]
     public async Task<IActionResult> UpdateMilestone(Guid id, Guid milestoneId, UpdateProjectMilestoneRequest request)
     {
-        var milestone = await _db.ProjectMilestones.FirstOrDefaultAsync(m => m.Id == milestoneId && m.ProjectId == id);
+        var milestone = await _db.Set<ProjectMilestone>().FirstOrDefaultAsync(m => m.Id == milestoneId && m.ProjectId == id);
         if (milestone is null) return NotFound();
         if (string.IsNullOrWhiteSpace(request.Name)) return BadRequest("Name is required.");
 
@@ -389,10 +389,10 @@ public class ProjectsController : ControllerBase
     [RequirePermission(Permission.Project.ManageBudget)]
     public async Task<IActionResult> DeleteMilestone(Guid id, Guid milestoneId)
     {
-        var milestone = await _db.ProjectMilestones.FirstOrDefaultAsync(m => m.Id == milestoneId && m.ProjectId == id);
+        var milestone = await _db.Set<ProjectMilestone>().FirstOrDefaultAsync(m => m.Id == milestoneId && m.ProjectId == id);
         if (milestone is null) return NotFound();
 
-        _db.ProjectMilestones.Remove(milestone);
+        _db.Set<ProjectMilestone>().Remove(milestone);
         await _db.SaveChangesAsync();
         return NoContent();
     }
@@ -403,9 +403,9 @@ public class ProjectsController : ControllerBase
     [RequirePermission(Permission.Project.View)]
     public async Task<ActionResult<List<ProjectExpenseDto>>> Expenses(Guid id)
     {
-        var expenses = await _db.ProjectExpenses.Where(e => e.ProjectId == id).OrderByDescending(e => e.IncurredOn).ToListAsync();
-        var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == id);
-        var employees = await _db.Employees.ToDictionaryAsync(e => e.Id, e => $"{e.FirstName} {e.LastName}");
+        var expenses = await _db.Set<ProjectExpense>().Where(e => e.ProjectId == id).OrderByDescending(e => e.IncurredOn).ToListAsync();
+        var project = await _db.Set<ProjectEntity>().FirstOrDefaultAsync(p => p.Id == id);
+        var employees = await _db.Set<Employee>().ToDictionaryAsync(e => e.Id, e => $"{e.FirstName} {e.LastName}");
 
         return Ok(expenses.Select(e => new ProjectExpenseDto(
             e.Id, project?.Name ?? "—", employees.TryGetValue(e.EmployeeId, out var name) ? name : "—",
@@ -421,11 +421,11 @@ public class ProjectsController : ControllerBase
     {
         if (CurrentEmployeeId is not { } employeeId) return Ok(new List<ProjectTaskDto>());
 
-        var tasks = await _db.ProjectTasks
+        var tasks = await _db.Set<ProjectTask>()
             .Where(t => t.AssignedToEmployeeId == employeeId)
             .OrderBy(t => t.DueDate)
             .ToListAsync();
-        var projectNames = await _db.Projects.ToDictionaryAsync(p => p.Id, p => p.Name);
+        var projectNames = await _db.Set<ProjectEntity>().ToDictionaryAsync(p => p.Id, p => p.Name);
 
         return Ok(tasks.Select(t => new ProjectTaskDto(
             t.Id, t.ProjectId, t.Title, t.Description,
@@ -440,7 +440,7 @@ public class ProjectsController : ControllerBase
     [RequirePermission(Permission.Project.View)]
     public async Task<IActionResult> UpdateOwnTaskStatus(Guid id, Guid taskId, UpdateTaskStatusRequest request)
     {
-        var task = await _db.ProjectTasks.FirstOrDefaultAsync(t => t.Id == taskId && t.ProjectId == id);
+        var task = await _db.Set<ProjectTask>().FirstOrDefaultAsync(t => t.Id == taskId && t.ProjectId == id);
         if (task is null) return NotFound();
         if (task.AssignedToEmployeeId != CurrentEmployeeId) return Forbid();
 
@@ -454,8 +454,8 @@ public class ProjectsController : ControllerBase
     [RequirePermission(Permission.Project.View)]
     public async Task<ActionResult<List<ProjectTaskDto>>> Tasks(Guid id)
     {
-        var tasks = await _db.ProjectTasks.Where(t => t.ProjectId == id).OrderBy(t => t.DueDate).ToListAsync();
-        var employees = await _db.Employees.ToDictionaryAsync(e => e.Id, e => $"{e.FirstName} {e.LastName}");
+        var tasks = await _db.Set<ProjectTask>().Where(t => t.ProjectId == id).OrderBy(t => t.DueDate).ToListAsync();
+        var employees = await _db.Set<Employee>().ToDictionaryAsync(e => e.Id, e => $"{e.FirstName} {e.LastName}");
 
         return Ok(tasks.Select(t => new ProjectTaskDto(
             t.Id, t.ProjectId, t.Title, t.Description,
@@ -468,11 +468,11 @@ public class ProjectsController : ControllerBase
     [RequirePermission(Permission.Project.ManageBudget)]
     public async Task<IActionResult> AddTask(Guid id, CreateProjectTaskRequest request)
     {
-        var projectExists = await _db.Projects.AnyAsync(p => p.Id == id);
+        var projectExists = await _db.Set<ProjectEntity>().AnyAsync(p => p.Id == id);
         if (!projectExists) return NotFound();
         if (string.IsNullOrWhiteSpace(request.Title)) return BadRequest("Title is required.");
 
-        _db.ProjectTasks.Add(new ProjectTask
+        _db.Set<ProjectTask>().Add(new ProjectTask
         {
             ProjectId = id,
             Title = request.Title.Trim(),
@@ -489,7 +489,7 @@ public class ProjectsController : ControllerBase
     [RequirePermission(Permission.Project.ManageBudget)]
     public async Task<IActionResult> UpdateTask(Guid id, Guid taskId, UpdateProjectTaskRequest request)
     {
-        var task = await _db.ProjectTasks.FirstOrDefaultAsync(t => t.Id == taskId && t.ProjectId == id);
+        var task = await _db.Set<ProjectTask>().FirstOrDefaultAsync(t => t.Id == taskId && t.ProjectId == id);
         if (task is null) return NotFound();
 
         task.Status = request.Status;

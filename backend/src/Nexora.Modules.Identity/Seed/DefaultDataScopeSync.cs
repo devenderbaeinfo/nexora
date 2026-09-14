@@ -1,5 +1,4 @@
 using Nexora.Modules.Identity.Entities;
-using Nexora.Api.Persistence;
 using Microsoft.EntityFrameworkCore;
 
 namespace Nexora.Modules.Identity.Seed;
@@ -16,13 +15,13 @@ public static class DefaultDataScopeSync
     public static async Task RunAsync(IServiceProvider services)
     {
         using var scope = services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<NexoraDbContext>();
+        var db = scope.ServiceProvider.GetRequiredService<DbContext>();
 
         var managerRoles = (await db.Roles.IgnoreQueryFilters().ToListAsync())
             .Where(r => r.Name == RoleTemplates.Manager && r.IsSystemRole)
             .ToList();
 
-        var alreadyScopedRoleIds = (await db.PermissionScopes.IgnoreQueryFilters()
+        var alreadyScopedRoleIds = (await db.Set<PermissionScope>().IgnoreQueryFilters()
             .Where(s => s.PermissionKey == Permission.Project.View)
             .Select(s => s.RoleId)
             .ToListAsync())
@@ -31,7 +30,7 @@ public static class DefaultDataScopeSync
         foreach (var role in managerRoles)
         {
             if (alreadyScopedRoleIds.Contains(role.Id)) continue;
-            db.PermissionScopes.Add(new PermissionScope
+            db.Set<PermissionScope>().Add(new PermissionScope
             {
                 TenantId = role.TenantId,
                 RoleId = role.Id,

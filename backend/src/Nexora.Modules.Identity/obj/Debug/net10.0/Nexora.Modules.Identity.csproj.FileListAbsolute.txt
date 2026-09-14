@@ -3,3 +3,4 @@ C:\Users\Deven\Desktop\erp\nexora\backend\src\Nexora.Modules.Identity\obj\Debug\
 C:\Users\Deven\Desktop\erp\nexora\backend\src\Nexora.Modules.Identity\obj\Debug\net10.0\Nexora.Modules.Identity.AssemblyInfo.cs
 C:\Users\Deven\Desktop\erp\nexora\backend\src\Nexora.Modules.Identity\obj\Debug\net10.0\Nexora.Modules.Identity.csproj.CoreCompileInputs.cache
 C:\Users\Deven\Desktop\erp\nexora\backend\src\Nexora.Modules.Identity\obj\Debug\net10.0\Nexora.Modules.Identity.sourcelink.json
+C:\Users\Deven\Desktop\erp\nexora\backend\src\Nexora.Modules.Identity\obj\Debug\net10.0\Nexora.Modules.Identity.csproj.AssemblyReference.cache

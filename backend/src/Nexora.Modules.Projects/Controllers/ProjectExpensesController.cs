@@ -1,19 +1,18 @@
 using System.Security.Claims;
 using Nexora.Shared.Authorization;
-using Nexora.Modules.Projects.Contracts;
+using Nexora.Modules.Set<ProjectEntity>().Contracts;
 using Nexora.Modules.Finance.Entities;
 using Nexora.Shared.Common;
 using Nexora.Modules.Identity.Entities;
-using Nexora.Modules.Projects.Entities;
+using Nexora.Modules.Set<ProjectEntity>().Entities;
 using Nexora.Modules.Workflow.Entities;
 using Nexora.Modules.Finance.Services;
-using Nexora.Api.Persistence;
 using Nexora.Modules.Workflow.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
-namespace Nexora.Modules.Projects.Controllers;
+namespace Nexora.Modules.Set<ProjectEntity>().Controllers;
 
 // Third module on the shared engine — and the first where the "manager" stage is authorized
 // by a genuinely different rule than Leave/Reimbursement: it's whoever the specific project's
@@ -24,11 +23,11 @@ namespace Nexora.Modules.Projects.Controllers;
 [Route("api/project-expenses")]
 public class ProjectExpensesController : ControllerBase
 {
-    private readonly NexoraDbContext _db;
+    private readonly DbContext _db;
     private readonly IApprovalWorkflowService _workflow;
     private readonly IAccountingPostingService _accounting;
 
-    public ProjectExpensesController(NexoraDbContext db, IApprovalWorkflowService workflow, IAccountingPostingService accounting)
+    public ProjectExpensesController(DbContext db, IApprovalWorkflowService workflow, IAccountingPostingService accounting)
     {
         _db = db;
         _workflow = workflow;
@@ -45,7 +44,7 @@ public class ProjectExpensesController : ControllerBase
     public async Task<ActionResult<List<ProjectExpenseDto>>> Mine()
     {
         if (CurrentEmployeeId is not { } employeeId) return Ok(new List<ProjectExpenseDto>());
-        return Ok(await BuildDtos(_db.ProjectExpenses.Where(e => e.EmployeeId == employeeId)));
+        return Ok(await BuildDtos(_db.Set<ProjectExpense>().Where(e => e.EmployeeId == employeeId)));
     }
 
     [HttpGet("pending-pm-approval")]
@@ -54,8 +53,8 @@ public class ProjectExpensesController : ControllerBase
     {
         if (CurrentEmployeeId is not { } pmId) return Ok(new List<ProjectExpenseDto>());
 
-        var myProjectIds = await _db.Projects.Where(p => p.ProjectManagerId == pmId).Select(p => p.Id).ToListAsync();
-        return Ok(await BuildDtos(_db.ProjectExpenses
+        var myProjectIds = await _db.Set<ProjectEntity>().Where(p => p.ProjectManagerId == pmId).Select(p => p.Id).ToListAsync();
+        return Ok(await BuildDtos(_db.Set<ProjectExpense>()
             .Where(e => myProjectIds.Contains(e.ProjectId) && e.Status == ProjectExpenseStatus.Pending)));
     }
 
@@ -63,14 +62,14 @@ public class ProjectExpensesController : ControllerBase
     [RequirePermission(Permission.Project.ApproveExpenseAsFinance)]
     public async Task<ActionResult<List<ProjectExpenseDto>>> PendingFinanceApproval()
     {
-        return Ok(await BuildDtos(_db.ProjectExpenses.Where(e => e.Status == ProjectExpenseStatus.ManagerApproved)));
+        return Ok(await BuildDtos(_db.Set<ProjectExpense>().Where(e => e.Status == ProjectExpenseStatus.ManagerApproved)));
     }
 
     private async Task<List<ProjectExpenseDto>> BuildDtos(IQueryable<ProjectExpense> query)
     {
         var expenses = await query.OrderByDescending(e => e.CreatedAtUtc).ToListAsync();
-        var projects = await _db.Projects.ToDictionaryAsync(p => p.Id, p => p.Name);
-        var employees = await _db.Employees.ToDictionaryAsync(e => e.Id, e => $"{e.FirstName} {e.LastName}");
+        var projects = await _db.Set<ProjectEntity>().ToDictionaryAsync(p => p.Id, p => p.Name);
+        var employees = await _db.Set<Employee>().ToDictionaryAsync(e => e.Id, e => $"{e.FirstName} {e.LastName}");
 
         return expenses.Select(e => new ProjectExpenseDto(
             e.Id,
@@ -90,7 +89,7 @@ public class ProjectExpensesController : ControllerBase
         if (string.IsNullOrWhiteSpace(request.Category)) return BadRequest("Category is required.");
         if (request.IncurredOn > DateOnly.FromDateTime(DateTime.UtcNow)) return BadRequest("Incurred date can't be in the future.");
 
-        var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == request.ProjectId);
+        var project = await _db.Set<ProjectEntity>().FirstOrDefaultAsync(p => p.Id == request.ProjectId);
         if (project is null) return BadRequest("Unknown project.");
 
         var expense = new ProjectExpense
@@ -103,7 +102,7 @@ public class ProjectExpensesController : ControllerBase
             IncurredOn = request.IncurredOn,
             IsBillable = request.IsBillable,
         };
-        _db.ProjectExpenses.Add(expense);
+        _db.Set<ProjectExpense>().Add(expense);
         await _db.SaveChangesAsync();
 
         var workflow = await _workflow.StartAsync(WorkflowDefinitions.ProjectExpense, expense.Id);
@@ -117,7 +116,7 @@ public class ProjectExpensesController : ControllerBase
     [Authorize]
     public async Task<IActionResult> Decide(Guid id, DecideProjectExpenseRequest decision)
     {
-        var expense = await _db.ProjectExpenses.FirstOrDefaultAsync(e => e.Id == id);
+        var expense = await _db.Set<ProjectExpense>().FirstOrDefaultAsync(e => e.Id == id);
         if (expense is null) return NotFound();
 
         var workflow = await _workflow.GetAsync(expense.WorkflowInstanceId);
@@ -135,7 +134,7 @@ public class ProjectExpensesController : ControllerBase
     {
         if (!User.HasClaim("perm", Permission.Project.ApproveExpenseAsProjectManager)) return Forbid();
 
-        var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == expense.ProjectId);
+        var project = await _db.Set<ProjectEntity>().FirstOrDefaultAsync(p => p.Id == expense.ProjectId);
         if (project?.ProjectManagerId != CurrentEmployeeId)
         {
             await LogDenied("project.approve_expense_as_pm", expense.Id);
@@ -147,7 +146,7 @@ public class ProjectExpensesController : ControllerBase
 
         expense.Status = outcome.IsRejected ? ProjectExpenseStatus.Rejected : ProjectExpenseStatus.ManagerApproved;
 
-        _db.AuditLogs.Add(new AuditLog
+        _db.Set<AuditLog>().Add(new AuditLog
         {
             ActorUserId = CurrentUserId,
             Action = decision.Approve ? "project.approve_expense_as_pm" : "project.reject_expense_as_pm",
@@ -170,8 +169,8 @@ public class ProjectExpensesController : ControllerBase
 
         if (outcome.IsFullyApproved)
         {
-            var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == expense.ProjectId);
-            var employee = await _db.Employees.FirstOrDefaultAsync(e => e.Id == expense.EmployeeId);
+            var project = await _db.Set<ProjectEntity>().FirstOrDefaultAsync(p => p.Id == expense.ProjectId);
+            var employee = await _db.Set<Employee>().FirstOrDefaultAsync(e => e.Id == expense.EmployeeId);
             var employeeName = employee is null ? "—" : $"{employee.FirstName} {employee.LastName}";
             var projectName = project?.Name ?? "—";
 
@@ -192,7 +191,7 @@ public class ProjectExpensesController : ControllerBase
             expense.JournalEntryId = entry.Id;
         }
 
-        _db.AuditLogs.Add(new AuditLog
+        _db.Set<AuditLog>().Add(new AuditLog
         {
             ActorUserId = CurrentUserId,
             Action = decision.Approve ? "project.approve_expense_as_finance" : "project.reject_expense_as_finance",
@@ -206,7 +205,7 @@ public class ProjectExpensesController : ControllerBase
 
     private async Task LogDenied(string action, Guid entityId)
     {
-        _db.AuditLogs.Add(new AuditLog
+        _db.Set<AuditLog>().Add(new AuditLog
         {
             ActorUserId = CurrentUserId,
             Action = action,

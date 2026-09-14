@@ -5,7 +5,6 @@ using Nexora.Modules.Finance.Entities;
 using Nexora.Shared.Common;
 using Nexora.Modules.Identity.Entities;
 using Nexora.Modules.Finance.Services;
-using Nexora.Api.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -23,9 +22,9 @@ namespace Nexora.Modules.Finance.Controllers;
 [Route("api/vendor-bills")]
 public class VendorBillsController : ControllerBase
 {
-    private readonly NexoraDbContext _db;
+    private readonly DbContext _db;
     private readonly IAccountingPostingService _accounting;
-    public VendorBillsController(NexoraDbContext db, IAccountingPostingService accounting)
+    public VendorBillsController(DbContext db, IAccountingPostingService accounting)
     {
         _db = db;
         _accounting = accounting;
@@ -39,7 +38,7 @@ public class VendorBillsController : ControllerBase
     [RequirePermission(Permission.AccountsPayable.View)]
     public async Task<ActionResult<List<VendorDto>>> Vendors()
     {
-        var vendors = await _db.Vendors.OrderBy(v => v.Name).ToListAsync();
+        var vendors = await _db.Set<Vendor>().OrderBy(v => v.Name).ToListAsync();
         return Ok(vendors.Select(v => new VendorDto(v.Id, v.Name, v.ContactEmail, v.ContactPhone, v.IsActive)).ToList());
     }
 
@@ -50,7 +49,7 @@ public class VendorBillsController : ControllerBase
         if (string.IsNullOrWhiteSpace(request.Name)) return BadRequest("Name is required.");
 
         var vendor = new Vendor { Name = request.Name.Trim(), ContactEmail = request.ContactEmail, ContactPhone = request.ContactPhone };
-        _db.Vendors.Add(vendor);
+        _db.Set<Vendor>().Add(vendor);
         await _db.SaveChangesAsync();
 
         return CreatedAtAction(nameof(Vendors), new VendorDto(vendor.Id, vendor.Name, vendor.ContactEmail, vendor.ContactPhone, vendor.IsActive));
@@ -62,7 +61,7 @@ public class VendorBillsController : ControllerBase
     [RequirePermission(Permission.AccountsPayable.View)]
     public async Task<ActionResult<List<VendorBillDto>>> Bills([FromQuery] string? status)
     {
-        var query = _db.VendorBills.AsQueryable();
+        var query = _db.Set<VendorBill>().AsQueryable();
         if (status is not null && Enum.TryParse<VendorBillStatus>(status, out var parsed))
             query = query.Where(b => b.Status == parsed);
 
@@ -72,7 +71,7 @@ public class VendorBillsController : ControllerBase
 
     private async Task<List<VendorBillDto>> BuildDtos(List<VendorBill> bills)
     {
-        var vendors = await _db.Vendors.ToDictionaryAsync(v => v.Id, v => v.Name);
+        var vendors = await _db.Set<Vendor>().ToDictionaryAsync(v => v.Id, v => v.Name);
         return bills.Select(b => new VendorBillDto(
             b.Id, b.VendorId, vendors.TryGetValue(b.VendorId, out var name) ? name : "—",
             b.BillNumber, b.BillDate, b.DueDate, b.Category, b.Amount, b.Status.ToString(),
@@ -88,10 +87,10 @@ public class VendorBillsController : ControllerBase
         if (request.Amount <= 0) return BadRequest("Amount must be greater than zero.");
         if (request.DueDate < request.BillDate) return BadRequest("Due date can't be before the bill date.");
 
-        var vendorExists = await _db.Vendors.AnyAsync(v => v.Id == request.VendorId);
+        var vendorExists = await _db.Set<Vendor>().AnyAsync(v => v.Id == request.VendorId);
         if (!vendorExists) return BadRequest("Unknown vendor.");
 
-        var duplicate = await _db.VendorBills.AnyAsync(b => b.VendorId == request.VendorId && b.BillNumber == request.BillNumber);
+        var duplicate = await _db.Set<VendorBill>().AnyAsync(b => b.VendorId == request.VendorId && b.BillNumber == request.BillNumber);
         if (duplicate) return Conflict("A bill with this number already exists for this vendor.");
 
         var bill = new VendorBill
@@ -104,9 +103,9 @@ public class VendorBillsController : ControllerBase
             Amount = request.Amount,
             SubmittedByUserId = CurrentUserId,
         };
-        _db.VendorBills.Add(bill);
+        _db.Set<VendorBill>().Add(bill);
 
-        _db.AuditLogs.Add(new AuditLog { ActorUserId = CurrentUserId, Action = "accounts_payable.submit_bill", EntityType = "VendorBill", EntityId = bill.Id });
+        _db.Set<AuditLog>().Add(new AuditLog { ActorUserId = CurrentUserId, Action = "accounts_payable.submit_bill", EntityType = "VendorBill", EntityId = bill.Id });
         await _db.SaveChangesAsync();
 
         return CreatedAtAction(nameof(Bills), null);
@@ -116,11 +115,11 @@ public class VendorBillsController : ControllerBase
     [RequirePermission(Permission.AccountsPayable.Approve)]
     public async Task<IActionResult> ApproveBill(Guid id)
     {
-        var bill = await _db.VendorBills.FirstOrDefaultAsync(b => b.Id == id);
+        var bill = await _db.Set<VendorBill>().FirstOrDefaultAsync(b => b.Id == id);
         if (bill is null) return NotFound();
         if (bill.Status != VendorBillStatus.Pending) return Conflict("Only a Pending bill can be approved.");
 
-        var vendor = await _db.Vendors.FirstOrDefaultAsync(v => v.Id == bill.VendorId);
+        var vendor = await _db.Set<Vendor>().FirstOrDefaultAsync(v => v.Id == bill.VendorId);
 
         var expenseAccount = await _accounting.FindOrCreateAccountAsync($"{bill.Category} Expense", AccountType.Expense);
         var payableAccount = await _accounting.FindOrCreateAccountAsync("Accounts Payable", AccountType.Liability, "2000");
@@ -137,7 +136,7 @@ public class VendorBillsController : ControllerBase
         bill.ApprovedAtUtc = DateTimeOffset.UtcNow;
         bill.JournalEntryId = entry.Id;
 
-        _db.AuditLogs.Add(new AuditLog { ActorUserId = CurrentUserId, Action = "accounts_payable.approve_bill", EntityType = "VendorBill", EntityId = bill.Id });
+        _db.Set<AuditLog>().Add(new AuditLog { ActorUserId = CurrentUserId, Action = "accounts_payable.approve_bill", EntityType = "VendorBill", EntityId = bill.Id });
         await _db.SaveChangesAsync();
         return NoContent();
     }
@@ -148,14 +147,14 @@ public class VendorBillsController : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(request.Reason)) return BadRequest("A rejection reason is required.");
 
-        var bill = await _db.VendorBills.FirstOrDefaultAsync(b => b.Id == id);
+        var bill = await _db.Set<VendorBill>().FirstOrDefaultAsync(b => b.Id == id);
         if (bill is null) return NotFound();
         if (bill.Status != VendorBillStatus.Pending) return Conflict("Only a Pending bill can be rejected.");
 
         bill.Status = VendorBillStatus.Rejected;
         bill.RejectionReason = request.Reason;
 
-        _db.AuditLogs.Add(new AuditLog { ActorUserId = CurrentUserId, Action = "accounts_payable.reject_bill", EntityType = "VendorBill", EntityId = bill.Id });
+        _db.Set<AuditLog>().Add(new AuditLog { ActorUserId = CurrentUserId, Action = "accounts_payable.reject_bill", EntityType = "VendorBill", EntityId = bill.Id });
         await _db.SaveChangesAsync();
         return NoContent();
     }
@@ -165,16 +164,16 @@ public class VendorBillsController : ControllerBase
     [RequirePermission(Permission.AccountsPayable.Approve)]
     public async Task<IActionResult> PayBill(Guid id)
     {
-        var bill = await _db.VendorBills.FirstOrDefaultAsync(b => b.Id == id);
+        var bill = await _db.Set<VendorBill>().FirstOrDefaultAsync(b => b.Id == id);
         if (bill is null) return NotFound();
         if (bill.Status != VendorBillStatus.Approved) return Conflict("Only an Approved bill can be paid.");
 
-        var cashAccount = await _db.Accounts.Where(a => a.IsCashAccount && a.IsActive).OrderBy(a => a.Code).FirstOrDefaultAsync();
+        var cashAccount = await _db.Set<Account>().Where(a => a.IsCashAccount && a.IsActive).OrderBy(a => a.Code).FirstOrDefaultAsync();
         if (cashAccount is null)
             return Conflict("No active cash/bank account exists in your Chart of Accounts yet. Add one under Accounting before recording this payment.");
 
         var payableAccount = await _accounting.FindOrCreateAccountAsync("Accounts Payable", AccountType.Liability, "2000");
-        var vendor = await _db.Vendors.FirstOrDefaultAsync(v => v.Id == bill.VendorId);
+        var vendor = await _db.Set<Vendor>().FirstOrDefaultAsync(v => v.Id == bill.VendorId);
 
         var entry = await _accounting.PostAsync(
             DateOnly.FromDateTime(DateTime.UtcNow),
@@ -187,7 +186,7 @@ public class VendorBillsController : ControllerBase
         bill.PaidAtUtc = DateTimeOffset.UtcNow;
         bill.PaymentJournalEntryId = entry.Id;
 
-        _db.AuditLogs.Add(new AuditLog { ActorUserId = CurrentUserId, Action = "accounts_payable.pay_bill", EntityType = "VendorBill", EntityId = bill.Id });
+        _db.Set<AuditLog>().Add(new AuditLog { ActorUserId = CurrentUserId, Action = "accounts_payable.pay_bill", EntityType = "VendorBill", EntityId = bill.Id });
         await _db.SaveChangesAsync();
         return NoContent();
     }
