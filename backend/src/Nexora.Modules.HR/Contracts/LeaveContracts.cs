@@ -14,7 +14,16 @@ public record LeaveRequestDto(
     string Status, string? Reason,
     string ManagerApprovalStatus, string? ManagerActedByName, DateTimeOffset? ManagerActedAtUtc, string? ManagerComment,
     string HrApprovalStatus, string? HrActedByName, DateTimeOffset? HrActedAtUtc, string? HrComment,
-    bool CanCancel);
+    bool CanCancel,
+    // Populated only for requests running a custom (admin-configured) approval chain — see
+    // ApprovalChainDefinitionId on LeaveRequest. Empty for the default two-stage Manager/HR
+    // path, where the legacy fields above already say everything there is to say. A generic,
+    // N-stage view for anything beyond that: one entry per configured stage, in order.
+    List<LeaveStageStatusDto> Stages);
+
+public record LeaveStageStatusDto(
+    int Order, string StageName, bool IsHrStage, string Status,
+    string? ActedByName, DateTimeOffset? ActedAtUtc, string? Note);
 
 public record DecideLeaveRequest(bool Approve, string? Note);
 

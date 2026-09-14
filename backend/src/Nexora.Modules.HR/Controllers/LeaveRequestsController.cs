@@ -7,6 +7,7 @@ using Nexora.Modules.HR.Entities;
 using Nexora.Modules.Company.Entities;
 using Nexora.Modules.Workflow.Entities;
 using Nexora.Modules.Workflow.Services;
+using Nexora.Modules.HR.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -20,11 +21,13 @@ public class LeaveRequestsController : ControllerBase
 {
     private readonly DbContext _db;
     private readonly IApprovalWorkflowService _workflow;
+    private readonly IApprovalChainResolver _chains;
 
-    public LeaveRequestsController(DbContext db, IApprovalWorkflowService workflow)
+    public LeaveRequestsController(DbContext db, IApprovalWorkflowService workflow, IApprovalChainResolver chains)
     {
         _db = db;
         _workflow = workflow;
+        _chains = chains;
     }
 
     private Guid? CurrentEmployeeId =>
@@ -68,8 +71,18 @@ public class LeaveRequestsController : ControllerBase
             directReportIds = directReportIds.Union(managerlessIds).ToList();
         }
 
-        return Ok(await BuildDtos(_db.Set<LeaveRequest>()
-            .Where(r => directReportIds.Contains(r.EmployeeId) && r.Status == LeaveRequestStatus.PendingManagerApproval)));
+        // The legacy, un-configured path: this manager's direct reports, at the (only) manager
+        // stage. Requests running a custom chain (any non-HR stage, "Manager2"/"Manager3" etc.
+        // included) are resolved separately below since their approver isn't necessarily the
+        // employee's direct ReportingManagerId any more.
+        var legacy = await _db.Set<LeaveRequest>()
+            .Where(r => r.ApprovalChainDefinitionId == null
+                && directReportIds.Contains(r.EmployeeId) && r.Status == LeaveRequestStatus.PendingManagerApproval)
+            .ToListAsync();
+
+        var custom = await PendingCustomChainAsync(managerId, isHrStage: false, Permission.Leave.ApproveAsManager);
+
+        return Ok(await BuildDtos(legacy.Concat(custom)));
     }
 
     [HttpGet("pending-hr-approval")]
@@ -79,8 +92,51 @@ public class LeaveRequestsController : ControllerBase
         // HR's queue is company-wide, not limited to a reporting line — it's the final gate
         // after a request has already cleared its own manager. Nothing still awaiting the
         // manager (or rejected by them) ever appears here — that's enforced by this filter,
-        // not just by convention.
-        return Ok(await BuildDtos(_db.Set<LeaveRequest>().Where(r => r.Status == LeaveRequestStatus.PendingHrApproval)));
+        // not just by convention. Custom chains keep the same company-wide, permission-gated
+        // shape for their own HR-labeled stage — see PendingCustomChainAsync.
+        var legacy = await _db.Set<LeaveRequest>()
+            .Where(r => r.ApprovalChainDefinitionId == null && r.Status == LeaveRequestStatus.PendingHrApproval)
+            .ToListAsync();
+
+        List<LeaveRequest> custom = [];
+        if (CurrentEmployeeId is { } hrEmployeeId)
+        {
+            custom = await PendingCustomChainAsync(hrEmployeeId, isHrStage: true, Permission.Leave.ApproveAsHr);
+        }
+
+        return Ok(await BuildDtos(legacy.Concat(custom)));
+    }
+
+    // Requests currently sitting at a custom-chain stage (IsHrStage matching the bucket asked
+    // for) where the caller both holds the base permission and resolves as an eligible approver
+    // for that specific stage — the same "base permission + narrower resolution" shape the
+    // legacy endpoints already use, just driven by IApprovalChainResolver instead of a
+    // hardcoded ReportingManagerId/claim check.
+    private async Task<List<LeaveRequest>> PendingCustomChainAsync(Guid currentEmployeeId, bool isHrStage, string requiredPermission)
+    {
+        if (!User.HasClaim("perm", requiredPermission)) return [];
+
+        var statusFilter = isHrStage ? LeaveRequestStatus.PendingHrApproval : LeaveRequestStatus.PendingManagerApproval;
+        var candidates = await _db.Set<LeaveRequest>()
+            .Where(r => r.ApprovalChainDefinitionId != null && r.Status == statusFilter)
+            .ToListAsync();
+        if (candidates.Count == 0) return [];
+
+        var result = new List<LeaveRequest>();
+        foreach (var candidate in candidates)
+        {
+            var workflow = await _workflow.GetAsync(candidate.WorkflowInstanceId);
+            if (workflow?.CurrentStage is not { } stageName) continue;
+
+            var stage = await _db.Set<ApprovalChainStage>().FirstOrDefaultAsync(s =>
+                s.ChainDefinitionId == candidate.ApprovalChainDefinitionId && s.StageName == stageName);
+            if (stage is null || stage.IsHrStage != isHrStage) continue;
+
+            var resolved = new ResolvedApprovalStage(stage.StageOrder, stage.StageName, stage.IsHrStage, stage.ResolutionType, stage.ApproverEmployeeId, stage.ApproverRoleId);
+            var eligible = await _chains.ResolveApproverEmployeeIdsAsync(resolved, candidate.EmployeeId);
+            if (eligible.Contains(currentEmployeeId)) result.Add(candidate);
+        }
+        return result;
     }
 
     [HttpGet("balances/mine")]
@@ -161,9 +217,11 @@ public class LeaveRequestsController : ControllerBase
         return NoContent();
     }
 
-    private async Task<List<LeaveRequestDto>> BuildDtos(IQueryable<LeaveRequest> query)
+    private Task<List<LeaveRequestDto>> BuildDtos(IQueryable<LeaveRequest> query) => BuildDtos(query.AsEnumerable());
+
+    private async Task<List<LeaveRequestDto>> BuildDtos(IEnumerable<LeaveRequest> source)
     {
-        var requests = await query.OrderByDescending(r => r.CreatedAtUtc).ToListAsync();
+        var requests = source.OrderByDescending(r => r.CreatedAtUtc).ToList();
         var employees = await _db.Set<Employee>().ToDictionaryAsync(e => e.Id, e => $"{e.FirstName} {e.LastName}");
         var leaveTypes = await _db.Set<LeaveType>().ToDictionaryAsync(t => t.Id, t => t.Name);
 
@@ -177,6 +235,48 @@ public class LeaveRequestsController : ControllerBase
         string? ActorName(Guid? userId) =>
             userId is { } id && actorEmployeeIds.TryGetValue(id, out var empId) && empId is { } eid && actorNames.TryGetValue(eid, out var name) ? name : null;
 
+        // Generic per-stage view, populated only for requests running a custom chain (see
+        // LeaveRequestDto.Stages) — built from WorkflowInstance/WorkflowDecision, the engine's
+        // own source of truth, rather than any fixed columns.
+        var customChainIds = requests.Where(r => r.ApprovalChainDefinitionId is not null)
+            .Select(r => r.WorkflowInstanceId).ToList();
+        var instances = customChainIds.Count == 0
+            ? new Dictionary<Guid, WorkflowInstance>()
+            : await _db.Set<WorkflowInstance>().Where(w => customChainIds.Contains(w.Id)).ToDictionaryAsync(w => w.Id);
+        var decisions = customChainIds.Count == 0
+            ? new List<WorkflowDecision>()
+            : await _db.Set<WorkflowDecision>().Where(d => customChainIds.Contains(d.WorkflowInstanceId)).ToListAsync();
+        var decisionsByInstanceAndStage = decisions.ToDictionary(d => (d.WorkflowInstanceId, d.StageName));
+        var chainDefIds = requests.Where(r => r.ApprovalChainDefinitionId is not null)
+            .Select(r => r.ApprovalChainDefinitionId!.Value).Distinct().ToList();
+        var stageDefsByChain = chainDefIds.Count == 0
+            ? new Dictionary<Guid, List<ApprovalChainStage>>()
+            : (await _db.Set<ApprovalChainStage>()
+                .Where(s => chainDefIds.Contains(s.ChainDefinitionId))
+                .OrderBy(s => s.StageOrder)
+                .ToListAsync())
+                .GroupBy(s => s.ChainDefinitionId)
+                .ToDictionary(g => g.Key, g => g.ToList());
+
+        List<LeaveStageStatusDto> StagesFor(LeaveRequest r)
+        {
+            if (r.ApprovalChainDefinitionId is not { } chainId) return [];
+            if (!instances.TryGetValue(r.WorkflowInstanceId, out var instance)) return [];
+            if (!stageDefsByChain.TryGetValue(chainId, out var stages)) return [];
+
+            return stages.Select(s =>
+            {
+                decisionsByInstanceAndStage.TryGetValue((instance.Id, s.StageName), out var decision);
+                var status = decision is not null
+                    ? (decision.Approved ? "Approved" : "Rejected")
+                    : s.StageOrder == instance.CurrentStageIndex && instance.Status == WorkflowStatus.InProgress
+                        ? "Pending"
+                        : s.StageOrder < instance.CurrentStageIndex ? "Approved" : "NotRequired";
+                return new LeaveStageStatusDto(s.StageOrder, s.StageName, s.IsHrStage, status,
+                    ActorName(decision?.DecidedByUserId), decision?.CreatedAtUtc, decision?.Note);
+            }).ToList();
+        }
+
         return requests.Select(r => new LeaveRequestDto(
             r.Id,
             r.EmployeeId,
@@ -185,7 +285,8 @@ public class LeaveRequestsController : ControllerBase
             r.StartDate, r.EndDate, r.DaysRequested, r.Status.ToString(), r.Reason,
             r.ManagerApprovalStatus.ToString(), ActorName(r.ManagerActedByUserId), r.ManagerActedAtUtc, r.ManagerComment,
             r.HrApprovalStatus.ToString(), ActorName(r.HrActedByUserId), r.HrActedAtUtc, r.HrComment,
-            r.Status is LeaveRequestStatus.PendingManagerApproval or LeaveRequestStatus.PendingHrApproval)).ToList();
+            r.Status is LeaveRequestStatus.PendingManagerApproval or LeaveRequestStatus.PendingHrApproval,
+            StagesFor(r))).ToList();
     }
 
     [HttpPost]
@@ -247,10 +348,19 @@ public class LeaveRequestsController : ControllerBase
             Reason = request.Reason,
             MedicalCertificateUrl = request.MedicalCertificateUrl,
         };
+        // Resolved once, at submission — the chain (or absence of one) fixed here is what this
+        // request runs for its whole lifetime, exactly like WorkflowInstance.StagesCsv already
+        // does, so a later admin change never rewrites the rules under a request already partway
+        // through. No configured chain at all (the common case) means ChainDefinitionId is null
+        // and Stages is the untouched hardcoded Manager->HR default.
+        var chain = await _chains.ResolveChainAsync(employeeId);
+
         _db.Set<LeaveRequest>().Add(leaveRequest);
+        leaveRequest.ApprovalChainDefinitionId = chain.ChainDefinitionId;
         await _db.SaveChangesAsync();
 
-        var workflow = await _workflow.StartAsync(WorkflowDefinitions.LeaveRequest, leaveRequest.Id);
+        var workflow = await _workflow.StartWithStagesAsync(
+            WorkflowDefinitions.LeaveRequest, leaveRequest.Id, chain.Stages.Select(s => s.StageName).ToList());
         leaveRequest.WorkflowInstanceId = workflow.Id;
         await _db.SaveChangesAsync();
 
@@ -307,7 +417,29 @@ public class LeaveRequestsController : ControllerBase
              (employee.ReportingManagerId is null && await FallbackApproverIdAsync() == CurrentEmployeeId));
         var isHr = User.HasClaim("perm", Permission.Leave.ApproveAsHr);
         var isSelf = leaveRequest.EmployeeId == CurrentEmployeeId;
-        if (!isAssignedManager && !isHr && !isSelf) return Forbid();
+
+        // A custom chain's current-stage approver may not be the org-chart manager at all (a
+        // swapped SpecificEmployee, a skip-level, a role holder) — resolve that generically
+        // rather than assuming isAssignedManager/isHr above already cover it.
+        var isCustomChainApprover = false;
+        if (!isAssignedManager && !isHr && leaveRequest.ApprovalChainDefinitionId is not null && CurrentEmployeeId is { } currentEmployeeId)
+        {
+            var workflow = await _workflow.GetAsync(leaveRequest.WorkflowInstanceId);
+            if (workflow?.CurrentStage is { } stageName)
+            {
+                var stageDef = await _db.Set<ApprovalChainStage>().FirstOrDefaultAsync(s =>
+                    s.ChainDefinitionId == leaveRequest.ApprovalChainDefinitionId && s.StageName == stageName);
+                if (stageDef is not null && User.HasClaim("perm", stageDef.IsHrStage ? Permission.Leave.ApproveAsHr : Permission.Leave.ApproveAsManager))
+                {
+                    var resolved = new ResolvedApprovalStage(stageDef.StageOrder, stageDef.StageName, stageDef.IsHrStage,
+                        stageDef.ResolutionType, stageDef.ApproverEmployeeId, stageDef.ApproverRoleId);
+                    var eligible = await _chains.ResolveApproverEmployeeIdsAsync(resolved, leaveRequest.EmployeeId);
+                    isCustomChainApprover = eligible.Contains(currentEmployeeId);
+                }
+            }
+        }
+
+        if (!isAssignedManager && !isHr && !isSelf && !isCustomChainApprover) return Forbid();
 
         var year = DateTime.UtcNow.Year;
         var balance = await _db.Set<LeaveBalance>().FirstOrDefaultAsync(b =>
@@ -348,12 +480,92 @@ public class LeaveRequestsController : ControllerBase
         var workflow = await _workflow.GetAsync(leaveRequest.WorkflowInstanceId);
         if (workflow?.CurrentStage is not { } stage) return Conflict("This request has already been fully decided.");
 
+        // Requests running a custom, admin-configured chain (any stage count, any resolution
+        // type) never touch the legacy Manager/HR-named methods below — those stay exactly as
+        // they were for every tenant that hasn't configured anything, per this feature's
+        // "zero behavior change until an admin opts in" requirement.
+        if (leaveRequest.ApprovalChainDefinitionId is not null)
+            return await DecideGeneric(leaveRequest, stage, decision);
+
         return stage switch
         {
             "Manager" => await DecideAsManager(leaveRequest, decision),
             "HR" => await DecideAsHr(leaveRequest, decision),
             _ => Conflict("Unknown workflow stage."),
         };
+    }
+
+    // Stage-driven decision for a custom chain: authorization comes entirely from "does the
+    // current user resolve as an eligible approver for the request's current stage" (via
+    // IApprovalChainResolver), gated by the same base permission claim the legacy path uses
+    // (ApproveAsManager for any non-HR stage, ApproveAsHr for the HR-labeled one) rather than a
+    // hardcoded ReportingManagerId/DecideAsManager-DecideAsHr split.
+    private async Task<IActionResult> DecideGeneric(LeaveRequest leaveRequest, string stageName, DecideLeaveRequest decision)
+    {
+        if (CurrentEmployeeId is not { } currentEmployeeId) return Forbid();
+
+        var stageDef = await _db.Set<ApprovalChainStage>().FirstOrDefaultAsync(s =>
+            s.ChainDefinitionId == leaveRequest.ApprovalChainDefinitionId && s.StageName == stageName);
+        if (stageDef is null) return Conflict("Unknown workflow stage.");
+
+        var requiredPermission = stageDef.IsHrStage ? Permission.Leave.ApproveAsHr : Permission.Leave.ApproveAsManager;
+        if (!User.HasClaim("perm", requiredPermission)) return Forbid();
+
+        var resolvedStage = new ResolvedApprovalStage(stageDef.StageOrder, stageDef.StageName, stageDef.IsHrStage,
+            stageDef.ResolutionType, stageDef.ApproverEmployeeId, stageDef.ApproverRoleId);
+        var eligible = await _chains.ResolveApproverEmployeeIdsAsync(resolvedStage, leaveRequest.EmployeeId);
+        if (!eligible.Contains(currentEmployeeId))
+        {
+            await LogDenied(stageDef.IsHrStage ? "leave.approve_as_hr" : "leave.approve_as_manager", leaveRequest.Id);
+            return Forbid();
+        }
+
+        if (stageDef.IsHrStage && !decision.Approve && string.IsNullOrWhiteSpace(decision.Note))
+            return BadRequest("A rejection reason is required.");
+
+        var outcome = await _workflow.DecideAsync(leaveRequest.WorkflowInstanceId, stageName, CurrentUserId, decision.Approve, decision.Note);
+        if (!outcome.Applied) return Conflict(outcome.Reason);
+
+        // The legacy Manager/Hr columns aren't meaningful for an N-stage custom chain (there's
+        // no one "the" manager stage) — the generic Stages DTO array (built from
+        // WorkflowInstance/WorkflowDecision in BuildDtos) is the source of truth here instead.
+        // Status still tracks "before the HR stage" vs. "at the HR stage" exactly as before,
+        // which is all Cancel/Context/the pending-* buckets actually rely on.
+        leaveRequest.Status = outcome.IsRejected
+            ? (stageDef.IsHrStage ? LeaveRequestStatus.RejectedByHr : LeaveRequestStatus.RejectedByManager)
+            : outcome.IsFullyApproved
+                ? LeaveRequestStatus.Approved
+                : (await _workflow.GetAsync(leaveRequest.WorkflowInstanceId))!.CurrentStage is { } nextStage
+                    && (await _db.Set<ApprovalChainStage>().FirstOrDefaultAsync(s =>
+                        s.ChainDefinitionId == leaveRequest.ApprovalChainDefinitionId && s.StageName == nextStage))?.IsHrStage == true
+                        ? LeaveRequestStatus.PendingHrApproval
+                        : LeaveRequestStatus.PendingManagerApproval;
+
+        if (outcome.IsFullyApproved)
+        {
+            var year = DateTime.UtcNow.Year;
+            var balance = await _db.Set<LeaveBalance>().FirstOrDefaultAsync(b =>
+                b.EmployeeId == leaveRequest.EmployeeId && b.LeaveTypeId == leaveRequest.LeaveTypeId && b.Year == year);
+            if (balance is not null)
+            {
+                balance.Used += leaveRequest.DaysRequested;
+                leaveRequest.BalanceDebited = true;
+            }
+        }
+
+        _db.Set<AuditLog>().Add(new AuditLog
+        {
+            ActorUserId = CurrentUserId,
+            Action = decision.Approve
+                ? (stageDef.IsHrStage ? "leave.approve_as_hr" : "leave.approve_as_manager")
+                : (stageDef.IsHrStage ? "leave.reject_as_hr" : "leave.reject_as_manager"),
+            EntityType = "LeaveRequest",
+            EntityId = leaveRequest.Id,
+            Metadata = $"{{\"stage\":\"{stageName}\"}}",
+        });
+
+        await _db.SaveChangesAsync();
+        return NoContent();
     }
 
     private async Task<IActionResult> DecideAsManager(LeaveRequest leaveRequest, DecideLeaveRequest decision)
