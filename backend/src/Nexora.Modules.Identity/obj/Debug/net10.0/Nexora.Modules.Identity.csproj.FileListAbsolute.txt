@@ -1,0 +1,5 @@
+C:\Users\Deven\Desktop\erp\nexora\backend\src\Nexora.Modules.Identity\obj\Debug\net10.0\Nexora.Modules.Identity.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\Deven\Desktop\erp\nexora\backend\src\Nexora.Modules.Identity\obj\Debug\net10.0\Nexora.Modules.Identity.AssemblyInfoInputs.cache
+C:\Users\Deven\Desktop\erp\nexora\backend\src\Nexora.Modules.Identity\obj\Debug\net10.0\Nexora.Modules.Identity.AssemblyInfo.cs
+C:\Users\Deven\Desktop\erp\nexora\backend\src\Nexora.Modules.Identity\obj\Debug\net10.0\Nexora.Modules.Identity.csproj.CoreCompileInputs.cache
+C:\Users\Deven\Desktop\erp\nexora\backend\src\Nexora.Modules.Identity\obj\Debug\net10.0\Nexora.Modules.Identity.sourcelink.json

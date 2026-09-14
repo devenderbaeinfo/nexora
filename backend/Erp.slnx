@@ -1,8 +1,0 @@
-<Solution>
-  <Folder Name="/src/">
-    <Project Path="src/Erp.Api/Erp.Api.csproj" />
-    <Project Path="src/Erp.Application/Erp.Application.csproj" />
-    <Project Path="src/Erp.Domain/Erp.Domain.csproj" />
-    <Project Path="src/Erp.Infrastructure/Erp.Infrastructure.csproj" />
-  </Folder>
-</Solution>

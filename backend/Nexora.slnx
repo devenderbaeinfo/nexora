@@ -1,0 +1,17 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Nexora.Api/Nexora.Api.csproj" />
+    <Project Path="src/Nexora.Shared/Nexora.Shared.csproj" />
+    <Project Path="src/Nexora.Modules.Identity/Nexora.Modules.Identity.csproj" />
+    <Project Path="src/Nexora.Modules.Company/Nexora.Modules.Company.csproj" />
+    <Project Path="src/Nexora.Modules.HR/Nexora.Modules.HR.csproj" />
+    <Project Path="src/Nexora.Modules.Workflow/Nexora.Modules.Workflow.csproj" />
+    <Project Path="src/Nexora.Modules.Notifications/Nexora.Modules.Notifications.csproj" />
+    <Project Path="src/Nexora.Modules.Finance/Nexora.Modules.Finance.csproj" />
+    <Project Path="src/Nexora.Modules.Payroll/Nexora.Modules.Payroll.csproj" />
+    <Project Path="src/Nexora.Modules.Onboarding/Nexora.Modules.Onboarding.csproj" />
+    <Project Path="src/Nexora.Modules.Projects/Nexora.Modules.Projects.csproj" />
+    <Project Path="src/Nexora.Modules.Platform/Nexora.Modules.Platform.csproj" />
+    <Project Path="src/Nexora.Modules.Reporting/Nexora.Modules.Reporting.csproj" />
+  </Folder>
+</Solution>

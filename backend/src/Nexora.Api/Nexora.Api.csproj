@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FluentValidation.AspNetCore" Version="11.3.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.0" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.11" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.1">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="9.0.1" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.1" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="9.0.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Nexora.Shared\Nexora.Shared.csproj" />
+    <ProjectReference Include="..\Nexora.Modules.Identity\Nexora.Modules.Identity.csproj" />
+    <ProjectReference Include="..\Nexora.Modules.Company\Nexora.Modules.Company.csproj" />
+    <ProjectReference Include="..\Nexora.Modules.HR\Nexora.Modules.HR.csproj" />
+    <ProjectReference Include="..\Nexora.Modules.Workflow\Nexora.Modules.Workflow.csproj" />
+    <ProjectReference Include="..\Nexora.Modules.Notifications\Nexora.Modules.Notifications.csproj" />
+    <ProjectReference Include="..\Nexora.Modules.Finance\Nexora.Modules.Finance.csproj" />
+    <ProjectReference Include="..\Nexora.Modules.Payroll\Nexora.Modules.Payroll.csproj" />
+    <ProjectReference Include="..\Nexora.Modules.Onboarding\Nexora.Modules.Onboarding.csproj" />
+    <ProjectReference Include="..\Nexora.Modules.Projects\Nexora.Modules.Projects.csproj" />
+    <ProjectReference Include="..\Nexora.Modules.Platform\Nexora.Modules.Platform.csproj" />
+    <ProjectReference Include="..\Nexora.Modules.Reporting\Nexora.Modules.Reporting.csproj" />
+  </ItemGroup>
+
+</Project>
