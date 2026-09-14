@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "j5NWlge7+lY=",
+  "dgSpecHash": "YCwqCFTBCxk=",
   "success": true,
   "projectFilePath": "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Shared\\Nexora.Shared.csproj",
   "expectedPackageFiles": [
@@ -26,7 +26,6 @@
     "C:\\Users\\Deven\\.nuget\\packages\\microsoft.entityframeworkcore.relational\\9.0.1\\microsoft.entityframeworkcore.relational.9.0.1.nupkg.sha512",
     "C:\\Users\\Deven\\.nuget\\packages\\microsoft.entityframeworkcore.sqlserver\\9.0.1\\microsoft.entityframeworkcore.sqlserver.9.0.1.nupkg.sha512",
     "C:\\Users\\Deven\\.nuget\\packages\\microsoft.extensions.dependencymodel\\9.0.1\\microsoft.extensions.dependencymodel.9.0.1.nupkg.sha512",
-    "C:\\Users\\Deven\\.nuget\\packages\\microsoft.extensions.identity.stores\\9.0.1\\microsoft.extensions.identity.stores.9.0.1.nupkg.sha512",
     "C:\\Users\\Deven\\.nuget\\packages\\microsoft.identity.client\\4.61.3\\microsoft.identity.client.4.61.3.nupkg.sha512",
     "C:\\Users\\Deven\\.nuget\\packages\\microsoft.identity.client.extensions.msal\\4.61.3\\microsoft.identity.client.extensions.msal.4.61.3.nupkg.sha512",
     "C:\\Users\\Deven\\.nuget\\packages\\microsoft.identitymodel.abstractions\\6.35.0\\microsoft.identitymodel.abstractions.6.35.0.nupkg.sha512",
@@ -55,18 +54,5 @@
     "C:\\Users\\Deven\\.nuget\\packages\\system.security.permissions\\6.0.0\\system.security.permissions.6.0.0.nupkg.sha512",
     "C:\\Users\\Deven\\.nuget\\packages\\system.windows.extensions\\6.0.0\\system.windows.extensions.6.0.0.nupkg.sha512"
   ],
-  "logs": [
-    {
-      "code": "NU1510",
-      "level": "Warning",
-      "message": "PackageReference Microsoft.Extensions.Identity.Stores will not be pruned. This package is automatically available and does not need to be referenced explicitly. Remove the PackageReference item.",
-      "projectPath": "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Shared\\Nexora.Shared.csproj",
-      "warningLevel": 1,
-      "filePath": "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Shared\\Nexora.Shared.csproj",
-      "libraryId": "Microsoft.Extensions.Identity.Stores",
-      "targetGraphs": [
-        "net10.0"
-      ]
-    }
-  ]
+  "logs": []
 }
