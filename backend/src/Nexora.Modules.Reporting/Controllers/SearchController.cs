@@ -1,3 +1,4 @@
+using Nexora.Modules.Identity.Authorization;
 using Nexora.Modules.Identity.Entities;
 using Nexora.Modules.HR.Entities;
 using Nexora.Modules.Projects.Entities;
@@ -11,14 +12,22 @@ public record SearchResultDto(string Kind, string Title, string Subtitle, Guid I
 
 // Backs the Ctrl+K command palette. Two sources for now (People, Projects) — each gated by
 // the same permission its own list page already requires, so search never surfaces something
-// the caller couldn't otherwise see.
+// the caller couldn't otherwise see. Project results are additionally gated by
+// Permission.Reports.ViewProjects (via IReportAccessService) since search surfaces the same
+// project data the Projects report does — People results aren't, since Permission.Reports has
+// no equivalent key for the plain employee directory.
 [ApiController]
 [Authorize]
 [Route("api/search")]
 public class SearchController : ControllerBase
 {
     private readonly DbContext _db;
-    public SearchController(DbContext db) => _db = db;
+    private readonly IReportAccessService _reportAccess;
+    public SearchController(DbContext db, IReportAccessService reportAccess)
+    {
+        _db = db;
+        _reportAccess = reportAccess;
+    }
 
     private bool Has(string perm) => User.HasClaim("perm", perm);
 
@@ -42,7 +51,7 @@ public class SearchController : ControllerBase
             results.AddRange(employees.Select(e => new SearchResultDto("Employee", $"{e.FirstName} {e.LastName}", e.WorkEmail, e.Id, "/")));
         }
 
-        if (Has(Permission.Project.View))
+        if (Has(Permission.Project.View) && await _reportAccess.CanAccessAsync(User, Permission.Reports.ViewProjects))
         {
             var projects = await _db.Set<ProjectEntity>()
                 .Where(p => EF.Functions.Like(p.Name, $"%{term}%"))

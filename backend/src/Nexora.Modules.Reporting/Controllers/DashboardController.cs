@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using Nexora.Shared.Authorization;
+using Nexora.Modules.Identity.Authorization;
 using Nexora.Modules.Reporting.Contracts;
 using Nexora.Modules.Identity.Entities;
 using Nexora.Modules.HR.Entities;
@@ -21,7 +22,12 @@ namespace Nexora.Modules.Reporting.Controllers;
 public class DashboardController : ControllerBase
 {
     private readonly DbContext _db;
-    public DashboardController(DbContext db) => _db = db;
+    private readonly IReportAccessService _reportAccess;
+    public DashboardController(DbContext db, IReportAccessService reportAccess)
+    {
+        _db = db;
+        _reportAccess = reportAccess;
+    }
 
     private Guid? CurrentEmployeeId =>
         Guid.TryParse(User.FindFirstValue("employee_id"), out var id) ? id : null;
@@ -75,6 +81,8 @@ public class DashboardController : ControllerBase
     [RequirePermission(Permission.Attendance.ViewAll)]
     public async Task<ActionResult<HrTrendsDto>> HrTrends()
     {
+        if (!await _reportAccess.CanAccessAsync(User, Permission.Reports.ViewHrTrends)) return Forbid();
+
         var employees = await _db.Set<Employee>().Select(e => new { e.Id, e.HireDate, e.TerminationDate, e.Status }).ToListAsync();
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
         var firstOfThisMonth = new DateOnly(today.Year, today.Month, 1);
@@ -121,9 +129,14 @@ public class DashboardController : ControllerBase
         var prevMonthStart = monthStart.AddMonths(-1);
         var prevMonthEnd = monthStart.AddDays(-1);
 
+        // Layered on top of every existing per-field Can() check below, not instead of it — a
+        // caller still needs the specific underlying permission (People.View, Payroll.View, etc.)
+        // for a given card AND this report-level grant for the row as a whole.
+        var canViewKpis = await _reportAccess.CanAccessAsync(User, Permission.Reports.ViewDashboardKpis);
+
         int? totalEmployees = null;
         double? employeesDelta = null;
-        if (Can(Permission.People.View))
+        if (canViewKpis && Can(Permission.People.View))
         {
             var employees = await _db.Set<Employee>().Select(e => new { e.HireDate, e.TerminationDate }).ToListAsync();
             totalEmployees = employees.Count(e => e.HireDate <= today && (e.TerminationDate == null || e.TerminationDate > today));
@@ -133,7 +146,7 @@ public class DashboardController : ControllerBase
 
         int? onLeaveToday = null;
         List<UpcomingLeaveDto>? upcomingLeaves = null;
-        if (Can(Permission.Attendance.ViewAll) || Can(Permission.Leave.ApproveAsHr))
+        if (canViewKpis && (Can(Permission.Attendance.ViewAll) || Can(Permission.Leave.ApproveAsHr)))
         {
             onLeaveToday = await _db.Set<LeaveRequest>()
                 .Where(r => r.Status == LeaveRequestStatus.Approved && r.StartDate <= today && r.EndDate >= today)
@@ -157,7 +170,7 @@ public class DashboardController : ControllerBase
         decimal? expensesMtd = null;
         double? expensesDelta = null;
         List<ExpenseCategoryDto>? expenseByCategory = null;
-        if (Can(Permission.Accounting.View) || Can(Permission.Expense.ApproveAsFinance))
+        if (canViewKpis && (Can(Permission.Accounting.View) || Can(Permission.Expense.ApproveAsFinance)))
         {
             var reimbursements = await _db.Set<ReimbursementRequest>()
                 .Where(r => r.Status == ReimbursementStatus.Approved && r.IncurredOn >= prevMonthStart)
@@ -191,7 +204,7 @@ public class DashboardController : ControllerBase
         // "big number" this ERP actually has real data for.
         decimal? payrollCostMtd = null;
         double? payrollCostDelta = null;
-        if (Can(Permission.Payroll.View) || Can(Permission.Payroll.Manage) || Can(Permission.Payroll.Approve))
+        if (canViewKpis && (Can(Permission.Payroll.View) || Can(Permission.Payroll.Manage) || Can(Permission.Payroll.Approve)))
         {
             var currentRun = await _db.Set<PayrollRun>().FirstOrDefaultAsync(r => r.PeriodMonth == today.Month && r.PeriodYear == today.Year);
             payrollCostMtd = currentRun is null

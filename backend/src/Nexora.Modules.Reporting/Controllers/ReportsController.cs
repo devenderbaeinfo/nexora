@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using Nexora.Shared.Authorization;
+using Nexora.Modules.Identity.Authorization;
 using Nexora.Modules.Reporting.Contracts;
 using Nexora.Modules.Identity.Entities;
 using Nexora.Modules.Projects.Entities;
@@ -14,13 +15,22 @@ namespace Nexora.Modules.Reporting.Controllers;
 // Read-only roll-ups over data that already exists in Leave/Attendance/Project/Reimbursement —
 // nothing here is a new source of truth, just a manager-facing view across their own scope
 // (direct reports, projects they manage) rather than a single employee or project at a time.
+// Each action keeps its original [RequirePermission] gate (the flat "can call this endpoint at
+// all" check) and additionally consults IReportAccessService — the admin-configurable "which
+// specific roles/users/projects" layer on top. RoleTemplates gives every system role a matching
+// Permission.Reports.* default, so this addition doesn't remove anyone's access on its own.
 [ApiController]
 [Authorize]
 [Route("api/reports")]
 public class ReportsController : ControllerBase
 {
     private readonly DbContext _db;
-    public ReportsController(DbContext db) => _db = db;
+    private readonly IReportAccessService _reportAccess;
+    public ReportsController(DbContext db, IReportAccessService reportAccess)
+    {
+        _db = db;
+        _reportAccess = reportAccess;
+    }
 
     private Guid? CurrentEmployeeId =>
         Guid.TryParse(User.FindFirstValue("employee_id"), out var id) ? id : null;
@@ -29,6 +39,7 @@ public class ReportsController : ControllerBase
     [RequirePermission(Permission.Leave.ApproveAsManager)]
     public async Task<ActionResult<List<TeamReportRowDto>>> Team()
     {
+        if (!await _reportAccess.CanAccessAsync(User, Permission.Reports.ViewTeam)) return Forbid();
         if (CurrentEmployeeId is not { } managerId) return Ok(new List<TeamReportRowDto>());
 
         var reports = await _db.Set<Employee>().Where(e => e.ReportingManagerId == managerId).ToListAsync();
@@ -68,9 +79,19 @@ public class ReportsController : ControllerBase
     [RequirePermission(Permission.Project.View)]
     public async Task<ActionResult<List<ProjectReportRowDto>>> Projects()
     {
+        var access = await _reportAccess.ResolveAsync(User, Permission.Reports.ViewProjects);
+        if (!access.Allowed) return Forbid();
         if (CurrentEmployeeId is not { } pmId) return Ok(new List<ProjectReportRowDto>());
 
-        var projects = await _db.Set<ProjectEntity>().Where(p => p.ProjectManagerId == pmId).ToListAsync();
+        // Intersect (not replace) the existing ProjectManagerId ownership filter with any
+        // project-scoped grants an Admin configured — see IReportAccessService's doc comment
+        // for why a role-/user-wide grant (access.ProjectIds == null) never narrows.
+        var projectsQuery = _db.Set<ProjectEntity>().Where(p => p.ProjectManagerId == pmId);
+        if (access.ProjectIds is not null)
+        {
+            projectsQuery = projectsQuery.Where(p => access.ProjectIds.Contains(p.Id));
+        }
+        var projects = await projectsQuery.ToListAsync();
         var projectIds = projects.Select(p => p.Id).ToList();
         var expenses = await _db.Set<ProjectExpense>().Where(e => projectIds.Contains(e.ProjectId)).ToListAsync();
 
@@ -89,6 +110,7 @@ public class ReportsController : ControllerBase
     [RequirePermission(Permission.Expense.ApproveAsManager)]
     public async Task<ActionResult<List<ExpenseReportRowDto>>> Expenses()
     {
+        if (!await _reportAccess.CanAccessAsync(User, Permission.Reports.ViewExpenses)) return Forbid();
         if (CurrentEmployeeId is not { } managerId) return Ok(new List<ExpenseReportRowDto>());
 
         var reportIds = await _db.Set<Employee>()
@@ -125,6 +147,8 @@ public class ReportsController : ControllerBase
     [RequirePermission(Permission.Accounting.View)]
     public async Task<ActionResult<List<ExpenseReportRowDto>>> ExpensesAll()
     {
+        if (!await _reportAccess.CanAccessAsync(User, Permission.Reports.ViewFinance)) return Forbid();
+
         var reimbursements = await _db.Set<ReimbursementRequest>().Where(r => r.Status != ReimbursementStatus.Rejected).ToListAsync();
         var projectExpenses = await _db.Set<ProjectExpense>().Where(e => e.Status != ProjectExpenseStatus.Rejected).ToListAsync();
 
