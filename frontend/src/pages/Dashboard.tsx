@@ -203,89 +203,112 @@ export default function Dashboard() {
           </section>
         )}
 
-        <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr", gap: 20, marginBottom: 24, alignItems: "start" }}>
-          {can("attendance.view_all") && hrTrends.data ? (
-            <section className="glass-panel" style={glassCard}>
-              <h2 style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>Employee Attendance</h2>
-              <p style={{ ...s.muted, marginBottom: 16 }}>Share of active employees present, last 14 days.</p>
-              <TrendChart
-                labels={hrTrends.data.attendance.map((p) => p.date)}
-                series={[{
-                  name: "Present", color: "var(--teal)",
-                  values: hrTrends.data.attendance.map((p) => p.activeEmployees === 0 ? 0 : Math.round((p.present / p.activeEmployees) * 100)),
-                }]}
-                formatValue={(n) => `${n}%`}
-                fillArea
-              />
-            </section>
-          ) : <div />}
+        {(() => {
+          const hasAttendance = can("attendance.view_all") && !!hrTrends.data;
+          const hasExpenseBreakdown = !!(k?.expenseByCategory && k.expenseByCategory.length > 0);
+          const hasQuickActions = quickActions.length > 0;
+          const middleColumnCount = [hasAttendance, hasExpenseBreakdown, hasQuickActions].filter(Boolean).length;
+          if (middleColumnCount === 0) return null;
 
-          {k?.expenseByCategory && k.expenseByCategory.length > 0 ? (
-            <section className="glass-panel" style={glassCard}>
-              <h2 style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>Expense Breakdown</h2>
-              <p style={{ ...s.muted, marginBottom: 16 }}>This month, by category.</p>
-              <DonutChart
-                centerLabel="Total"
-                formatValue={currency}
-                slices={k.expenseByCategory.map((c, i) => ({ label: c.category, value: c.amount, color: DONUT_COLORS[i % DONUT_COLORS.length] }))}
-              />
-            </section>
-          ) : <div />}
+          const middleColumns = hasAttendance
+            ? (hasExpenseBreakdown && hasQuickActions ? "2fr 1fr 1fr" : hasExpenseBreakdown || hasQuickActions ? "2fr 1fr" : "1fr")
+            : `repeat(${middleColumnCount}, 1fr)`;
 
-          {quickActions.length > 0 && (
-            <section className="glass-panel" style={glassCard}>
-              <h2 style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>Quick Actions</h2>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                {quickActions.map((a) => (
-                  <Link key={a.label} to={a.to} className="glass-panel" style={{ padding: 12, fontSize: 12.5, fontWeight: 600, color: "var(--ink)", textDecoration: "none" }}>
-                    <div style={{ color: "var(--accent)", marginBottom: 6 }}>{iconForLabel(a.label, 18)}</div>
-                    {a.label}
-                  </Link>
-                ))}
-              </div>
-            </section>
-          )}
-        </div>
-
-        <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 20, marginBottom: 24, alignItems: "start" }}>
-          {can("admin.view_audit_log") && (
-            <section className="glass-panel" style={glassCard}>
-              <h2 style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>Recent Activity</h2>
-              {recentActivity.data && recentActivity.data.length > 0 ? (
-                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                  {recentActivity.data.map((row) => (
-                    <div key={row.id} style={{ display: "flex", justifyContent: "space-between", gap: 12, fontSize: 13 }}>
-                      <span style={{ color: "var(--ink)" }}>
-                        {row.actorName ?? "Someone"} — {row.action.replace(/[._]/g, " ")}
-                      </span>
-                      <span style={{ color: "var(--faint)", whiteSpace: "nowrap", fontSize: 11.5 }}>{timeAgo(row.createdAtUtc)}</span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p style={s.muted}>Nothing recorded yet.</p>
+          return (
+            <div style={{ display: "grid", gridTemplateColumns: middleColumns, gap: 20, marginBottom: 24, alignItems: "start" }}>
+              {hasAttendance && (
+                <section className="glass-panel" style={glassCard}>
+                  <h2 style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>Employee Attendance</h2>
+                  <p style={{ ...s.muted, marginBottom: 16 }}>Share of active employees present, last 14 days.</p>
+                  <TrendChart
+                    labels={hrTrends.data!.attendance.map((p) => p.date)}
+                    series={[{
+                      name: "Present", color: "var(--teal)",
+                      values: hrTrends.data!.attendance.map((p) => p.activeEmployees === 0 ? 0 : Math.round((p.present / p.activeEmployees) * 100)),
+                    }]}
+                    formatValue={(n) => `${n}%`}
+                    fillArea
+                  />
+                </section>
               )}
-            </section>
-          )}
 
-          {k?.upcomingLeaves && (
-            <section className="glass-panel" style={glassCard}>
-              <h2 style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>Upcoming Leaves</h2>
-              {k.upcomingLeaves.length > 0 ? (
-                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                  {k.upcomingLeaves.map((l, i) => (
-                    <div key={i} style={{ display: "flex", justifyContent: "space-between", gap: 12, fontSize: 13 }}>
-                      <span style={{ color: "var(--ink)" }}>{l.employeeName}</span>
-                      <span style={{ color: "var(--muted)", fontSize: 12 }}>{l.startDate}{l.startDate !== l.endDate ? ` – ${l.endDate}` : ""}</span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p style={s.muted}>No upcoming approved leave.</p>
+              {hasExpenseBreakdown && (
+                <section className="glass-panel" style={glassCard}>
+                  <h2 style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>Expense Breakdown</h2>
+                  <p style={{ ...s.muted, marginBottom: 16 }}>This month, by category.</p>
+                  <DonutChart
+                    centerLabel="Total"
+                    formatValue={currency}
+                    slices={k!.expenseByCategory!.map((c, i) => ({ label: c.category, value: c.amount, color: DONUT_COLORS[i % DONUT_COLORS.length] }))}
+                  />
+                </section>
               )}
-            </section>
-          )}
-        </div>
+
+              {hasQuickActions && (
+                <section className="glass-panel" style={glassCard}>
+                  <h2 style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>Quick Actions</h2>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                    {quickActions.map((a) => (
+                      <Link key={a.label} to={a.to} className="glass-panel" style={{ padding: 12, fontSize: 12.5, fontWeight: 600, color: "var(--ink)", textDecoration: "none" }}>
+                        <div style={{ color: "var(--accent)", marginBottom: 6 }}>{iconForLabel(a.label, 18)}</div>
+                        {a.label}
+                      </Link>
+                    ))}
+                  </div>
+                </section>
+              )}
+            </div>
+          );
+        })()}
+
+        {(() => {
+          const hasRecentActivity = can("admin.view_audit_log");
+          const hasUpcomingLeaves = !!k?.upcomingLeaves;
+          if (!hasRecentActivity && !hasUpcomingLeaves) return null;
+          const columns = hasRecentActivity && hasUpcomingLeaves ? "2fr 1fr" : "1fr";
+
+          return (
+            <div style={{ display: "grid", gridTemplateColumns: columns, gap: 20, marginBottom: 24, alignItems: "start" }}>
+              {hasRecentActivity && (
+                <section className="glass-panel" style={glassCard}>
+                  <h2 style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>Recent Activity</h2>
+                  {recentActivity.data && recentActivity.data.length > 0 ? (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                      {recentActivity.data.map((row) => (
+                        <div key={row.id} style={{ display: "flex", justifyContent: "space-between", gap: 12, fontSize: 13 }}>
+                          <span style={{ color: "var(--ink)" }}>
+                            {row.actorName ?? "Someone"} — {row.action.replace(/[._]/g, " ")}
+                          </span>
+                          <span style={{ color: "var(--faint)", whiteSpace: "nowrap", fontSize: 11.5 }}>{timeAgo(row.createdAtUtc)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p style={s.muted}>Nothing recorded yet.</p>
+                  )}
+                </section>
+              )}
+
+              {hasUpcomingLeaves && (
+                <section className="glass-panel" style={glassCard}>
+                  <h2 style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>Upcoming Leaves</h2>
+                  {k!.upcomingLeaves!.length > 0 ? (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                      {k!.upcomingLeaves!.map((l, i) => (
+                        <div key={i} style={{ display: "flex", justifyContent: "space-between", gap: 12, fontSize: 13 }}>
+                          <span style={{ color: "var(--ink)" }}>{l.employeeName}</span>
+                          <span style={{ color: "var(--muted)", fontSize: 12 }}>{l.startDate}{l.startDate !== l.endDate ? ` – ${l.endDate}` : ""}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p style={s.muted}>No upcoming approved leave.</p>
+                  )}
+                </section>
+              )}
+            </div>
+          );
+        })()}
 
         {hasOrgStats && (
           <section style={{ marginBottom: 24 }}>

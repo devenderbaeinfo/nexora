@@ -97,6 +97,7 @@ public class AuthController : ControllerBase
         var mustChangePassword = user.MustChangePassword || passwordExpired;
 
         var (token, expires) = IssueToken(user, tenant.Id, roleIds, permissions, mustChangePassword);
+        var displayName = await ResolveDisplayNameAsync(user);
 
         _db.AuditLogs.Add(new Nexora.Shared.Common.AuditLog
         {
@@ -109,7 +110,7 @@ public class AuthController : ControllerBase
         });
         await _db.SaveChangesAsync();
 
-        return Ok(new LoginResponse(token, expires, user.Email ?? user.UserName ?? "", effectiveRole ?? "", permissions.ToArray(), mustChangePassword, tenant.BaseCurrencyCode));
+        return Ok(new LoginResponse(token, expires, displayName, effectiveRole ?? "", permissions.ToArray(), mustChangePassword, tenant.BaseCurrencyCode));
     }
 
     [HttpPost("change-password")]
@@ -155,7 +156,25 @@ public class AuthController : ControllerBase
 
         var (token, expires) = IssueToken(user, user.TenantId, roleIds, permissions, mustChangePassword: false);
         var currentTenant = await _db.Tenants.FirstOrDefaultAsync(t => t.Id == user.TenantId);
-        return Ok(new LoginResponse(token, expires, user.Email ?? user.UserName ?? "", effectiveRole ?? "", permissions.ToArray(), false, currentTenant?.BaseCurrencyCode ?? "INR"));
+        var displayName = await ResolveDisplayNameAsync(user);
+        return Ok(new LoginResponse(token, expires, displayName, effectiveRole ?? "", permissions.ToArray(), false, currentTenant?.BaseCurrencyCode ?? "INR"));
+    }
+
+    private async Task<string> ResolveDisplayNameAsync(AppUser user)
+    {
+        if (user.EmployeeId is Guid employeeId)
+        {
+            var employee = await _db.Set<Nexora.Modules.HR.Entities.Employee>()
+                .IgnoreQueryFilters()
+                .FirstOrDefaultAsync(e => e.Id == employeeId);
+            if (employee is not null)
+            {
+                var fullName = $"{employee.FirstName} {employee.LastName}".Trim();
+                if (!string.IsNullOrWhiteSpace(fullName)) return fullName;
+            }
+        }
+
+        return user.Email ?? user.UserName ?? "";
     }
 
     private async Task AuditLoginFailure(Guid? tenantId, string attemptedEmail, string reason)

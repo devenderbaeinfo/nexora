@@ -26,7 +26,7 @@ export const pageStyles: Record<string, CSSProperties> = {
     background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius-lg)",
     padding: 20, boxShadow: "var(--shadow)",
   },
-  statGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 16, width: "100%", minWidth: 0 },
+  statGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 16, width: "100%", minWidth: 0 },
   statCard: {
     background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius-lg)",
     padding: 20, boxShadow: "var(--shadow)", minWidth: 0,
