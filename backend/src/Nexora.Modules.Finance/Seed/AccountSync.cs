@@ -1,5 +1,7 @@
 using Nexora.Modules.Finance.Entities;
+using Nexora.Shared.Tenancy;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Nexora.Modules.Finance.Seed;
 

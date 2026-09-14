@@ -4,6 +4,7 @@ using Nexora.Modules.HR.Contracts;
 using Nexora.Shared.Common;
 using Nexora.Modules.Identity.Entities;
 using Nexora.Modules.HR.Entities;
+using Nexora.Modules.Company.Entities;
 using Nexora.Modules.Workflow.Entities;
 using Nexora.Modules.Workflow.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -168,7 +169,7 @@ public class LeaveRequestsController : ControllerBase
 
         var actorUserIds = requests.SelectMany(r => new[] { r.ManagerActedByUserId, r.HrActedByUserId })
             .Where(id => id is not null).Select(id => id!.Value).Distinct().ToList();
-        var actorEmployeeIds = await _db.Users.Where(u => actorUserIds.Contains(u.Id)).ToDictionaryAsync(u => u.Id, u => u.EmployeeId);
+        var actorEmployeeIds = await _db.Set<AppUser>().Where(u => actorUserIds.Contains(u.Id)).ToDictionaryAsync(u => u.Id, u => u.EmployeeId);
         var actorNames = await _db.Set<Employee>()
             .Where(e => actorEmployeeIds.Values.Contains(e.Id))
             .ToDictionaryAsync(e => e.Id, e => $"{e.FirstName} {e.LastName}");

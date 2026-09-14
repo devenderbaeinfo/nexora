@@ -1,10 +1,11 @@
 using System.Security.Claims;
 using Nexora.Shared.Authorization;
-using Nexora.Modules.Set<ProjectEntity>().Contracts;
+using Nexora.Modules.Projects.Contracts;
 using Nexora.Modules.Finance.Entities;
 using Nexora.Shared.Common;
 using Nexora.Modules.Identity.Entities;
-using Nexora.Modules.Set<ProjectEntity>().Entities;
+using Nexora.Modules.HR.Entities;
+using Nexora.Modules.Projects.Entities;
 using Nexora.Modules.Workflow.Entities;
 using Nexora.Modules.Finance.Services;
 using Nexora.Modules.Workflow.Services;
@@ -12,7 +13,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
-namespace Nexora.Modules.Set<ProjectEntity>().Controllers;
+namespace Nexora.Modules.Projects.Controllers;
 
 // Third module on the shared engine — and the first where the "manager" stage is authorized
 // by a genuinely different rule than Leave/Reimbursement: it's whoever the specific project's

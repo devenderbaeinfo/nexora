@@ -1,8 +1,11 @@
 using System.Security.Claims;
 using Nexora.Shared.Authorization;
+using Nexora.Shared.Common;
+using Nexora.Modules.Company.Entities;
 using Nexora.Modules.HR.Contracts;
 using Nexora.Modules.Identity.Entities;
 using Nexora.Modules.HR.Entities;
+using Nexora.Modules.HR.Services;
 using Nexora.Modules.Identity.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -63,7 +66,7 @@ public class UsersController : ControllerBase
 
         // Deactivated accounts have nothing left to manage here (no password to reset, no
         // further "delete" to apply) — they belong in People's history, not this list.
-        var users = await _db.Users.Where(u => u.IsActive && u.EmployeeId != null && employeeIds.Contains(u.EmployeeId!.Value)).ToListAsync();
+        var users = await _db.Set<AppUser>().Where(u => u.IsActive && u.EmployeeId != null && employeeIds.Contains(u.EmployeeId!.Value)).ToListAsync();
 
         var result = new List<UserSummaryDto>();
         foreach (var u in users)
@@ -110,7 +113,7 @@ public class UsersController : ControllerBase
         targetUser.PasswordChangedAtUtc = DateTimeOffset.UtcNow;
         await _userManager.UpdateAsync(targetUser);
 
-        _db.Set<AuditLog>().Add(new Erp.Domain.Audit.AuditLog
+        _db.Set<AuditLog>().Add(new AuditLog
         {
             ActorUserId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub")!),
             Action = "auth.password_reset_by_admin",
@@ -199,7 +202,7 @@ public class UsersController : ControllerBase
 
         foreach (var allotment in allotments)
         {
-            _db.Set<LeaveBalance>().Add(new Erp.Domain.Timecard.LeaveBalance
+            _db.Set<LeaveBalance>().Add(new LeaveBalance
             {
                 EmployeeId = employee.Id,
                 LeaveTypeId = allotment.LeaveTypeId,
@@ -267,7 +270,7 @@ public class UsersController : ControllerBase
             }
         }
 
-        _db.Set<AuditLog>().Add(new Erp.Domain.Audit.AuditLog
+        _db.Set<AuditLog>().Add(new AuditLog
         {
             ActorUserId = CurrentUserId,
             Action = "admin.deactivate_user",

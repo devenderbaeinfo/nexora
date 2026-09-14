@@ -1,15 +1,15 @@
 using System.Security.Claims;
 using Nexora.Shared.Authorization;
-using Nexora.Modules.Set<ProjectEntity>().Contracts;
+using Nexora.Modules.Projects.Contracts;
 using Nexora.Modules.Identity.Authorization;
 using Nexora.Modules.Identity.Entities;
-using Nexora.Modules.Set<ProjectEntity>().Entities;
-using Nexora.Shared.Authorization;
+using Nexora.Modules.HR.Entities;
+using Nexora.Modules.Projects.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
-namespace Nexora.Modules.Set<ProjectEntity>().Controllers;
+namespace Nexora.Modules.Projects.Controllers;
 
 [ApiController]
 [Authorize]
@@ -288,7 +288,7 @@ public class ProjectsController : ControllerBase
             .ToDictionaryAsync(m => m.EmployeeId, m => (m.CostRate, m.BillingRate));
 
         var hours = await _db.Set<TimesheetEntry>()
-            .Where(t => t.ProjectId == id && t.Status == Erp.Domain.Timecard.TimesheetStatus.Approved)
+            .Where(t => t.ProjectId == id && t.Status == TimesheetStatus.Approved)
             .ToListAsync();
 
         var expenses = await _db.Set<ProjectExpense>()
@@ -358,7 +358,7 @@ public class ProjectsController : ControllerBase
         if (!projectExists) return NotFound();
         if (string.IsNullOrWhiteSpace(request.Name)) return BadRequest("Name is required.");
 
-        _db.Set<ProjectMilestone>().Add(new Erp.Domain.Project.ProjectMilestone
+        _db.Set<ProjectMilestone>().Add(new ProjectMilestone
         {
             ProjectId = id,
             Name = request.Name.Trim(),

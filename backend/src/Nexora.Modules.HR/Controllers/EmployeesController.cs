@@ -4,6 +4,7 @@ using Nexora.Modules.HR.Contracts;
 using Nexora.Modules.Identity.Authorization;
 using Nexora.Modules.Identity.Entities;
 using Nexora.Modules.HR.Entities;
+using Nexora.Modules.Company.Entities;
 using Nexora.Shared.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

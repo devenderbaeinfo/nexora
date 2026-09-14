@@ -3,6 +3,7 @@ using Nexora.Shared.Authorization;
 using Nexora.Modules.Platform.Contracts;
 using Nexora.Modules.Identity.Entities;
 using Nexora.Modules.HR.Entities;
+using Nexora.Modules.Company.Entities;
 using Nexora.Shared.Tenancy;
 using Nexora.Modules.Identity.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -86,9 +87,9 @@ public class PlatformController : ControllerBase
         // tenants get created) would sit with no default job titles or Chart of Accounts until
         // the next deploy. Both are additive/idempotent, so running them here is safe even
         // though they re-scan every tenant, not just this new one.
-        await Erp.Api.Seed.JobTitleSync.RunAsync(HttpContext.RequestServices);
-        await Erp.Api.Seed.AccountSync.RunAsync(HttpContext.RequestServices);
-        await Erp.Api.Seed.DefaultDataScopeSync.RunAsync(HttpContext.RequestServices);
+        await Nexora.Modules.HR.Seed.JobTitleSync.RunAsync(HttpContext.RequestServices);
+        await Nexora.Modules.Finance.Seed.AccountSync.RunAsync(HttpContext.RequestServices);
+        await Nexora.Modules.Identity.Seed.DefaultDataScopeSync.RunAsync(HttpContext.RequestServices);
 
         var adminUser = new AppUser
         {
@@ -135,12 +136,12 @@ public class PlatformController : ControllerBase
     public async Task<ActionResult<List<SuperAdminDto>>> ListSuperAdmins()
     {
         var platformTenant = await _db.Set<Tenant>().IgnoreQueryFilters().FirstAsync(t => t.Slug == "platform");
-        var role = await _db.Roles.IgnoreQueryFilters()
+        var role = await _db.Set<AppRole>().IgnoreQueryFilters()
             .FirstOrDefaultAsync(r => r.TenantId == platformTenant.Id && r.NormalizedName == "SUPERADMIN");
         if (role is null) return Ok(new List<SuperAdminDto>());
 
-        var userIds = await _db.UserRoles.Where(ur => ur.RoleId == role.Id).Select(ur => ur.UserId).ToListAsync();
-        var users = await _db.Users.IgnoreQueryFilters().Where(u => userIds.Contains(u.Id)).ToListAsync();
+        var userIds = await _db.Set<IdentityUserRole<Guid>>().Where(ur => ur.RoleId == role.Id).Select(ur => ur.UserId).ToListAsync();
+        var users = await _db.Set<AppUser>().IgnoreQueryFilters().Where(u => userIds.Contains(u.Id)).ToListAsync();
 
         return Ok(users.Select(u => new SuperAdminDto(u.Id, u.Email ?? "", u.IsActive)).ToList());
     }

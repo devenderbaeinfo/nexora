@@ -1,3 +1,6 @@
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
+
 namespace Nexora.Modules.HR.Services;
 
 // Local-disk storage for uploaded employee documents, one folder per tenant so a path

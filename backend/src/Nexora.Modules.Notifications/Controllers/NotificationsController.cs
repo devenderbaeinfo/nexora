@@ -1,8 +1,8 @@
 using System.Security.Claims;
 using Nexora.Modules.Identity.Entities;
 using Nexora.Modules.Payroll.Entities;
-using Nexora.Modules.Set<ProjectEntity>().Entities;
-using Nexora.Modules.Set<ProjectEntity>().Entities;
+using Nexora.Modules.Projects.Entities;
+using Nexora.Modules.Projects.Entities;
 using Nexora.Modules.HR.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

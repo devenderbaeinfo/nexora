@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Nexora.Modules.Identity")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+37efe5057610ae095f3282cb49609a3fd2c048e9")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+338cc887f0a56c939d56ef052f12902d9923ee46")]
 [assembly: System.Reflection.AssemblyProductAttribute("Nexora.Modules.Identity")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Nexora.Modules.Identity")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

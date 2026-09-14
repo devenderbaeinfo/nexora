@@ -1,8 +1,9 @@
+using Nexora.Modules.HR.Entities;
 using Nexora.Modules.Identity.Entities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
-namespace Nexora.Modules.Identity.Services;
+namespace Nexora.Modules.HR.Services;
 
 // The single place "what role is this person right now" gets answered. For anyone with
 // a linked Employee record, the answer is always their *current* Job Title's mapped

@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Nexora.Modules.Workflow")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+6a5ba73a84dffa297232f379d8a4ef680735c6c1")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+338cc887f0a56c939d56ef052f12902d9923ee46")]
 [assembly: System.Reflection.AssemblyProductAttribute("Nexora.Modules.Workflow")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Nexora.Modules.Workflow")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

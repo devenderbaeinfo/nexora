@@ -13,6 +13,9 @@
   <ItemGroup>
     <ProjectReference Include="..\Nexora.Shared\Nexora.Shared.csproj" />
     <ProjectReference Include="..\Nexora.Modules.Identity\Nexora.Modules.Identity.csproj" />
+    <ProjectReference Include="..\Nexora.Modules.HR\Nexora.Modules.HR.csproj" />
+    <ProjectReference Include="..\Nexora.Modules.Payroll\Nexora.Modules.Payroll.csproj" />
+    <ProjectReference Include="..\Nexora.Modules.Projects\Nexora.Modules.Projects.csproj" />
   </ItemGroup>
 
 </Project>

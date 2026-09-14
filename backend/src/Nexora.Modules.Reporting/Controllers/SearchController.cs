@@ -1,4 +1,6 @@
 using Nexora.Modules.Identity.Entities;
+using Nexora.Modules.HR.Entities;
+using Nexora.Modules.Projects.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;

@@ -3,9 +3,9 @@ using Nexora.Shared.Authorization;
 using Nexora.Modules.Reporting.Contracts;
 using Nexora.Modules.Identity.Entities;
 using Nexora.Modules.HR.Entities;
-using Nexora.Modules.Set<ProjectEntity>().Entities;
-using Nexora.Modules.Set<ProjectEntity>().Entities;
-using Nexora.Modules.HR.Entities;
+using Nexora.Modules.Projects.Entities;
+using Nexora.Modules.Payroll.Entities;
+using Nexora.Shared.Tenancy;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -42,7 +42,7 @@ public class DashboardController : ControllerBase
             .CountAsync();
 
         var pendingExpense = await _db.Set<ReimbursementRequest>()
-            .Where(r => directReportIds.Contains(r.EmployeeId) && r.Status == Erp.Domain.Reimbursement.ReimbursementStatus.Pending)
+            .Where(r => directReportIds.Contains(r.EmployeeId) && r.Status == ReimbursementStatus.Pending)
             .CountAsync();
 
         var managedProjectIds = await _db.Set<ProjectEntity>()

@@ -535,6 +535,59 @@
           }
         }
       },
+      "Nexora.Modules.Company/1.0.0": {
+        "type": "project",
+        "framework": ".NETCoreApp,Version=v10.0",
+        "dependencies": {
+          "Nexora.Modules.Identity": "1.0.0",
+          "Nexora.Shared": "1.0.0"
+        },
+        "compile": {
+          "bin/placeholder/Nexora.Modules.Company.dll": {}
+        },
+        "runtime": {
+          "bin/placeholder/Nexora.Modules.Company.dll": {}
+        },
+        "frameworkReferences": [
+          "Microsoft.AspNetCore.App"
+        ]
+      },
+      "Nexora.Modules.Finance/1.0.0": {
+        "type": "project",
+        "framework": ".NETCoreApp,Version=v10.0",
+        "dependencies": {
+          "Nexora.Modules.Identity": "1.0.0",
+          "Nexora.Shared": "1.0.0"
+        },
+        "compile": {
+          "bin/placeholder/Nexora.Modules.Finance.dll": {}
+        },
+        "runtime": {
+          "bin/placeholder/Nexora.Modules.Finance.dll": {}
+        },
+        "frameworkReferences": [
+          "Microsoft.AspNetCore.App"
+        ]
+      },
+      "Nexora.Modules.HR/1.0.0": {
+        "type": "project",
+        "framework": ".NETCoreApp,Version=v10.0",
+        "dependencies": {
+          "Nexora.Modules.Company": "1.0.0",
+          "Nexora.Modules.Identity": "1.0.0",
+          "Nexora.Modules.Workflow": "1.0.0",
+          "Nexora.Shared": "1.0.0"
+        },
+        "compile": {
+          "bin/placeholder/Nexora.Modules.HR.dll": {}
+        },
+        "runtime": {
+          "bin/placeholder/Nexora.Modules.HR.dll": {}
+        },
+        "frameworkReferences": [
+          "Microsoft.AspNetCore.App"
+        ]
+      },
       "Nexora.Modules.Identity/1.0.0": {
         "type": "project",
         "framework": ".NETCoreApp,Version=v10.0",
@@ -546,6 +599,23 @@
         },
         "runtime": {
           "bin/placeholder/Nexora.Modules.Identity.dll": {}
+        },
+        "frameworkReferences": [
+          "Microsoft.AspNetCore.App"
+        ]
+      },
+      "Nexora.Modules.Workflow/1.0.0": {
+        "type": "project",
+        "framework": ".NETCoreApp,Version=v10.0",
+        "dependencies": {
+          "Nexora.Modules.Identity": "1.0.0",
+          "Nexora.Shared": "1.0.0"
+        },
+        "compile": {
+          "bin/placeholder/Nexora.Modules.Workflow.dll": {}
+        },
+        "runtime": {
+          "bin/placeholder/Nexora.Modules.Workflow.dll": {}
         },
         "frameworkReferences": [
           "Microsoft.AspNetCore.App"
@@ -1271,10 +1341,30 @@
         "useSharedDesignerContext.txt"
       ]
     },
+    "Nexora.Modules.Company/1.0.0": {
+      "type": "project",
+      "path": "../Nexora.Modules.Company/Nexora.Modules.Company.csproj",
+      "msbuildProject": "../Nexora.Modules.Company/Nexora.Modules.Company.csproj"
+    },
+    "Nexora.Modules.Finance/1.0.0": {
+      "type": "project",
+      "path": "../Nexora.Modules.Finance/Nexora.Modules.Finance.csproj",
+      "msbuildProject": "../Nexora.Modules.Finance/Nexora.Modules.Finance.csproj"
+    },
+    "Nexora.Modules.HR/1.0.0": {
+      "type": "project",
+      "path": "../Nexora.Modules.HR/Nexora.Modules.HR.csproj",
+      "msbuildProject": "../Nexora.Modules.HR/Nexora.Modules.HR.csproj"
+    },
     "Nexora.Modules.Identity/1.0.0": {
       "type": "project",
       "path": "../Nexora.Modules.Identity/Nexora.Modules.Identity.csproj",
       "msbuildProject": "../Nexora.Modules.Identity/Nexora.Modules.Identity.csproj"
+    },
+    "Nexora.Modules.Workflow/1.0.0": {
+      "type": "project",
+      "path": "../Nexora.Modules.Workflow/Nexora.Modules.Workflow.csproj",
+      "msbuildProject": "../Nexora.Modules.Workflow/Nexora.Modules.Workflow.csproj"
     },
     "Nexora.Shared/1.0.0": {
       "type": "project",
@@ -1284,6 +1374,8 @@
   },
   "projectFileDependencyGroups": {
     "net10.0": [
+      "Nexora.Modules.Finance >= 1.0.0",
+      "Nexora.Modules.HR >= 1.0.0",
       "Nexora.Modules.Identity >= 1.0.0",
       "Nexora.Shared >= 1.0.0"
     ]
@@ -1322,6 +1414,12 @@
           "framework": "net10.0",
           "targetAlias": "net10.0",
           "projectReferences": {
+            "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Modules.Finance\\Nexora.Modules.Finance.csproj": {
+              "projectPath": "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Modules.Finance\\Nexora.Modules.Finance.csproj"
+            },
+            "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Modules.HR\\Nexora.Modules.HR.csproj": {
+              "projectPath": "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Modules.HR\\Nexora.Modules.HR.csproj"
+            },
             "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Modules.Identity\\Nexora.Modules.Identity.csproj": {
               "projectPath": "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Modules.Identity\\Nexora.Modules.Identity.csproj"
             },

@@ -1,7 +1,7 @@
 namespace Nexora.Modules.Finance.Contracts;
 
 public record AccountDto(Guid Id, string Code, string Name, string Type, string Currency, bool IsCashAccount, bool IsActive);
-public record CreateAccountRequest(string Code, string Name, Erp.Domain.Accounting.AccountType Type, bool IsCashAccount, string? Currency);
+public record CreateAccountRequest(string Code, string Name, Nexora.Modules.Finance.Entities.AccountType Type, bool IsCashAccount, string? Currency);
 
 // ExchangeRateToBase: required only when the line's account currency differs from the
 // tenant's base currency and no rate has been configured for that date — otherwise the

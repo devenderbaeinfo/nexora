@@ -1,5 +1,6 @@
 using Nexora.Modules.Identity.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Nexora.Modules.Identity.Seed;
 
@@ -25,7 +26,7 @@ public static class RolePermissionSync
         // Custom, tenant-created roles and any role an Admin has hand-edited are never
         // touched here — only the untouched, out-of-the-box system roles get topped up
         // with newly shipped permissions.
-        var roles = (await db.Roles.IgnoreQueryFilters().ToListAsync())
+        var roles = (await db.Set<AppRole>().IgnoreQueryFilters().ToListAsync())
             .Where(r => KnownRoles.Contains(r.Name!) && !r.IsCustomized)
             .ToList();
 

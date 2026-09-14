@@ -1,5 +1,6 @@
 using Nexora.Modules.Identity.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Nexora.Modules.Identity.Seed;
 
@@ -17,7 +18,7 @@ public static class DefaultDataScopeSync
         using var scope = services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<DbContext>();
 
-        var managerRoles = (await db.Roles.IgnoreQueryFilters().ToListAsync())
+        var managerRoles = (await db.Set<AppRole>().IgnoreQueryFilters().ToListAsync())
             .Where(r => r.Name == RoleTemplates.Manager && r.IsSystemRole)
             .ToList();
 

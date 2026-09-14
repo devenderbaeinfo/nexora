@@ -14,7 +14,7 @@ public static class AssignableRoleResolver
         if (!RoleTemplates.AssignableRolesByCreatorRole.TryGetValue(creatorRole, out var baseRoles)) return [];
         if (creatorRole != RoleTemplates.Admin) return baseRoles;
 
-        var customRoleNames = await db.Roles.IgnoreQueryFilters()
+        var customRoleNames = await db.Set<AppRole>().IgnoreQueryFilters()
             .Where(r => r.TenantId == tenantId && !r.IsSystemRole)
             .Select(r => r.Name!)
             .ToListAsync();
@@ -34,7 +34,7 @@ public static class AssignableRoleResolver
     public static async Task<string[]> AllTaggableRoleNamesAsync(DbContext db, Guid tenantId)
     {
         var baseRoles = RoleTemplates.AssignableRolesByCreatorRole[RoleTemplates.Admin];
-        var customRoleNames = await db.Roles.IgnoreQueryFilters()
+        var customRoleNames = await db.Set<AppRole>().IgnoreQueryFilters()
             .Where(r => r.TenantId == tenantId && !r.IsSystemRole)
             .Select(r => r.Name!)
             .ToListAsync();

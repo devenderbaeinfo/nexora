@@ -3,3 +3,16 @@ C:\Users\Deven\Desktop\erp\nexora\backend\src\Nexora.Modules.Finance\obj\Debug\n
 C:\Users\Deven\Desktop\erp\nexora\backend\src\Nexora.Modules.Finance\obj\Debug\net10.0\Nexora.Modules.Finance.AssemblyInfo.cs
 C:\Users\Deven\Desktop\erp\nexora\backend\src\Nexora.Modules.Finance\obj\Debug\net10.0\Nexora.Modules.Finance.csproj.CoreCompileInputs.cache
 C:\Users\Deven\Desktop\erp\nexora\backend\src\Nexora.Modules.Finance\obj\Debug\net10.0\Nexora.Modules.Finance.sourcelink.json
+C:\Users\Deven\Desktop\erp\nexora\backend\src\Nexora.Modules.Finance\obj\Debug\net10.0\Nexora.Modules.Finance.csproj.AssemblyReference.cache
+C:\Users\Deven\Desktop\erp\nexora\backend\src\Nexora.Modules.Finance\bin\Debug\net10.0\Nexora.Modules.Finance.deps.json
+C:\Users\Deven\Desktop\erp\nexora\backend\src\Nexora.Modules.Finance\bin\Debug\net10.0\Nexora.Modules.Finance.dll
+C:\Users\Deven\Desktop\erp\nexora\backend\src\Nexora.Modules.Finance\bin\Debug\net10.0\Nexora.Modules.Finance.pdb
+C:\Users\Deven\Desktop\erp\nexora\backend\src\Nexora.Modules.Finance\bin\Debug\net10.0\Nexora.Modules.Identity.dll
+C:\Users\Deven\Desktop\erp\nexora\backend\src\Nexora.Modules.Finance\bin\Debug\net10.0\Nexora.Shared.dll
+C:\Users\Deven\Desktop\erp\nexora\backend\src\Nexora.Modules.Finance\bin\Debug\net10.0\Nexora.Shared.pdb
+C:\Users\Deven\Desktop\erp\nexora\backend\src\Nexora.Modules.Finance\bin\Debug\net10.0\Nexora.Modules.Identity.pdb
+C:\Users\Deven\Desktop\erp\nexora\backend\src\Nexora.Modules.Finance\obj\Debug\net10.0\Nexora.M.28981068.Up2Date
+C:\Users\Deven\Desktop\erp\nexora\backend\src\Nexora.Modules.Finance\obj\Debug\net10.0\Nexora.Modules.Finance.dll
+C:\Users\Deven\Desktop\erp\nexora\backend\src\Nexora.Modules.Finance\obj\Debug\net10.0\refint\Nexora.Modules.Finance.dll
+C:\Users\Deven\Desktop\erp\nexora\backend\src\Nexora.Modules.Finance\obj\Debug\net10.0\Nexora.Modules.Finance.pdb
+C:\Users\Deven\Desktop\erp\nexora\backend\src\Nexora.Modules.Finance\obj\Debug\net10.0\ref\Nexora.Modules.Finance.dll

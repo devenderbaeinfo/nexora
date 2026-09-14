@@ -3,3 +3,16 @@ C:\Users\Deven\Desktop\erp\nexora\backend\src\Nexora.Modules.Company\obj\Debug\n
 C:\Users\Deven\Desktop\erp\nexora\backend\src\Nexora.Modules.Company\obj\Debug\net10.0\Nexora.Modules.Company.AssemblyInfo.cs
 C:\Users\Deven\Desktop\erp\nexora\backend\src\Nexora.Modules.Company\obj\Debug\net10.0\Nexora.Modules.Company.csproj.CoreCompileInputs.cache
 C:\Users\Deven\Desktop\erp\nexora\backend\src\Nexora.Modules.Company\obj\Debug\net10.0\Nexora.Modules.Company.sourcelink.json
+C:\Users\Deven\Desktop\erp\nexora\backend\src\Nexora.Modules.Company\obj\Debug\net10.0\Nexora.Modules.Company.csproj.AssemblyReference.cache
+C:\Users\Deven\Desktop\erp\nexora\backend\src\Nexora.Modules.Company\bin\Debug\net10.0\Nexora.Modules.Company.deps.json
+C:\Users\Deven\Desktop\erp\nexora\backend\src\Nexora.Modules.Company\bin\Debug\net10.0\Nexora.Modules.Company.dll
+C:\Users\Deven\Desktop\erp\nexora\backend\src\Nexora.Modules.Company\bin\Debug\net10.0\Nexora.Modules.Company.pdb
+C:\Users\Deven\Desktop\erp\nexora\backend\src\Nexora.Modules.Company\bin\Debug\net10.0\Nexora.Modules.Identity.dll
+C:\Users\Deven\Desktop\erp\nexora\backend\src\Nexora.Modules.Company\bin\Debug\net10.0\Nexora.Shared.dll
+C:\Users\Deven\Desktop\erp\nexora\backend\src\Nexora.Modules.Company\bin\Debug\net10.0\Nexora.Shared.pdb
+C:\Users\Deven\Desktop\erp\nexora\backend\src\Nexora.Modules.Company\bin\Debug\net10.0\Nexora.Modules.Identity.pdb
+C:\Users\Deven\Desktop\erp\nexora\backend\src\Nexora.Modules.Company\obj\Debug\net10.0\Nexora.M.8DD6E8D0.Up2Date
+C:\Users\Deven\Desktop\erp\nexora\backend\src\Nexora.Modules.Company\obj\Debug\net10.0\Nexora.Modules.Company.dll
+C:\Users\Deven\Desktop\erp\nexora\backend\src\Nexora.Modules.Company\obj\Debug\net10.0\refint\Nexora.Modules.Company.dll
+C:\Users\Deven\Desktop\erp\nexora\backend\src\Nexora.Modules.Company\obj\Debug\net10.0\Nexora.Modules.Company.pdb
+C:\Users\Deven\Desktop\erp\nexora\backend\src\Nexora.Modules.Company\obj\Debug\net10.0\ref\Nexora.Modules.Company.dll

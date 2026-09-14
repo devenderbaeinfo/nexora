@@ -51,7 +51,7 @@ public static class RoleTemplates
             Permission.EmployeeDocs.View, Permission.EmployeeDocs.Manage,
             Permission.Attendance.ClockInOut, Permission.Attendance.ViewAll, Permission.Attendance.Correct,
             Permission.Fnf.View, Permission.Fnf.Manage,
-            Permission.Set<Announcement>().Manage,
+            Permission.Announcements.Manage,
             Permission.Payroll.View, Permission.Payroll.Manage,
         ],
 

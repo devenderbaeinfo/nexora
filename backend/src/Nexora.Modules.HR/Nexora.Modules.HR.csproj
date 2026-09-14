@@ -13,6 +13,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Nexora.Shared\Nexora.Shared.csproj" />
     <ProjectReference Include="..\Nexora.Modules.Identity\Nexora.Modules.Identity.csproj" />
+    <ProjectReference Include="..\Nexora.Modules.Workflow\Nexora.Modules.Workflow.csproj" />
     <ProjectReference Include="..\Nexora.Modules.Company\Nexora.Modules.Company.csproj" />
   </ItemGroup>
 

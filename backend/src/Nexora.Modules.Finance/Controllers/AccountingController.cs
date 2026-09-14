@@ -4,7 +4,7 @@ using Nexora.Modules.Finance.Contracts;
 using Nexora.Modules.Finance.Entities;
 using Nexora.Modules.Identity.Authorization;
 using Nexora.Modules.Identity.Entities;
-using Nexora.Shared.Authorization;
+using Nexora.Shared.Tenancy;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -30,10 +30,12 @@ public class AccountingController : ControllerBase
 {
     private readonly DbContext _db;
     private readonly IDataScopeService _scope;
-    public AccountingController(DbContext db, IDataScopeService scope)
+    private readonly IEmployeeDirectory _employees;
+    public AccountingController(DbContext db, IDataScopeService scope, IEmployeeDirectory employees)
     {
         _db = db;
         _scope = scope;
+        _employees = employees;
     }
 
     private Guid CurrentUserId => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub")!);
@@ -374,11 +376,12 @@ public class AccountingController : ControllerBase
         var entryIds = entries.Select(e => e.Id).ToList();
         var lines = await _db.Set<JournalLine>().Where(l => entryIds.Contains(l.JournalEntryId)).ToListAsync();
         var accounts = await _db.Set<Account>().ToDictionaryAsync(a => a.Id, a => a);
-        var users = await _db.Set<Employee>().ToDictionaryAsync(e => e.Id, e => $"{e.FirstName} {e.LastName}");
-        var userEmployeeIds = await _db.Users.ToDictionaryAsync(u => u.Id, u => u.EmployeeId);
+        var userEmployeeIds = await _db.Set<AppUser>().ToDictionaryAsync(u => u.Id, u => u.EmployeeId);
+        var employeeIds = userEmployeeIds.Values.Where(id => id is not null).Select(id => id!.Value);
+        var names = await _employees.GetDisplayNamesAsync(employeeIds);
 
         string PostedByName(Guid userId) =>
-            userEmployeeIds.TryGetValue(userId, out var empId) && empId is { } eid && users.TryGetValue(eid, out var name) ? name : "—";
+            userEmployeeIds.TryGetValue(userId, out var empId) && empId is { } eid && names.TryGetValue(eid, out var name) ? name : "—";
 
         return entries.Select(e => new JournalEntryDto(
             e.Id, e.EntryDate, e.Memo, PostedByName(e.PostedByUserId),

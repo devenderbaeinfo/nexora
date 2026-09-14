@@ -3,7 +3,9 @@ using Nexora.Shared.Authorization;
 using Nexora.Modules.Identity.Contracts;
 using Nexora.Shared.Common;
 using Nexora.Modules.Identity.Entities;
+using Nexora.Modules.Identity.Services;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -20,7 +22,12 @@ namespace Nexora.Modules.Identity.Controllers;
 public class RolesController : ControllerBase
 {
     private readonly DbContext _db;
-    public RolesController(DbContext db) => _db = db;
+    private readonly IRoleUsageChecker _roleUsage;
+    public RolesController(DbContext db, IRoleUsageChecker roleUsage)
+    {
+        _db = db;
+        _roleUsage = roleUsage;
+    }
 
     private Guid CurrentUserId => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub")!);
     private Guid TenantId => Guid.Parse(User.FindFirstValue("tenant_id")!);
@@ -36,16 +43,13 @@ public class RolesController : ControllerBase
     [RequirePermission(Permission.Admin.ManageRoles)]
     public async Task<ActionResult<List<RoleDto>>> List()
     {
-        var roles = await _db.Roles.IgnoreQueryFilters().Where(r => r.TenantId == TenantId)
+        var roles = await _db.Set<AppRole>().IgnoreQueryFilters().Where(r => r.TenantId == TenantId)
             .OrderByDescending(r => r.IsSystemRole).ThenBy(r => r.Name).ToListAsync();
         var permissionsByRole = await _db.Set<RolePermission>()
             .GroupBy(rp => rp.RoleId)
             .Select(g => new { RoleId = g.Key, Keys = g.Select(rp => rp.PermissionKey).ToList() })
             .ToDictionaryAsync(x => x.RoleId, x => x.Keys);
-        var jobTitleCounts = await _db.Set<JobTitle>()
-            .GroupBy(j => j.SystemRole)
-            .Select(g => new { Role = g.Key, Count = g.Count() })
-            .ToDictionaryAsync(x => x.Role, x => x.Count);
+        var jobTitleCounts = await _roleUsage.CountByRoleNameAsync();
 
         return Ok(roles.Select(r => new RoleDto(
             r.Id, r.Name!, r.IsSystemRole, r.IsCustomized,
@@ -64,7 +68,7 @@ public class RolesController : ControllerBase
         if (name.Length > 100) return BadRequest("Name can't be longer than 100 characters.");
 
         var normalized = name.ToUpperInvariant();
-        var exists = await _db.Roles.IgnoreQueryFilters()
+        var exists = await _db.Set<AppRole>().IgnoreQueryFilters()
             .AnyAsync(r => r.TenantId == TenantId && r.NormalizedName == normalized);
         if (exists) return Conflict("A role with this name already exists.");
 
@@ -72,7 +76,7 @@ public class RolesController : ControllerBase
         if (invalid.Count > 0) return BadRequest($"Unknown permission key(s): {string.Join(", ", invalid)}.");
 
         var role = new AppRole { TenantId = TenantId, Name = name, NormalizedName = normalized, IsSystemRole = false, IsCustomized = true };
-        _db.Roles.Add(role);
+        _db.Set<AppRole>().Add(role);
         foreach (var key in request.Permissions.Distinct())
         {
             _db.Set<RolePermission>().Add(new RolePermission { RoleId = role.Id, PermissionKey = key });
@@ -95,7 +99,7 @@ public class RolesController : ControllerBase
     [RequirePermission(Permission.Admin.ManageRoles)]
     public async Task<IActionResult> UpdatePermissions(Guid id, UpdateRolePermissionsRequest request)
     {
-        var role = await _db.Roles.IgnoreQueryFilters().FirstOrDefaultAsync(r => r.Id == id && r.TenantId == TenantId);
+        var role = await _db.Set<AppRole>().IgnoreQueryFilters().FirstOrDefaultAsync(r => r.Id == id && r.TenantId == TenantId);
         if (role is null) return NotFound();
 
         var invalid = request.Permissions.Where(p => !ValidPermissionKeys.Contains(p)).ToList();
@@ -131,19 +135,19 @@ public class RolesController : ControllerBase
     [RequirePermission(Permission.Admin.ManageRoles)]
     public async Task<IActionResult> Delete(Guid id)
     {
-        var role = await _db.Roles.IgnoreQueryFilters().FirstOrDefaultAsync(r => r.Id == id && r.TenantId == TenantId);
+        var role = await _db.Set<AppRole>().IgnoreQueryFilters().FirstOrDefaultAsync(r => r.Id == id && r.TenantId == TenantId);
         if (role is null) return NotFound();
         if (role.IsSystemRole) return BadRequest("System roles can't be deleted.");
 
-        var inUseByJobTitle = await _db.Set<JobTitle>().AnyAsync(j => j.SystemRole == role.Name);
+        var inUseByJobTitle = await _roleUsage.IsRoleInUseAsync(role.Name!);
         if (inUseByJobTitle) return Conflict("This role is still mapped to one or more job titles.");
 
-        var inUseByUser = await _db.UserRoles.AnyAsync(ur => ur.RoleId == id);
+        var inUseByUser = await _db.Set<IdentityUserRole<Guid>>().AnyAsync(ur => ur.RoleId == id);
         if (inUseByUser) return Conflict("This role is still assigned to one or more users.");
 
         var permissions = await _db.Set<RolePermission>().Where(rp => rp.RoleId == id).ToListAsync();
         _db.Set<RolePermission>().RemoveRange(permissions);
-        _db.Roles.Remove(role);
+        _db.Set<AppRole>().Remove(role);
 
         _db.Set<AuditLog>().Add(new AuditLog
         {
@@ -171,7 +175,7 @@ public class RolesController : ControllerBase
     [RequirePermission(Permission.Admin.ManageRoles)]
     public async Task<ActionResult<List<RoleScopeDto>>> Scopes(Guid id)
     {
-        var roleExists = await _db.Roles.IgnoreQueryFilters().AnyAsync(r => r.Id == id && r.TenantId == TenantId);
+        var roleExists = await _db.Set<AppRole>().IgnoreQueryFilters().AnyAsync(r => r.Id == id && r.TenantId == TenantId);
         if (!roleExists) return NotFound();
 
         var scopes = await _db.Set<PermissionScope>().Where(s => s.RoleId == id).ToListAsync();
@@ -192,7 +196,7 @@ public class RolesController : ControllerBase
     [RequirePermission(Permission.Admin.ManageRoles)]
     public async Task<IActionResult> UpdateScope(Guid id, string permissionKey, UpdateRoleScopeRequest request)
     {
-        var roleExists = await _db.Roles.IgnoreQueryFilters().AnyAsync(r => r.Id == id && r.TenantId == TenantId);
+        var roleExists = await _db.Set<AppRole>().IgnoreQueryFilters().AnyAsync(r => r.Id == id && r.TenantId == TenantId);
         if (!roleExists) return NotFound();
         if (!DataScopeCatalog.ScopablePermissions.Contains(permissionKey)) return BadRequest("This permission can't be data-scoped.");
         if (!Enum.TryParse<DataScopeType>(request.ScopeType, out var scopeType)) return BadRequest("Unknown scope type.");
@@ -253,7 +257,7 @@ public class RolesController : ControllerBase
     [RequirePermission(Permission.Admin.ManageRoles)]
     public async Task<ActionResult<List<RoleFieldPermissionDto>>> FieldPermissions(Guid id)
     {
-        var roleExists = await _db.Roles.IgnoreQueryFilters().AnyAsync(r => r.Id == id && r.TenantId == TenantId);
+        var roleExists = await _db.Set<AppRole>().IgnoreQueryFilters().AnyAsync(r => r.Id == id && r.TenantId == TenantId);
         if (!roleExists) return NotFound();
 
         var fields = await _db.Set<RoleFieldPermission>().Where(f => f.RoleId == id).ToListAsync();
@@ -266,7 +270,7 @@ public class RolesController : ControllerBase
     [RequirePermission(Permission.Admin.ManageRoles)]
     public async Task<IActionResult> UpdateFieldPermissions(Guid id, UpdateRoleFieldPermissionsRequest request)
     {
-        var roleExists = await _db.Roles.IgnoreQueryFilters().AnyAsync(r => r.Id == id && r.TenantId == TenantId);
+        var roleExists = await _db.Set<AppRole>().IgnoreQueryFilters().AnyAsync(r => r.Id == id && r.TenantId == TenantId);
         if (!roleExists) return NotFound();
         if (!FieldPermissionCatalog.FieldsByResource.TryGetValue(request.Resource, out var validFields))
             return BadRequest("Unknown resource.");

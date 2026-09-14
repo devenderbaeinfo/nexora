@@ -16,12 +16,12 @@ public static class TenantRoleStore
     public static async Task<AppRole> EnsureRoleAsync(DbContext db, Guid tenantId, string roleName)
     {
         var normalized = roleName.ToUpperInvariant();
-        var existing = await db.Roles.IgnoreQueryFilters()
+        var existing = await db.Set<AppRole>().IgnoreQueryFilters()
             .FirstOrDefaultAsync(r => r.TenantId == tenantId && r.NormalizedName == normalized);
         if (existing is not null) return existing;
 
         var role = new AppRole { TenantId = tenantId, Name = roleName, NormalizedName = normalized, IsSystemRole = true };
-        db.Roles.Add(role);
+        db.Set<AppRole>().Add(role);
         await db.SaveChangesAsync();
         return role;
     }
@@ -30,7 +30,7 @@ public static class TenantRoleStore
     {
         var role = await EnsureRoleAsync(db, tenantId, roleName);
 
-        var alreadyAssigned = await db.UserRoles.AnyAsync(ur => ur.UserId == userId && ur.RoleId == role.Id);
+        var alreadyAssigned = await db.Set<IdentityUserRole<Guid>>().AnyAsync(ur => ur.UserId == userId && ur.RoleId == role.Id);
         if (alreadyAssigned) return;
 
         // EF's relationship-fixup pass on .Add() can get confused for a composite-key join

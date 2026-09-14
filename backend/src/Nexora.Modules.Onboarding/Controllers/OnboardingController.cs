@@ -4,6 +4,7 @@ using Nexora.Modules.Onboarding.Contracts;
 using Nexora.Shared.Common;
 using Nexora.Modules.Identity.Entities;
 using Nexora.Modules.Onboarding.Entities;
+using Nexora.Modules.HR.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;

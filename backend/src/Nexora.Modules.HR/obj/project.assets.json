@@ -568,6 +568,23 @@
           "Microsoft.AspNetCore.App"
         ]
       },
+      "Nexora.Modules.Workflow/1.0.0": {
+        "type": "project",
+        "framework": ".NETCoreApp,Version=v10.0",
+        "dependencies": {
+          "Nexora.Modules.Identity": "1.0.0",
+          "Nexora.Shared": "1.0.0"
+        },
+        "compile": {
+          "bin/placeholder/Nexora.Modules.Workflow.dll": {}
+        },
+        "runtime": {
+          "bin/placeholder/Nexora.Modules.Workflow.dll": {}
+        },
+        "frameworkReferences": [
+          "Microsoft.AspNetCore.App"
+        ]
+      },
       "Nexora.Shared/1.0.0": {
         "type": "project",
         "framework": ".NETCoreApp,Version=v10.0",
@@ -1298,6 +1315,11 @@
       "path": "../Nexora.Modules.Identity/Nexora.Modules.Identity.csproj",
       "msbuildProject": "../Nexora.Modules.Identity/Nexora.Modules.Identity.csproj"
     },
+    "Nexora.Modules.Workflow/1.0.0": {
+      "type": "project",
+      "path": "../Nexora.Modules.Workflow/Nexora.Modules.Workflow.csproj",
+      "msbuildProject": "../Nexora.Modules.Workflow/Nexora.Modules.Workflow.csproj"
+    },
     "Nexora.Shared/1.0.0": {
       "type": "project",
       "path": "../Nexora.Shared/Nexora.Shared.csproj",
@@ -1308,6 +1330,7 @@
     "net10.0": [
       "Nexora.Modules.Company >= 1.0.0",
       "Nexora.Modules.Identity >= 1.0.0",
+      "Nexora.Modules.Workflow >= 1.0.0",
       "Nexora.Shared >= 1.0.0"
     ]
   },
@@ -1350,6 +1373,9 @@
             },
             "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Modules.Identity\\Nexora.Modules.Identity.csproj": {
               "projectPath": "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Modules.Identity\\Nexora.Modules.Identity.csproj"
+            },
+            "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Modules.Workflow\\Nexora.Modules.Workflow.csproj": {
+              "projectPath": "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Modules.Workflow\\Nexora.Modules.Workflow.csproj"
             },
             "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Shared\\Nexora.Shared.csproj": {
               "projectPath": "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Shared\\Nexora.Shared.csproj"

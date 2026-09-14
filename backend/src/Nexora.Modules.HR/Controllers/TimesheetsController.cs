@@ -20,7 +20,12 @@ namespace Nexora.Modules.HR.Controllers;
 public class TimesheetsController : ControllerBase
 {
     private readonly DbContext _db;
-    public TimesheetsController(DbContext db) => _db = db;
+    private readonly IProjectDirectory _projects;
+    public TimesheetsController(DbContext db, IProjectDirectory projects)
+    {
+        _db = db;
+        _projects = projects;
+    }
 
     private Guid? CurrentEmployeeId =>
         Guid.TryParse(User.FindFirstValue("employee_id"), out var id) ? id : null;
@@ -62,7 +67,7 @@ public class TimesheetsController : ControllerBase
 
         if (request.Hours <= 0 || request.Hours > 24) return BadRequest("Hours must be between 0 and 24.");
 
-        var projectExists = await _db.Set<ProjectEntity>().AnyAsync(p => p.Id == request.ProjectId);
+        var projectExists = await _projects.ExistsAsync(request.ProjectId);
         if (!projectExists) return BadRequest("Unknown project.");
 
         var entry = new TimesheetEntry
@@ -110,7 +115,7 @@ public class TimesheetsController : ControllerBase
     {
         var entries = await query.OrderByDescending(t => t.WorkDate).ToListAsync();
         var employees = await _db.Set<Employee>().ToDictionaryAsync(e => e.Id, e => $"{e.FirstName} {e.LastName}");
-        var projects = await _db.Set<ProjectEntity>().ToDictionaryAsync(p => p.Id, p => p.Name);
+        var projects = await _projects.GetNamesAsync(entries.Select(t => t.ProjectId));
 
         return entries.Select(t => new TimesheetEntryDto(
             t.Id,

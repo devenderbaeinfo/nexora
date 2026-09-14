@@ -19,20 +19,25 @@ public record SetFallbackApproverRequest(Guid? FallbackApproverEmployeeId);
 public class ApprovalSettingsController : ControllerBase
 {
     private readonly DbContext _db;
-    public ApprovalSettingsController(DbContext db) => _db = db;
+    private readonly IEmployeeDirectory _employees;
+    public ApprovalSettingsController(DbContext db, IEmployeeDirectory employees)
+    {
+        _db = db;
+        _employees = employees;
+    }
 
     [HttpGet]
     [RequirePermission(Permission.Admin.ManageOrgStructure)]
     public async Task<ActionResult<ApprovalSettingsDto>> Get()
     {
         var settings = await _db.Set<TenantApprovalSettings>().FirstOrDefaultAsync();
-        var approver = settings?.FallbackApproverEmployeeId is { } id
-            ? await _db.Set<Employee>().FirstOrDefaultAsync(e => e.Id == id)
+        var approverName = settings?.FallbackApproverEmployeeId is { } id
+            ? await _employees.GetDisplayNameAsync(id)
             : null;
 
         return Ok(new ApprovalSettingsDto(
             settings?.FallbackApproverEmployeeId,
-            approver is null ? null : $"{approver.FirstName} {approver.LastName}"));
+            approverName));
     }
 
     [HttpPut]
@@ -41,7 +46,7 @@ public class ApprovalSettingsController : ControllerBase
     {
         if (request.FallbackApproverEmployeeId is { } employeeId)
         {
-            var exists = await _db.Set<Employee>().AnyAsync(e => e.Id == employeeId);
+            var exists = await _employees.ExistsAsync(employeeId);
             if (!exists) return BadRequest("Unknown employee.");
         }
 

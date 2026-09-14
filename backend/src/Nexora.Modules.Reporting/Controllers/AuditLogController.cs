@@ -1,5 +1,7 @@
 using Nexora.Shared.Authorization;
+using Nexora.Shared.Common;
 using Nexora.Modules.Identity.Entities;
+using Nexora.Modules.HR.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -30,8 +32,8 @@ public class AuditLogController : ControllerBase
         var rows = await query.Take(Math.Clamp(take, 1, 500)).ToListAsync();
 
         var actorIds = rows.Where(r => r.ActorUserId is not null).Select(r => r.ActorUserId!.Value).Distinct().ToList();
-        var users = await _db.Users.Where(u => actorIds.Contains(u.Id)).ToDictionaryAsync(u => u.Id, u => u.Id);
-        var employeeIdByUserId = await _db.Users.Where(u => actorIds.Contains(u.Id)).ToDictionaryAsync(u => u.Id, u => u.EmployeeId);
+        var users = await _db.Set<AppUser>().Where(u => actorIds.Contains(u.Id)).ToDictionaryAsync(u => u.Id, u => u.Id);
+        var employeeIdByUserId = await _db.Set<AppUser>().Where(u => actorIds.Contains(u.Id)).ToDictionaryAsync(u => u.Id, u => u.EmployeeId);
         var employeeNames = await _db.Set<Employee>()
             .Where(e => employeeIdByUserId.Values.Contains(e.Id))
             .ToDictionaryAsync(e => e.Id, e => $"{e.FirstName} {e.LastName}");

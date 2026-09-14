@@ -13,7 +13,7 @@ public record ProjectDetailDto(
     Guid Id, string Name, Guid CustomerId, string CustomerName, Guid ProjectManagerId, string ProjectManagerName,
     string Status, DateOnly StartDate, DateOnly? EndDate, decimal? BudgetAmount);
 
-public record UpdateProjectScheduleRequest(DateOnly StartDate, DateOnly? EndDate, Erp.Domain.Project.ProjectStatus Status);
+public record UpdateProjectScheduleRequest(DateOnly StartDate, DateOnly? EndDate, Nexora.Modules.Projects.Entities.ProjectStatus Status);
 
 public record ProjectMemberDto(Guid Id, Guid EmployeeId, string EmployeeName, string RoleOnProject, decimal CostRate, decimal BillingRate);
 public record AddProjectMemberRequest(Guid EmployeeId, string RoleOnProject, decimal CostRate = 0, decimal BillingRate = 0);
@@ -31,9 +31,9 @@ public record ProjectTaskDto(
 
 public record CreateProjectTaskRequest(string Title, string? Description, Guid? AssignedToEmployeeId, DateOnly? DueDate);
 
-public record UpdateProjectTaskRequest(Erp.Domain.Project.ProjectTaskStatus Status, Guid? AssignedToEmployeeId, DateOnly? DueDate);
+public record UpdateProjectTaskRequest(Nexora.Modules.Projects.Entities.ProjectTaskStatus Status, Guid? AssignedToEmployeeId, DateOnly? DueDate);
 
-public record UpdateTaskStatusRequest(Erp.Domain.Project.ProjectTaskStatus Status);
+public record UpdateTaskStatusRequest(Nexora.Modules.Projects.Entities.ProjectTaskStatus Status);
 
 public record SubmitProjectExpenseRequest(Guid ProjectId, decimal Amount, string Category, string? Description, DateOnly IncurredOn, bool IsBillable);
 public record ProjectExpenseDto(
@@ -43,7 +43,7 @@ public record DecideProjectExpenseRequest(bool Approve, string? Note);
 
 public record ProjectMilestoneDto(Guid Id, Guid ProjectId, string Name, DateOnly? DueDate, string Status);
 public record CreateProjectMilestoneRequest(string Name, DateOnly? DueDate);
-public record UpdateProjectMilestoneRequest(string Name, DateOnly? DueDate, Erp.Domain.Project.ProjectMilestoneStatus Status);
+public record UpdateProjectMilestoneRequest(string Name, DateOnly? DueDate, Nexora.Modules.Projects.Entities.ProjectMilestoneStatus Status);
 
 public record ProjectFinancialsMonthDto(string Label, decimal Revenue, decimal Cost);
 public record ProjectFinancialsDto(
