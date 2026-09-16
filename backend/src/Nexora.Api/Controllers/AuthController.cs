@@ -113,6 +113,39 @@ public class AuthController : ControllerBase
         return Ok(new LoginResponse(token, expires, displayName, effectiveRole ?? "", permissions.ToArray(), mustChangePassword, tenant.BaseCurrencyCode));
     }
 
+    // No self-service reset exists (no email infrastructure) — this only flags the account
+    // so whoever manages it (UsersController.List) sees a highlighted "Reset password"
+    // action. Always returns the same generic response regardless of whether the email
+    // matched anything, same enumeration-safety reasoning as Login above.
+    [HttpPost("forgot-password")]
+    [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("login")]
+    public async Task<IActionResult> ForgotPassword(ForgotPasswordRequest request)
+    {
+        var normalizedEmail = request.Email.Trim().ToUpperInvariant();
+        var user = await _userManager.Users
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(u => u.NormalizedEmail == normalizedEmail);
+
+        if (user is not null && user.IsActive)
+        {
+            user.PasswordResetRequestedAtUtc = DateTimeOffset.UtcNow;
+            await _userManager.UpdateAsync(user);
+
+            _db.AuditLogs.Add(new Nexora.Shared.Common.AuditLog
+            {
+                TenantId = user.TenantId,
+                ActorUserId = user.Id,
+                Action = "auth.password_reset_requested",
+                EntityType = "AppUser",
+                EntityId = user.Id,
+                IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
+            });
+            await _db.SaveChangesAsync();
+        }
+
+        return Ok();
+    }
+
     [HttpPost("change-password")]
     [Microsoft.AspNetCore.Authorization.Authorize]
     public async Task<IActionResult> ChangePassword(ChangePasswordRequest request)

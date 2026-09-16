@@ -7,7 +7,7 @@ function generateTempPassword() {
   return Array.from({ length: 16 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
 }
 
-export default function ResetPasswordAction({ userId, label }: { userId: string; label: string }) {
+export default function ResetPasswordAction({ userId, label, requested }: { userId: string; label: string; requested?: boolean }) {
   const [tempPassword, setTempPassword] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -33,7 +33,12 @@ export default function ResetPasswordAction({ userId, label }: { userId: string;
 
   return (
     <div>
-      <button style={styles.button} onClick={onClick} disabled={mutation.isPending}>
+      {requested && (
+        <div style={{ color: "var(--danger)", fontSize: 11.5, fontWeight: 700, marginBottom: 4 }}>
+          Requested a password reset
+        </div>
+      )}
+      <button style={requested ? styles.buttonRequested : styles.button} onClick={onClick} disabled={mutation.isPending}>
         {mutation.isPending ? "Resetting…" : "Reset password"}
       </button>
       {error && <div style={{ color: "var(--danger)", fontSize: 12, marginTop: 6 }}>{error}</div>}
@@ -45,6 +50,13 @@ const styles: Record<string, React.CSSProperties> = {
   button: {
     background: "none", border: "1px solid var(--border)", color: "var(--muted)",
     fontSize: 12.5, fontWeight: 600, padding: "6px 12px", borderRadius: "var(--radius)", cursor: "pointer",
+  },
+  // The account flagged itself via the public "forgot password" form — this is the one
+  // signal an admin/HR gets that someone is actually waiting on them, so it reads as
+  // urgent (solid red) rather than the same quiet outline every other row gets.
+  buttonRequested: {
+    background: "var(--danger)", border: "1px solid var(--danger)", color: "white",
+    fontSize: 12.5, fontWeight: 700, padding: "6px 12px", borderRadius: "var(--radius)", cursor: "pointer",
   },
   result: {
     background: "var(--accent-soft)", border: "1px solid var(--accent)", borderRadius: "var(--radius)",

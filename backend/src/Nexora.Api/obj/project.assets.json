@@ -1181,6 +1181,23 @@
           "Microsoft.AspNetCore.App"
         ]
       },
+      "Nexora.Modules.Crm/1.0.0": {
+        "type": "project",
+        "framework": ".NETCoreApp,Version=v10.0",
+        "dependencies": {
+          "Nexora.Modules.Identity": "1.0.0",
+          "Nexora.Shared": "1.0.0"
+        },
+        "compile": {
+          "bin/placeholder/Nexora.Modules.Crm.dll": {}
+        },
+        "runtime": {
+          "bin/placeholder/Nexora.Modules.Crm.dll": {}
+        },
+        "frameworkReferences": [
+          "Microsoft.AspNetCore.App"
+        ]
+      },
       "Nexora.Modules.Finance/1.0.0": {
         "type": "project",
         "framework": ".NETCoreApp,Version=v10.0",
@@ -1228,6 +1245,23 @@
         },
         "runtime": {
           "bin/placeholder/Nexora.Modules.Identity.dll": {}
+        },
+        "frameworkReferences": [
+          "Microsoft.AspNetCore.App"
+        ]
+      },
+      "Nexora.Modules.Inventory/1.0.0": {
+        "type": "project",
+        "framework": ".NETCoreApp,Version=v10.0",
+        "dependencies": {
+          "Nexora.Modules.Identity": "1.0.0",
+          "Nexora.Shared": "1.0.0"
+        },
+        "compile": {
+          "bin/placeholder/Nexora.Modules.Inventory.dll": {}
+        },
+        "runtime": {
+          "bin/placeholder/Nexora.Modules.Inventory.dll": {}
         },
         "frameworkReferences": [
           "Microsoft.AspNetCore.App"
@@ -1309,6 +1343,23 @@
           "Microsoft.AspNetCore.App"
         ]
       },
+      "Nexora.Modules.Procurement/1.0.0": {
+        "type": "project",
+        "framework": ".NETCoreApp,Version=v10.0",
+        "dependencies": {
+          "Nexora.Modules.Identity": "1.0.0",
+          "Nexora.Shared": "1.0.0"
+        },
+        "compile": {
+          "bin/placeholder/Nexora.Modules.Procurement.dll": {}
+        },
+        "runtime": {
+          "bin/placeholder/Nexora.Modules.Procurement.dll": {}
+        },
+        "frameworkReferences": [
+          "Microsoft.AspNetCore.App"
+        ]
+      },
       "Nexora.Modules.Projects/1.0.0": {
         "type": "project",
         "framework": ".NETCoreApp,Version=v10.0",
@@ -1344,6 +1395,23 @@
         },
         "runtime": {
           "bin/placeholder/Nexora.Modules.Reporting.dll": {}
+        },
+        "frameworkReferences": [
+          "Microsoft.AspNetCore.App"
+        ]
+      },
+      "Nexora.Modules.Sales/1.0.0": {
+        "type": "project",
+        "framework": ".NETCoreApp,Version=v10.0",
+        "dependencies": {
+          "Nexora.Modules.Identity": "1.0.0",
+          "Nexora.Shared": "1.0.0"
+        },
+        "compile": {
+          "bin/placeholder/Nexora.Modules.Sales.dll": {}
+        },
+        "runtime": {
+          "bin/placeholder/Nexora.Modules.Sales.dll": {}
         },
         "frameworkReferences": [
           "Microsoft.AspNetCore.App"
@@ -3418,6 +3486,11 @@
       "path": "../Nexora.Modules.Company/Nexora.Modules.Company.csproj",
       "msbuildProject": "../Nexora.Modules.Company/Nexora.Modules.Company.csproj"
     },
+    "Nexora.Modules.Crm/1.0.0": {
+      "type": "project",
+      "path": "../Nexora.Modules.Crm/Nexora.Modules.Crm.csproj",
+      "msbuildProject": "../Nexora.Modules.Crm/Nexora.Modules.Crm.csproj"
+    },
     "Nexora.Modules.Finance/1.0.0": {
       "type": "project",
       "path": "../Nexora.Modules.Finance/Nexora.Modules.Finance.csproj",
@@ -3432,6 +3505,11 @@
       "type": "project",
       "path": "../Nexora.Modules.Identity/Nexora.Modules.Identity.csproj",
       "msbuildProject": "../Nexora.Modules.Identity/Nexora.Modules.Identity.csproj"
+    },
+    "Nexora.Modules.Inventory/1.0.0": {
+      "type": "project",
+      "path": "../Nexora.Modules.Inventory/Nexora.Modules.Inventory.csproj",
+      "msbuildProject": "../Nexora.Modules.Inventory/Nexora.Modules.Inventory.csproj"
     },
     "Nexora.Modules.Notifications/1.0.0": {
       "type": "project",
@@ -3453,6 +3531,11 @@
       "path": "../Nexora.Modules.Platform/Nexora.Modules.Platform.csproj",
       "msbuildProject": "../Nexora.Modules.Platform/Nexora.Modules.Platform.csproj"
     },
+    "Nexora.Modules.Procurement/1.0.0": {
+      "type": "project",
+      "path": "../Nexora.Modules.Procurement/Nexora.Modules.Procurement.csproj",
+      "msbuildProject": "../Nexora.Modules.Procurement/Nexora.Modules.Procurement.csproj"
+    },
     "Nexora.Modules.Projects/1.0.0": {
       "type": "project",
       "path": "../Nexora.Modules.Projects/Nexora.Modules.Projects.csproj",
@@ -3462,6 +3545,11 @@
       "type": "project",
       "path": "../Nexora.Modules.Reporting/Nexora.Modules.Reporting.csproj",
       "msbuildProject": "../Nexora.Modules.Reporting/Nexora.Modules.Reporting.csproj"
+    },
+    "Nexora.Modules.Sales/1.0.0": {
+      "type": "project",
+      "path": "../Nexora.Modules.Sales/Nexora.Modules.Sales.csproj",
+      "msbuildProject": "../Nexora.Modules.Sales/Nexora.Modules.Sales.csproj"
     },
     "Nexora.Modules.Workflow/1.0.0": {
       "type": "project",
@@ -3484,15 +3572,19 @@
       "Microsoft.EntityFrameworkCore.Design >= 9.0.1",
       "Microsoft.EntityFrameworkCore.SqlServer >= 9.0.1",
       "Nexora.Modules.Company >= 1.0.0",
+      "Nexora.Modules.Crm >= 1.0.0",
       "Nexora.Modules.Finance >= 1.0.0",
       "Nexora.Modules.HR >= 1.0.0",
       "Nexora.Modules.Identity >= 1.0.0",
+      "Nexora.Modules.Inventory >= 1.0.0",
       "Nexora.Modules.Notifications >= 1.0.0",
       "Nexora.Modules.Onboarding >= 1.0.0",
       "Nexora.Modules.Payroll >= 1.0.0",
       "Nexora.Modules.Platform >= 1.0.0",
+      "Nexora.Modules.Procurement >= 1.0.0",
       "Nexora.Modules.Projects >= 1.0.0",
       "Nexora.Modules.Reporting >= 1.0.0",
+      "Nexora.Modules.Sales >= 1.0.0",
       "Nexora.Modules.Workflow >= 1.0.0",
       "Nexora.Shared >= 1.0.0"
     ]
@@ -3534,6 +3626,9 @@
             "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Modules.Company\\Nexora.Modules.Company.csproj": {
               "projectPath": "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Modules.Company\\Nexora.Modules.Company.csproj"
             },
+            "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Modules.Crm\\Nexora.Modules.Crm.csproj": {
+              "projectPath": "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Modules.Crm\\Nexora.Modules.Crm.csproj"
+            },
             "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Modules.Finance\\Nexora.Modules.Finance.csproj": {
               "projectPath": "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Modules.Finance\\Nexora.Modules.Finance.csproj"
             },
@@ -3542,6 +3637,9 @@
             },
             "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Modules.Identity\\Nexora.Modules.Identity.csproj": {
               "projectPath": "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Modules.Identity\\Nexora.Modules.Identity.csproj"
+            },
+            "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Modules.Inventory\\Nexora.Modules.Inventory.csproj": {
+              "projectPath": "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Modules.Inventory\\Nexora.Modules.Inventory.csproj"
             },
             "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Modules.Notifications\\Nexora.Modules.Notifications.csproj": {
               "projectPath": "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Modules.Notifications\\Nexora.Modules.Notifications.csproj"
@@ -3555,11 +3653,17 @@
             "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Modules.Platform\\Nexora.Modules.Platform.csproj": {
               "projectPath": "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Modules.Platform\\Nexora.Modules.Platform.csproj"
             },
+            "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Modules.Procurement\\Nexora.Modules.Procurement.csproj": {
+              "projectPath": "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Modules.Procurement\\Nexora.Modules.Procurement.csproj"
+            },
             "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Modules.Projects\\Nexora.Modules.Projects.csproj": {
               "projectPath": "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Modules.Projects\\Nexora.Modules.Projects.csproj"
             },
             "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Modules.Reporting\\Nexora.Modules.Reporting.csproj": {
               "projectPath": "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Modules.Reporting\\Nexora.Modules.Reporting.csproj"
+            },
+            "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Modules.Sales\\Nexora.Modules.Sales.csproj": {
+              "projectPath": "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Modules.Sales\\Nexora.Modules.Sales.csproj"
             },
             "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Modules.Workflow\\Nexora.Modules.Workflow.csproj": {
               "projectPath": "C:\\Users\\Deven\\Desktop\\erp\\nexora\\backend\\src\\Nexora.Modules.Workflow\\Nexora.Modules.Workflow.csproj"

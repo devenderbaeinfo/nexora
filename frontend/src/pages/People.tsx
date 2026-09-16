@@ -31,6 +31,7 @@ interface UserSummary {
   workEmail: string;
   role: string;
   canDelete: boolean;
+  passwordResetRequested: boolean;
 }
 
 export default function People() {
@@ -162,7 +163,7 @@ export default function People() {
                 </tr>
               </thead>
               <tbody>
-                {accounts.data.map((u) => (
+                {[...accounts.data].sort((a, b) => Number(b.passwordResetRequested) - Number(a.passwordResetRequested)).map((u) => (
                   <tr key={u.userId}>
                     <td style={styles.td}>
                       <div style={{ fontWeight: 600 }}>{u.displayName}</div>
@@ -171,7 +172,7 @@ export default function People() {
                     <td style={styles.td}>{u.role}</td>
                     <td style={styles.td}>
                       <div style={{ display: "flex", gap: 8 }}>
-                        <ResetPasswordAction userId={u.userId} label={u.displayName} />
+                        <ResetPasswordAction userId={u.userId} label={u.displayName} requested={u.passwordResetRequested} />
                         {u.canDelete && <DeleteUserAction userId={u.userId} label={u.displayName} />}
                       </div>
                     </td>

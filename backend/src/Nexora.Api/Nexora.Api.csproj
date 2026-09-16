@@ -32,6 +32,10 @@
     <ProjectReference Include="..\Nexora.Modules.Projects\Nexora.Modules.Projects.csproj" />
     <ProjectReference Include="..\Nexora.Modules.Platform\Nexora.Modules.Platform.csproj" />
     <ProjectReference Include="..\Nexora.Modules.Reporting\Nexora.Modules.Reporting.csproj" />
+    <ProjectReference Include="..\Nexora.Modules.Sales\Nexora.Modules.Sales.csproj" />
+    <ProjectReference Include="..\Nexora.Modules.Procurement\Nexora.Modules.Procurement.csproj" />
+    <ProjectReference Include="..\Nexora.Modules.Inventory\Nexora.Modules.Inventory.csproj" />
+    <ProjectReference Include="..\Nexora.Modules.Crm\Nexora.Modules.Crm.csproj" />
   </ItemGroup>
 
 </Project>

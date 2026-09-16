@@ -13,5 +13,5 @@ public record CreateUserRequest(
     // have nowhere to route.
     bool AcknowledgeNoManager = false);
 
-public record UserSummaryDto(Guid UserId, Guid EmployeeId, string EmployeeCode, string DisplayName, string WorkEmail, string Role, bool CanDelete);
+public record UserSummaryDto(Guid UserId, Guid EmployeeId, string EmployeeCode, string DisplayName, string WorkEmail, string Role, bool CanDelete, bool PasswordResetRequested);
 public record ResetPasswordRequest(string NewPassword);

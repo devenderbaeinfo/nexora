@@ -10,6 +10,10 @@ using Nexora.Modules.HR.Entities;
 using Nexora.Shared.Tenancy;
 using Nexora.Modules.Projects.Entities;
 using Nexora.Modules.Workflow.Entities;
+using Nexora.Modules.Sales.Entities;
+using Nexora.Modules.Procurement.Entities;
+using Nexora.Modules.Inventory.Entities;
+using Nexora.Modules.Crm.Entities;
 using Nexora.Shared.Events;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
@@ -33,6 +37,11 @@ public class NexoraDbContext : IdentityDbContext<AppUser, AppRole, Guid>
     public DbSet<RoleFieldPermission> RoleFieldPermissions => Set<RoleFieldPermission>();
     public DbSet<ReportAccessGrant> ReportAccessGrants => Set<ReportAccessGrant>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+
+    public DbSet<Lead> Leads => Set<Lead>();
+    public DbSet<PurchaseOrder> PurchaseOrders => Set<PurchaseOrder>();
+    public DbSet<StockItem> StockItems => Set<StockItem>();
+    public DbSet<Contact> Contacts => Set<Contact>();
 
     public DbSet<Department> Departments => Set<Department>();
     public DbSet<Location> Locations => Set<Location>();
@@ -108,6 +117,7 @@ public class NexoraDbContext : IdentityDbContext<AppUser, AppRole, Guid>
 
         builder.Entity<Employee>().HasIndex(e => new { e.TenantId, e.WorkEmail }).IsUnique();
         builder.Entity<Employee>().HasIndex(e => new { e.TenantId, e.EmployeeCode }).IsUnique();
+        builder.Entity<StockItem>().HasIndex(i => new { i.TenantId, i.Sku }).IsUnique();
         builder.Entity<Tenant>().HasIndex(t => t.Slug).IsUnique();
         builder.Entity<LeaveBalance>().HasIndex(b => new { b.TenantId, b.EmployeeId, b.LeaveTypeId, b.Year }).IsUnique();
         builder.Entity<ProjectMember>().HasIndex(m => new { m.TenantId, m.ProjectId, m.EmployeeId }).IsUnique();

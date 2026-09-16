@@ -144,6 +144,31 @@ const NAV_MODULES: NavModule[] = [
     ],
   },
   {
+    key: "sales-ops", label: "Sales & Operations", landingTo: "/sales/leads",
+    sections: [
+      {
+        section: "Sales", items: [
+          { to: "/sales/leads", label: "Leads", show: (can) => can("sales.view") },
+        ],
+      },
+      {
+        section: "Procurement", items: [
+          { to: "/procurement/purchase-orders", label: "Purchase Orders", show: (can) => can("procurement.view") },
+        ],
+      },
+      {
+        section: "Inventory", items: [
+          { to: "/inventory/stock-items", label: "Stock Items", show: (can) => can("inventory.view") },
+        ],
+      },
+      {
+        section: "CRM", items: [
+          { to: "/crm/contacts", label: "Contacts", show: (can) => can("crm.view") },
+        ],
+      },
+    ],
+  },
+  {
     key: "payroll", label: "Payroll", landingTo: "/payroll/runs",
     sections: [{
       section: "", items: [

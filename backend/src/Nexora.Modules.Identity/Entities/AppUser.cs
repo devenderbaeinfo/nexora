@@ -25,6 +25,12 @@ public class AppUser : IdentityUser<Guid>
     // to set a new one, it's never a standing credential.
     public DateTimeOffset PasswordChangedAtUtc { get; set; } = DateTimeOffset.UtcNow;
     public bool MustChangePassword { get; set; }
+
+    // Set when this user submits the public "forgot password" form (no self-service reset
+    // exists — there's no email infrastructure in this app). Surfaces as a highlighted
+    // "Reset password" action to whoever manages this account (UsersController.List);
+    // cleared the moment that admin/HR actually resets it.
+    public DateTimeOffset? PasswordResetRequestedAtUtc { get; set; }
 }
 
 public class AppRole : IdentityRole<Guid>

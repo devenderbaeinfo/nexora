@@ -30,7 +30,7 @@ export default function DonutChart({
               key={a.label} cx={cx} cy={cy} r={r} fill="none" stroke={a.color} strokeWidth={stroke}
               strokeDasharray={`${a.dash} ${circumference - a.dash}`}
               strokeDashoffset={-a.offset}
-              strokeLinecap="butt"
+              strokeLinecap="round"
             />
           ))}
         </svg>

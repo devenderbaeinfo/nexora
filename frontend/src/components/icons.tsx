@@ -89,6 +89,18 @@ export const CircleIcon = (p: IconProps) => (
 export const GearIcon = (p: IconProps) => (
   <Svg {...p}><circle cx="12" cy="12" r="3.2" /><path d="M12 3.5v2.4M12 18.1v2.4M3.5 12h2.4M18.1 12h2.4M6.1 6.1l1.7 1.7M16.2 16.2l1.7 1.7M17.9 6.1l-1.7 1.7M7.8 16.2l-1.7 1.7" /></Svg>
 );
+export const TargetIcon = (p: IconProps) => (
+  <Svg {...p}><circle cx="12" cy="12" r="8.5" /><circle cx="12" cy="12" r="4.5" /><circle cx="12" cy="12" r="1" /></Svg>
+);
+export const CartIcon = (p: IconProps) => (
+  <Svg {...p}><path d="M3.5 4.5h2l2.4 11.2a1.8 1.8 0 0 0 1.76 1.4h7.4a1.8 1.8 0 0 0 1.76-1.4l1.4-7.2H6.5" /><circle cx="9.5" cy="20" r="1.2" /><circle cx="17" cy="20" r="1.2" /></Svg>
+);
+export const BoxesIcon = (p: IconProps) => (
+  <Svg {...p}><path d="m4 6.5 4-2.2 4 2.2-4 2.3z" /><path d="M4 6.5v5l4 2.3M12 8.8v5l4 2.3M8 8.8l4-2.3 4 2.3-4 2.3z" /><path d="M20 6.5v5l-4 2.3" /></Svg>
+);
+export const ContactCardIcon = (p: IconProps) => (
+  <Svg {...p}><rect x="2.5" y="5" width="19" height="14" rx="2" /><circle cx="9" cy="12" r="2.3" /><path d="M5.7 16.2c.5-1.7 1.8-2.6 3.3-2.6s2.8.9 3.3 2.6" /><path d="M14.5 9.5h4M14.5 13h4" /></Svg>
+);
 
 // Ordered by specificity, not alphabetically — the first regex that matches wins, so a
 // narrow rule (e.g. "settlement") must sit above a broad one (e.g. bare "work") that would
@@ -122,6 +134,10 @@ const RULES: [RegExp, (p: IconProps) => ReactElement][] = [
   [/job titles/i, TagIcon],
   [/accounting|payment|^finance$/i, LayersIcon],
   [/^settings$/i, GearIcon],
+  [/lead|^sales/i, TargetIcon],
+  [/purchase order|^procurement$/i, CartIcon],
+  [/stock item|^inventory$/i, BoxesIcon],
+  [/contact|^crm$/i, ContactCardIcon],
   // Broad fallback for any other project-flavored label (e.g. "Projects you manage",
   // "Project Planning", "My Projects", "Project Finance") — sits after every more specific
   // project rule above so those still win first.

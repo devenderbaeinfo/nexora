@@ -1,6 +1,6 @@
-# ERP Platform
+# Nexora
 
-Multi-tenant ERP, built to run internally first (Stage 1) and be sold as a product later (Stage 2). React frontend, .NET backend,and SQL Server.
+Multi-tenant ERP, built to run internally first (Stage 1) and be sold as a product later (Stage 2). React frontend, .NET backend, SQL Server. Backend is a modular monolith — one deployable, one database, hard module boundaries enforced by project references, not microservices.
 
 ## Prerequisites
 - .NET SDK 9/10, Node 20+, SQL Server (Express is fine) running locally
@@ -11,7 +11,7 @@ Multi-tenant ERP, built to run internally first (Stage 1) and be sold as a produ
 
 **Backend secrets** (never commit real values — `appsettings.json` only holds placeholders)
 ```
-cd backend/src/Erp.Api
+cd backend/src/Nexora.Api
 dotnet user-secrets init
 dotnet user-secrets set "ConnectionStrings:Default" "Server=localhost\SQLEXPRESS;Database=erp;Trusted_Connection=True;TrustServerCertificate=True"
 dotnet user-secrets set "Jwt:SigningKey" "$(openssl rand -base64 48)"
@@ -23,31 +23,34 @@ Adjust the server name if your instance isn't named `SQLEXPRESS` (check with `sc
 dotnet dev-certs https --trust
 ```
 
-**Run the API** (auto-applies migrations and seeds a demo tenant in Development)
+**Run the API** (auto-applies migrations and seeds a SuperAdmin in Development, on a first-run empty database only)
 ```
-dotnet run --project backend/src/Erp.Api
+dotnet run --project backend/src/Nexora.Api
 ```
-This listens on `https://localhost:7030` (see `backend/src/Erp.Api/Properties/launchSettings.json` — the frontend's `.env.development` points here). Leave this terminal running.
+This listens on `https://localhost:7030` (see `backend/src/Nexora.Api/Properties/launchSettings.json` — the frontend's `.env.development` points here). Leave this terminal running.
 
-**Role hierarchy & demo logins** — password `ChangeMe!2026x` for all, **change this seed before any real deployment**:
+**First login** — `DevSeeder` (`backend/src/Nexora.Api/Seed/DevSeeder.cs`) seeds exactly one account, the platform tenant's SuperAdmin, and only when the `Tenants` table is empty:
 
-| Role | Workspace | Email | Can do |
+| Role | Workspace | Email | Password |
 |---|---|---|---|
-| SuperAdmin | `platform` | `superadmin@platform.test` | Provision new tenants + their first Admin (`/api/platform/tenants`) |
-| Admin | `acme` | `admin@acme.test` | Create HR/Manager/Finance accounts; create customers & projects |
-| HR | `acme` | `hr@acme.test` | Create Employee and Manager accounts; final approval on leave |
-| Manager | `acme` | `manager@acme.test` | First-stage approval on direct reports' leave/expense claims; is the seeded Project Manager on the demo project |
-| Finance | `acme` | `finance@acme.test` | Final approval on reimbursements and project expenses |
-| Employee | `acme` | `priya.nair@acme.test` | Submit leave/expenses/project expenses, view own balance |
+| SuperAdmin | `platform` | `sadmin@gmail.com` | `ChangeMe!2026x` — **change this before any real deployment** |
 
-Three modules run two-stage approvals through a shared engine (`Erp.Infrastructure/Workflow/ApprovalWorkflowService.cs`):
+Everything else — client tenants, their first Admin, and every HR/Manager/Finance/Employee account under them — is created for real through the provisioning APIs from there on, not seeded:
+1. SuperAdmin calls `POST /api/platform/tenants` to provision a new tenant + its first Admin.
+2. That tenant's Admin uses `POST /api/users` to create HR/Manager/Finance/Employee accounts (`UsersController`).
+3. A SuperAdmin can add another Admin to an existing tenant via `POST /api/platform/tenants/{id}/admins`, without provisioning a new tenant.
+
+Who can create whom is enforced server-side, not just hidden in the UI (`RoleTemplates.AssignableRolesByCreatorRole` in `Nexora.Modules.Identity`):
+- `Admin` → HR, Manager, Finance, Employee (not another Admin)
+- `HR` → Employee, Manager
+- Only a `SuperAdmin` creates `Admin` accounts, and only through the platform provisioning endpoints above.
+
+Three modules run two-stage approvals through a shared engine (`Nexora.Modules.Workflow/Services/ApprovalWorkflowService.cs`):
 - **Leave**: Employee → Manager → HR
 - **Reimbursement**: Employee → Manager → Finance
 - **Project Expense**: Employee → the specific project's own Project Manager → Finance
 
-The engine owns the state machine (whose turn it is, when it's finished); each controller owns its own domain rule for who may act at a stage — Leave/Reimbursement check the submitter's reporting manager, Project Expense checks the *project's* `ProjectManagerId` instead, proving the engine isn't secretly leave-shaped. Adding a new approval flow means one line in `WorkflowDefinitions` plus a controller that follows the same shape — not a new hand-rolled state machine. The leave balance / payment-cleared flag is only ever set at the final stage, never before.
-
-Who can create whom (`Admin` → HR/Manager/Finance, `HR` → Employee/Manager) is enforced server-side (`RoleTemplates.AssignableRolesByCreatorRole` in `Erp.Domain`), not just hidden in the UI.
+The engine owns the state machine (whose turn it is, when it's finished); each controller owns its own domain rule for who may act at a stage — Leave/Reimbursement check the submitter's reporting manager, Project Expense checks the *project's* `ProjectManagerId` instead, proving the engine isn't secretly leave-shaped. Adding a new approval flow means one entry in `WorkflowDefinitions` plus a controller that follows the same shape — not a new hand-rolled state machine. The leave balance / payment-cleared flag is only ever set at the final stage, never before.
 
 **Run the frontend**
 ```
@@ -57,17 +60,29 @@ npm run dev
 ```
 
 ## Architecture
-- `backend/src/Erp.Domain` — entities, no framework dependencies
-- `backend/src/Erp.Application` — business rules (leave/expense/approval logic lands here)
-- `backend/src/Erp.Infrastructure` — EF Core, SQL Server, tenant-scoping (`ErpDbContext`), the shared approval workflow engine
-- `backend/src/Erp.Api` — controllers, auth, JWT issuance, permission policies
+Modular monolith under `backend/src/`:
+- `Nexora.Shared` — cross-cutting concerns with no business logic: tenancy primitives (`Tenant`), the `TenantEntity` base type, shared authorization plumbing.
+- `Nexora.Modules.Identity` — users, roles, permission templates, JWT/claims.
+- `Nexora.Modules.HR` — employees, leave, timesheets, onboarding, employee documents, F&F.
+- `Nexora.Modules.Payroll` — salary structures, payroll runs, payslips.
+- `Nexora.Modules.Projects` — projects, project members, project expenses, reimbursements.
+- `Nexora.Modules.Finance` — chart of accounts, accounting entries, accounts payable.
+- `Nexora.Modules.Workflow` — the shared approval-chain engine used by Leave/Reimbursement/Project Expense.
+- `Nexora.Modules.Company` — departments, job titles, locations.
+- `Nexora.Modules.Reporting` — cross-module reports and report access grants.
+- `Nexora.Modules.Notifications` — in-app notifications.
+- `Nexora.Modules.Onboarding` — new-hire onboarding checklists.
+- `Nexora.Modules.Platform` — SuperAdmin-only tenant provisioning, reachable only from the reserved `platform` tenant.
+- `Nexora.Api` — the single ASP.NET Core host: controllers wire into their owning module, `NexoraDbContext` (EF Core, SQL Server), JWT issuance, permission policies, migrations.
 
 ## Multi-tenancy & security, by design
-- Every tenant-owned table carries `TenantId`; `ErpDbContext` applies a **global query filter** so a forgotten `WHERE` clause can't leak another company's data, and re-stamps `TenantId` on every write from the caller's own JWT — never from client input.
-- Permissions are granular strings (`leave.approve`, `accounting.post_entries`, …) baked into the JWT at login and checked per-endpoint via `[RequirePermission(...)]`.
-- Passwords: ASP.NET Identity hashing, 12-char minimum, account lockout after 5 failed attempts; login is additionally IP-rate-limited.
+- Every tenant-owned table extends `TenantEntity` and carries `TenantId`; `NexoraDbContext` applies a **global query filter** to every such entity so a forgotten `WHERE` clause can't leak another company's data, and a `SaveChanges` interceptor re-stamps `TenantId` on every insert/update from the caller's own JWT — never from client input.
+- `AppUser`/`AppRole` are the one deliberate exception to that automatic filter (a user's tenant is settled before the filter can apply) — any raw lookup on them must include an explicit `TenantId` check at the call site; this is a known sharp edge, not an oversight.
+- Permissions are granular strings (`leave.approve`, `people.manage`, …) baked into the JWT at login and checked per-endpoint via `[RequirePermission(...)]` — enforced server-side, not just hidden nav items.
+- Passwords: ASP.NET Identity hashing (PBKDF2-HMAC-SHA256), 12-char minimum with complexity rules, account lockout after 5 failed attempts, forced rotation every 180 days; login is additionally IP-rate-limited, separately from per-account lockout.
 - Every login attempt (success, failure, and denied access) writes an append-only `AuditLog` row — nothing in this codebase should ever `UPDATE`/`DELETE` that table.
 - Login and employee-lookup errors are deliberately generic to avoid tenant/email enumeration.
+- CORS is an explicit allow-list from config (`Cors:AllowedOrigins`), never a wildcard combined with credentials.
 
 ## Design system
 Frontend tokens live in `frontend/src/styles/tokens.css` — one system, two premium themes (light: purple-on-white; dark: deep navy with a restrained purple glow), toggle in the top bar, persisted per-browser. Playfair Display for major headings, Inter everywhere else.

@@ -44,6 +44,11 @@ public static class RoleTemplates
             // Accounting.View, Attendance.ViewAll) plus the two report keys are new to it.
             Permission.Reports.ViewProjects, Permission.Reports.ViewFinance,
             Permission.Reports.ViewDashboardKpis, Permission.Reports.ViewHrTrends,
+            // Admin manages the tenant's Sales/Procurement/Inventory/CRM data end to end.
+            Permission.Sales.View, Permission.Sales.Manage,
+            Permission.Procurement.View, Permission.Procurement.Manage,
+            Permission.Inventory.View, Permission.Inventory.Manage,
+            Permission.Crm.View, Permission.Crm.Manage,
         ],
 
         Hr =>
@@ -76,6 +81,8 @@ public static class RoleTemplates
             Permission.Payroll.View,
             // Matches the Leave/Expense manager-approval + Project.View this role already holds.
             Permission.Reports.ViewTeam, Permission.Reports.ViewProjects, Permission.Reports.ViewExpenses,
+            // Read-only visibility into Sales/Procurement/Inventory/CRM — browsable without an Admin login.
+            Permission.Sales.View, Permission.Procurement.View, Permission.Inventory.View, Permission.Crm.View,
         ],
 
         Finance =>
@@ -88,6 +95,8 @@ public static class RoleTemplates
             Permission.AccountsPayable.View, Permission.AccountsPayable.Manage, Permission.AccountsPayable.Approve,
             // Matches Accounting.View/Project.ApproveExpenseAsFinance this role already holds.
             Permission.Reports.ViewFinance, Permission.Reports.ViewProjects, Permission.Reports.ViewDashboardKpis,
+            // Read-only visibility into Sales/Procurement/Inventory/CRM — browsable without an Admin login.
+            Permission.Sales.View, Permission.Procurement.View, Permission.Inventory.View, Permission.Crm.View,
         ],
 
         Employee =>

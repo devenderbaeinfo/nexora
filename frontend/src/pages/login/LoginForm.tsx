@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { loginPageConfig } from "../../config/loginPageConfig";
 
@@ -105,7 +105,7 @@ export default function LoginForm() {
           <input type="checkbox" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} />
           {cfg.rememberMeLabel}
         </label>
-        <a className="bae-link" href={cfg.forgotPasswordHref}>{cfg.forgotPasswordLabel}</a>
+        <Link className="bae-link" to={cfg.forgotPasswordHref}>{cfg.forgotPasswordLabel}</Link>
       </div>
 
       <button type="submit" className="bae-submit-button" disabled={isAuthenticating}>

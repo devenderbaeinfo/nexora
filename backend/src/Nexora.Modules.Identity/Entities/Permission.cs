@@ -108,6 +108,30 @@ public static class Permission
         public const string ApproveExpenseAsFinance = "project.approve_expense_as_finance";
     }
 
+    public static class Sales
+    {
+        public const string View = "sales.view";
+        public const string Manage = "sales.manage";
+    }
+
+    public static class Procurement
+    {
+        public const string View = "procurement.view";
+        public const string Manage = "procurement.manage";
+    }
+
+    public static class Inventory
+    {
+        public const string View = "inventory.view";
+        public const string Manage = "inventory.manage";
+    }
+
+    public static class Crm
+    {
+        public const string View = "crm.view";
+        public const string Manage = "crm.manage";
+    }
+
     public static class Admin
     {
         // Creating login accounts (HR/Manager by an Admin, Employee/Manager by HR) —

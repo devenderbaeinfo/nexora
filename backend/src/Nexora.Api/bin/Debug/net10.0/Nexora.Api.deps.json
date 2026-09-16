@@ -16,15 +16,19 @@
           "Microsoft.EntityFrameworkCore.Design": "9.0.1",
           "Microsoft.EntityFrameworkCore.SqlServer": "9.0.1",
           "Nexora.Modules.Company": "1.0.0",
+          "Nexora.Modules.Crm": "1.0.0",
           "Nexora.Modules.Finance": "1.0.0",
           "Nexora.Modules.HR": "1.0.0",
           "Nexora.Modules.Identity": "1.0.0",
+          "Nexora.Modules.Inventory": "1.0.0",
           "Nexora.Modules.Notifications": "1.0.0",
           "Nexora.Modules.Onboarding": "1.0.0",
           "Nexora.Modules.Payroll": "1.0.0",
           "Nexora.Modules.Platform": "1.0.0",
+          "Nexora.Modules.Procurement": "1.0.0",
           "Nexora.Modules.Projects": "1.0.0",
           "Nexora.Modules.Reporting": "1.0.0",
+          "Nexora.Modules.Sales": "1.0.0",
           "Nexora.Modules.Workflow": "1.0.0",
           "Nexora.Shared": "1.0.0"
         },
@@ -882,6 +886,18 @@
           }
         }
       },
+      "Nexora.Modules.Crm/1.0.0": {
+        "dependencies": {
+          "Nexora.Modules.Identity": "1.0.0",
+          "Nexora.Shared": "1.0.0"
+        },
+        "runtime": {
+          "Nexora.Modules.Crm.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
       "Nexora.Modules.Finance/1.0.0": {
         "dependencies": {
           "Nexora.Modules.Identity": "1.0.0",
@@ -914,6 +930,18 @@
         },
         "runtime": {
           "Nexora.Modules.Identity.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "Nexora.Modules.Inventory/1.0.0": {
+        "dependencies": {
+          "Nexora.Modules.Identity": "1.0.0",
+          "Nexora.Shared": "1.0.0"
+        },
+        "runtime": {
+          "Nexora.Modules.Inventory.dll": {
             "assemblyVersion": "1.0.0.0",
             "fileVersion": "1.0.0.0"
           }
@@ -975,6 +1003,18 @@
           }
         }
       },
+      "Nexora.Modules.Procurement/1.0.0": {
+        "dependencies": {
+          "Nexora.Modules.Identity": "1.0.0",
+          "Nexora.Shared": "1.0.0"
+        },
+        "runtime": {
+          "Nexora.Modules.Procurement.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
       "Nexora.Modules.Projects/1.0.0": {
         "dependencies": {
           "Nexora.Modules.Finance": "1.0.0",
@@ -1000,6 +1040,18 @@
         },
         "runtime": {
           "Nexora.Modules.Reporting.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "Nexora.Modules.Sales/1.0.0": {
+        "dependencies": {
+          "Nexora.Modules.Identity": "1.0.0",
+          "Nexora.Shared": "1.0.0"
+        },
+        "runtime": {
+          "Nexora.Modules.Sales.dll": {
             "assemblyVersion": "1.0.0.0",
             "fileVersion": "1.0.0.0"
           }
@@ -1407,6 +1459,11 @@
       "serviceable": false,
       "sha512": ""
     },
+    "Nexora.Modules.Crm/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
     "Nexora.Modules.Finance/1.0.0": {
       "type": "project",
       "serviceable": false,
@@ -1418,6 +1475,11 @@
       "sha512": ""
     },
     "Nexora.Modules.Identity/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "Nexora.Modules.Inventory/1.0.0": {
       "type": "project",
       "serviceable": false,
       "sha512": ""
@@ -1442,12 +1504,22 @@
       "serviceable": false,
       "sha512": ""
     },
+    "Nexora.Modules.Procurement/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
     "Nexora.Modules.Projects/1.0.0": {
       "type": "project",
       "serviceable": false,
       "sha512": ""
     },
     "Nexora.Modules.Reporting/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "Nexora.Modules.Sales/1.0.0": {
       "type": "project",
       "serviceable": false,
       "sha512": ""

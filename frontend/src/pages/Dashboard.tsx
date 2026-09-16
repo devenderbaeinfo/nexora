@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { api } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
-import { pageStyles as s, statTrend } from "../styles/pageKit";
+import { pageStyles as s, statTrend, progressFill } from "../styles/pageKit";
 import Spinner from "../components/Spinner";
 import TrendChart from "../components/TrendChart";
 import DonutChart from "../components/DonutChart";
@@ -33,6 +33,11 @@ function KpiCard({
         </div>
         <div style={s.statValue}>{value}</div>
         <div style={s.statLabel}>{label}</div>
+        {typeof deltaPercent === "number" && (
+          <div style={s.progressTrack}>
+            <div style={progressFill(50 + Math.max(-50, Math.min(50, deltaPercent * 3)), deltaPercent < 0)} />
+          </div>
+        )}
       </div>
     </Link>
   );
@@ -96,6 +101,10 @@ interface EmployeeListItem { id: string; status: string; }
 interface OnboardingTaskRow { employeeId: string; }
 interface FnfCaseRow { id: string; }
 interface LeaveRequestRow { id: string; }
+interface LeadRow { id: string; stage: string; }
+interface PurchaseOrderRow { id: string; status: string; }
+interface StockItemRow { id: string; quantityOnHand: number; reorderLevel: number; }
+interface ContactRow { id: string; }
 
 export default function Dashboard() {
   const { can, user } = useAuth();
@@ -148,6 +157,28 @@ export default function Dashboard() {
     enabled: can("fnf.manage"),
   });
   const hasOrgStats = orgEmployees.isSuccess || pendingHrLeave.isSuccess || onboardingInProgress.isSuccess || fnfInProgress.isSuccess;
+
+  const leads = useQuery({
+    queryKey: ["sales", "leads"],
+    queryFn: async () => (await api.get<LeadRow[]>("/sales/leads")).data,
+    enabled: can("sales.view"),
+  });
+  const purchaseOrders = useQuery({
+    queryKey: ["procurement", "purchase-orders"],
+    queryFn: async () => (await api.get<PurchaseOrderRow[]>("/procurement/purchase-orders")).data,
+    enabled: can("procurement.view"),
+  });
+  const stockItems = useQuery({
+    queryKey: ["inventory", "stock-items"],
+    queryFn: async () => (await api.get<StockItemRow[]>("/inventory/stock-items")).data,
+    enabled: can("inventory.view"),
+  });
+  const contacts = useQuery({
+    queryKey: ["crm", "contacts"],
+    queryFn: async () => (await api.get<ContactRow[]>("/crm/contacts")).data,
+    enabled: can("crm.view"),
+  });
+  const hasSalesOpsStats = leads.isSuccess || purchaseOrders.isSuccess || stockItems.isSuccess || contacts.isSuccess;
 
   const currency = formatCurrency;
   const k = kpis.data;
@@ -325,6 +356,26 @@ export default function Dashboard() {
               )}
               {fnfInProgress.isSuccess && (
                 <KpiCard index={3} to="/fnf" label="Settlements in progress" value={fnfInProgress.data.length} />
+              )}
+            </div>
+          </section>
+        )}
+
+        {hasSalesOpsStats && (
+          <section style={{ marginBottom: 24 }}>
+            <h2 style={s.sectionTitle}>Sales & Operations</h2>
+            <div style={s.statGrid}>
+              {leads.isSuccess && (
+                <KpiCard index={0} to="/sales/leads" label="Open leads" value={leads.data.filter((l) => l.stage !== "Won" && l.stage !== "Lost").length} />
+              )}
+              {purchaseOrders.isSuccess && (
+                <KpiCard index={1} to="/procurement/purchase-orders" label="Pending purchase orders" value={purchaseOrders.data.filter((o) => o.status !== "Received").length} />
+              )}
+              {stockItems.isSuccess && (
+                <KpiCard index={2} to="/inventory/stock-items" label="Low stock items" value={stockItems.data.filter((i) => i.quantityOnHand <= i.reorderLevel).length} />
+              )}
+              {contacts.isSuccess && (
+                <KpiCard index={3} to="/crm/contacts" label="Total contacts" value={contacts.data.length} />
               )}
             </div>
           </section>

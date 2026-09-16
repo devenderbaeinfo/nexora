@@ -3,6 +3,7 @@ import AppShell from "./components/AppShell";
 import RequireAuth from "./components/RequireAuth";
 import RequireSuperAdmin from "./components/RequireSuperAdmin";
 import Login from "./pages/Login";
+import ForgotPassword from "./pages/ForgotPassword";
 import People from "./pages/People";
 import PeopleOverview from "./pages/PeopleOverview";
 import EmployeeProfile from "./pages/EmployeeProfile";
@@ -33,6 +34,10 @@ import MyProfile from "./pages/MyProfile";
 import MyProjects from "./pages/MyProjects";
 import MyExpenses from "./pages/MyExpenses";
 import JobTitles from "./pages/JobTitles";
+import Leads from "./pages/Leads";
+import PurchaseOrders from "./pages/PurchaseOrders";
+import StockItems from "./pages/StockItems";
+import Contacts from "./pages/Contacts";
 import Roles from "./pages/Roles";
 import ReportAccess from "./pages/ReportAccess";
 import ApprovalChains from "./pages/ApprovalChains";
@@ -74,6 +79,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
 
       {/* Client ERP shell — People, Timecard & Leave, Reimbursement, Project Expenses. */}
       <Route
@@ -106,6 +112,10 @@ export default function App() {
         <Route path="my-profile" element={<MyProfile />} />
         <Route path="my-expenses" element={<MyExpenses />} />
         <Route path="job-titles" element={<JobTitles />} />
+        <Route path="sales/leads" element={<Leads />} />
+        <Route path="procurement/purchase-orders" element={<PurchaseOrders />} />
+        <Route path="inventory/stock-items" element={<StockItems />} />
+        <Route path="crm/contacts" element={<Contacts />} />
         <Route path="roles" element={<Roles />} />
         <Route path="report-access" element={<ReportAccess />} />
         <Route path="leave-types" element={<LeaveTypes />} />

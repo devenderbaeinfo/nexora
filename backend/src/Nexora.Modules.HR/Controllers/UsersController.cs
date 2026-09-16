@@ -77,7 +77,7 @@ public class UsersController : ControllerBase
 
             result.Add(new UserSummaryDto(
                 u.Id, employee.Id, employee.EmployeeCode, $"{employee.FirstName} {employee.LastName}", u.Email ?? "", role,
-                u.IsActive && u.CreatedByUserId == CurrentUserId));
+                u.IsActive && u.CreatedByUserId == CurrentUserId, u.PasswordResetRequestedAtUtc != null));
         }
 
         return Ok(result);
@@ -113,6 +113,7 @@ public class UsersController : ControllerBase
         // The temp password only ever gets them as far as setting a real one.
         targetUser.MustChangePassword = true;
         targetUser.PasswordChangedAtUtc = DateTimeOffset.UtcNow;
+        targetUser.PasswordResetRequestedAtUtc = null;
         await _userManager.UpdateAsync(targetUser);
 
         _db.Set<AuditLog>().Add(new AuditLog
@@ -238,7 +239,7 @@ public class UsersController : ControllerBase
         await TenantRoleStore.AssignRoleAsync(_db, appUser.TenantId, appUser.Id, jobTitle.SystemRole);
 
         return CreatedAtAction(nameof(Create), new UserSummaryDto(
-            appUser.Id, employee.Id, employee.EmployeeCode, $"{employee.FirstName} {employee.LastName}", employee.WorkEmail, jobTitle.SystemRole, true));
+            appUser.Id, employee.Id, employee.EmployeeCode, $"{employee.FirstName} {employee.LastName}", employee.WorkEmail, jobTitle.SystemRole, true, false));
     }
 
     // "Delete" here means deactivate, not a hard row delete — the account's history
