@@ -10,3 +10,6 @@ public record UpdateTenantStatusRequest(Nexora.Shared.Tenancy.TenantStatus Statu
 
 public record SuperAdminDto(Guid Id, string Email, bool IsActive);
 public record CreateSuperAdminRequest(string Email, string Password);
+
+public record CreateTenantAdminRequest(string Email, string Password);
+public record TenantAdminDto(Guid Id, string Email, bool IsActive);

@@ -4,8 +4,8 @@ using Nexora.Modules.HR.Contracts;
 using Nexora.Modules.Identity.Authorization;
 using Nexora.Modules.Identity.Entities;
 using Nexora.Modules.HR.Entities;
+using Nexora.Modules.HR.Services;
 using Nexora.Modules.Company.Entities;
-using Nexora.Shared.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -28,6 +28,8 @@ public class EmployeesController : ControllerBase
 
     private Guid? CurrentEmployeeId =>
         Guid.TryParse(User.FindFirstValue("employee_id"), out var id) ? id : null;
+
+    private Guid TenantId => Guid.Parse(User.FindFirstValue("tenant_id")!);
 
     // null = unrestricted. People.View only offers All/Department/Specific — there's no
     // "Mine" for a plain employee directory.
@@ -71,7 +73,7 @@ public class EmployeesController : ControllerBase
             .ToListAsync();
 
         return Ok(employees.Select(e => new EmployeeListItem(
-            e.Id, e.FirstName, e.LastName, e.WorkEmail,
+            e.Id, e.EmployeeCode, e.FirstName, e.LastName, e.WorkEmail,
             jobTitles.TryGetValue(e.JobTitleId, out var jobTitleName) ? jobTitleName : "—",
             departments.TryGetValue(e.DepartmentId, out var name) ? name : "—",
             e.Status.ToString())).ToList());
@@ -94,7 +96,7 @@ public class EmployeesController : ControllerBase
             : null;
 
         return Ok(new EmployeeProfileDto(
-            employee.Id, employee.FirstName, employee.LastName, employee.WorkEmail, employee.PersonalPhone,
+            employee.Id, employee.EmployeeCode, employee.FirstName, employee.LastName, employee.WorkEmail, employee.PersonalPhone,
             jobTitle?.Name ?? "—", department?.Name ?? "—", location?.Name, employee.Status.ToString(), employee.HireDate));
     }
 
@@ -118,7 +120,7 @@ public class EmployeesController : ControllerBase
         var namesById = employees.ToDictionary(e => e.Id, e => $"{e.FirstName} {e.LastName}");
 
         var result = employees.Select(e => new EmployeeListItem(
-            e.Id, e.FirstName, e.LastName, e.WorkEmail,
+            e.Id, e.EmployeeCode, e.FirstName, e.LastName, e.WorkEmail,
             jobTitles.TryGetValue(e.JobTitleId, out var jobTitleName) ? jobTitleName : "—",
             departments.TryGetValue(e.DepartmentId, out var name) ? name : "—",
             e.Status.ToString(),
@@ -151,7 +153,7 @@ public class EmployeesController : ControllerBase
             : null;
 
         return Ok(new EmployeeDetailDto(
-            employee.Id, employee.FirstName, employee.LastName, employee.WorkEmail, employee.PersonalPhone,
+            employee.Id, employee.EmployeeCode, employee.FirstName, employee.LastName, employee.WorkEmail, employee.PersonalPhone,
             jobTitle?.Name ?? "—", department?.Name ?? "—", location?.Name,
             employee.ReportingManagerId, manager is null ? null : $"{manager.FirstName} {manager.LastName}",
             employee.Status.ToString(), employee.HireDate));
@@ -182,6 +184,7 @@ public class EmployeesController : ControllerBase
 
         var employee = new Employee
         {
+            EmployeeCode = await EmployeeCodeGenerator.NextAsync(_db, TenantId),
             FirstName = request.FirstName,
             LastName = request.LastName,
             WorkEmail = request.WorkEmail,
@@ -209,7 +212,7 @@ public class EmployeesController : ControllerBase
         var department = await _db.Set<Department>().FirstAsync(d => d.Id == employee.DepartmentId);
         var jobTitle = await _db.Set<JobTitle>().FirstAsync(j => j.Id == employee.JobTitleId);
         return CreatedAtAction(nameof(List), new EmployeeListItem(
-            employee.Id, employee.FirstName, employee.LastName, employee.WorkEmail,
+            employee.Id, employee.EmployeeCode, employee.FirstName, employee.LastName, employee.WorkEmail,
             jobTitle.Name, department.Name, employee.Status.ToString()));
     }
 

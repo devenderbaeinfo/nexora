@@ -15,6 +15,7 @@ import { formatCurrency } from "../lib/currency";
 
 interface EmployeeDetail {
   id: string;
+  employeeCode: string;
   firstName: string;
   lastName: string;
   workEmail: string;
@@ -142,7 +143,7 @@ export default function EmployeeProfile() {
       <header style={{ ...s.header, marginTop: 12 }}>
         <div>
           <h1 style={s.title}>{e.firstName} {e.lastName}</h1>
-          <p style={s.subtitle}>{e.jobTitleName} · {e.departmentName}</p>
+          <p style={s.subtitle}>{e.employeeCode} · {e.jobTitleName} · {e.departmentName}</p>
         </div>
         {(can("people.manage") || can("employee_docs.manage") || can("payroll.manage")) && (
           <div style={{ display: "flex", gap: 8 }}>
@@ -176,6 +177,7 @@ export default function EmployeeProfile() {
 
       {tab === "Overview" && (
         <div style={{ ...s.card, maxWidth: 520 }}>
+          <OverviewRow label="Employee ID" value={e.employeeCode} />
           <OverviewRow label="Email" value={e.workEmail} />
           <OverviewRow label="Phone" value={e.personalPhone ?? "—"} />
           <OverviewRow label="Job Title" value={e.jobTitleName} />

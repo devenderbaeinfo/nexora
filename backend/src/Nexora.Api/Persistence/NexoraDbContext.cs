@@ -107,6 +107,7 @@ public class NexoraDbContext : IdentityDbContext<AppUser, AppRole, Guid>
         }
 
         builder.Entity<Employee>().HasIndex(e => new { e.TenantId, e.WorkEmail }).IsUnique();
+        builder.Entity<Employee>().HasIndex(e => new { e.TenantId, e.EmployeeCode }).IsUnique();
         builder.Entity<Tenant>().HasIndex(t => t.Slug).IsUnique();
         builder.Entity<LeaveBalance>().HasIndex(b => new { b.TenantId, b.EmployeeId, b.LeaveTypeId, b.Year }).IsUnique();
         builder.Entity<ProjectMember>().HasIndex(m => new { m.TenantId, m.ProjectId, m.EmployeeId }).IsUnique();

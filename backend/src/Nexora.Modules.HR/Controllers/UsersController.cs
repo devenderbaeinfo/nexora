@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Nexora.Shared.Authorization;
 using Nexora.Shared.Common;
+using Nexora.Shared.Tenancy;
 using Nexora.Modules.Company.Entities;
 using Nexora.Modules.HR.Contracts;
 using Nexora.Modules.Identity.Entities;
@@ -75,7 +76,7 @@ public class UsersController : ControllerBase
             if (!jobTitleRoles.TryGetValue(employee.JobTitleId, out var role) || !visibleRoles.Contains(role)) continue;
 
             result.Add(new UserSummaryDto(
-                u.Id, employee.Id, $"{employee.FirstName} {employee.LastName}", u.Email ?? "", role,
+                u.Id, employee.Id, employee.EmployeeCode, $"{employee.FirstName} {employee.LastName}", u.Email ?? "", role,
                 u.IsActive && u.CreatedByUserId == CurrentUserId));
         }
 
@@ -90,7 +91,8 @@ public class UsersController : ControllerBase
         var creatorRole = await CurrentCreatorRoleAsync();
         if (creatorRole is null) return Forbid();
 
-        var targetUser = await _userManager.FindByIdAsync(userId.ToString());
+        var targetUser = await _db.Set<AppUser>().IgnoreQueryFilters()
+            .FirstOrDefaultAsync(u => u.Id == userId && u.TenantId == TenantId);
         if (targetUser is null) return NotFound();
 
         var targetRole = await EffectiveRoleResolver.ResolveAsync(_db, _userManager, targetUser);
@@ -169,8 +171,10 @@ public class UsersController : ControllerBase
             if (!managerExists) return BadRequest("Unknown manager.");
         }
 
+        var employeeCode = await EmployeeCodeGenerator.NextAsync(_db, TenantId);
         var employee = new Employee
         {
+            EmployeeCode = employeeCode,
             FirstName = request.FirstName,
             LastName = request.LastName,
             WorkEmail = request.WorkEmail,
@@ -234,7 +238,7 @@ public class UsersController : ControllerBase
         await TenantRoleStore.AssignRoleAsync(_db, appUser.TenantId, appUser.Id, jobTitle.SystemRole);
 
         return CreatedAtAction(nameof(Create), new UserSummaryDto(
-            appUser.Id, employee.Id, $"{employee.FirstName} {employee.LastName}", employee.WorkEmail, jobTitle.SystemRole, true));
+            appUser.Id, employee.Id, employee.EmployeeCode, $"{employee.FirstName} {employee.LastName}", employee.WorkEmail, jobTitle.SystemRole, true));
     }
 
     // "Delete" here means deactivate, not a hard row delete — the account's history
@@ -245,7 +249,8 @@ public class UsersController : ControllerBase
     [RequirePermission(Permission.Admin.ManageUsers)]
     public async Task<IActionResult> Deactivate(Guid userId)
     {
-        var targetUser = await _userManager.FindByIdAsync(userId.ToString());
+        var targetUser = await _db.Set<AppUser>().IgnoreQueryFilters()
+            .FirstOrDefaultAsync(u => u.Id == userId && u.TenantId == TenantId);
         if (targetUser is null) return NotFound();
 
         if (targetUser.CreatedByUserId != CurrentUserId)

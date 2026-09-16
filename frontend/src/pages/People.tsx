@@ -13,6 +13,7 @@ import DataTable, { type DataTableColumn } from "../components/DataTable";
 
 interface EmployeeListItem {
   id: string;
+  employeeCode: string;
   firstName: string;
   lastName: string;
   workEmail: string;
@@ -51,13 +52,18 @@ export default function People() {
   const columns: DataTableColumn<EmployeeListItem>[] = [
     {
       key: "name", header: "Name",
-      value: (e) => `${e.firstName} ${e.lastName} ${e.workEmail}`,
+      value: (e) => `${e.firstName} ${e.lastName} ${e.workEmail} ${e.employeeCode}`,
       render: (e) => (
         <Link to={`/people/${e.id}`} style={{ textDecoration: "none" }}>
           <div style={{ fontWeight: 600, color: "var(--accent)" }}>{e.firstName} {e.lastName}</div>
           <div style={{ color: "var(--faint)", fontSize: 12.5 }}>{e.workEmail}</div>
         </Link>
       ),
+    },
+    {
+      key: "employeeCode", header: "Employee ID",
+      value: (e) => e.employeeCode,
+      render: (e) => <span style={{ fontFamily: "var(--font-mono)", fontSize: 12.5 }}>{e.employeeCode}</span>,
     },
     { key: "jobTitle", header: "Job Title", value: (e) => e.jobTitleName, render: (e) => e.jobTitleName },
     { key: "department", header: "Department", value: (e) => e.departmentName, render: (e) => e.departmentName },
@@ -81,9 +87,9 @@ export default function People() {
 
   const exportSelected = (ids: string[]) => {
     const rows = (data ?? []).filter((e) => ids.includes(e.id));
-    const header = ["Name", "Email", "Job Title", "Department", "Manager", "Status"];
+    const header = ["Employee ID", "Name", "Email", "Job Title", "Department", "Manager", "Status"];
     const lines = rows.map((e) => [
-      `${e.firstName} ${e.lastName}`, e.workEmail, e.jobTitleName, e.departmentName,
+      e.employeeCode, `${e.firstName} ${e.lastName}`, e.workEmail, e.jobTitleName, e.departmentName,
       e.reportingManagerName ?? "None set", e.status,
     ].map((v) => `"${v.replace(/"/g, '""')}"`).join(","));
     const csv = [header.join(","), ...lines].join("\n");

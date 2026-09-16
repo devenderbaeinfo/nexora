@@ -5,6 +5,7 @@ import Spinner from "../components/Spinner";
 
 interface EmployeeProfile {
   id: string;
+  employeeCode: string;
   firstName: string;
   lastName: string;
   workEmail: string;
@@ -35,6 +36,7 @@ export default function MyProfile() {
 
       {data && (
         <div style={{ ...s.card, maxWidth: 480 }}>
+          <Row label="Employee ID" value={data.employeeCode} />
           <Row label="Name" value={`${data.firstName} ${data.lastName}`} />
           <Row label="Work email" value={data.workEmail} />
           <Row label="Personal phone" value={data.personalPhone ?? "—"} />

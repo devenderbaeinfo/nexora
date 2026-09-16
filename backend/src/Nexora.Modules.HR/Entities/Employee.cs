@@ -4,6 +4,11 @@ namespace Nexora.Modules.HR.Entities;
 
 public class Employee : TenantEntity
 {
+    // Human-readable ID shown on payslips/documents, e.g. "ACME-0001" — sequential per
+    // tenant, assigned once at creation (see UsersController.Create) and never reused,
+    // even if the employee is later terminated.
+    public string EmployeeCode { get; set; } = default!;
+
     public string FirstName { get; set; } = default!;
     public string LastName { get; set; } = default!;
     public string WorkEmail { get; set; } = default!;

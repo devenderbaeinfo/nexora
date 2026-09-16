@@ -128,6 +128,41 @@ public class PlatformController : ControllerBase
         return NoContent();
     }
 
+    // Adds an Admin to a tenant that already exists (as opposed to Create above, which
+    // provisions a brand-new tenant plus its first Admin). TenantId is taken from the
+    // route/tenant row itself, never from the caller, so this Admin can only ever end up
+    // scoped to the one tenant a SuperAdmin picked — no risk of two tenants' Admins sharing
+    // an identity, since AppUser.Id is a fresh Guid per account and email stays globally unique.
+    [HttpPost("{id:guid}/admins")]
+    [RequirePermission(Permission.Platform.ManageTenants)]
+    public async Task<ActionResult<TenantAdminDto>> CreateTenantAdmin(Guid id, CreateTenantAdminRequest request)
+    {
+        var tenant = await _db.Set<Tenant>().IgnoreQueryFilters().FirstOrDefaultAsync(t => t.Id == id);
+        if (tenant is null) return NotFound();
+        if (tenant.Slug == "platform") return BadRequest("Use the SuperAdmin endpoints for the platform tenant.");
+
+        var email = request.Email.Trim();
+        if (string.IsNullOrWhiteSpace(email)) return BadRequest("Email is required.");
+
+        var emailTaken = await _userManager.Users.IgnoreQueryFilters().AnyAsync(u => u.NormalizedEmail == email.ToUpperInvariant());
+        if (emailTaken) return Conflict("An account with this email already exists.");
+
+        var adminUser = new AppUser
+        {
+            TenantId = tenant.Id,
+            UserName = email,
+            Email = email,
+            EmailConfirmed = true,
+            MustChangePassword = true,
+        };
+        var result = await _userManager.CreateAsync(adminUser, request.Password);
+        if (!result.Succeeded) return BadRequest(string.Join(" ", result.Errors.Select(e => e.Description)));
+
+        await TenantRoleStore.AssignRoleAsync(_db, tenant.Id, adminUser.Id, RoleTemplates.Admin);
+
+        return CreatedAtAction(nameof(CreateTenantAdmin), new { id }, new TenantAdminDto(adminUser.Id, email, true));
+    }
+
     // SuperAdmin accounts live in the reserved "platform" tenant — everything below is scoped
     // to that one tenant, never a customer's. There's no "who can create a SuperAdmin" boundary
     // beyond already being one: this is the top of the hierarchy, nothing above it to check against.
@@ -178,7 +213,17 @@ public class PlatformController : ControllerBase
     {
         if (userId == CurrentUserId) return BadRequest("You can't deactivate your own account.");
 
-        var target = await _userManager.Users.IgnoreQueryFilters().FirstOrDefaultAsync(u => u.Id == userId);
+        var platformTenant = await _db.Set<Tenant>().IgnoreQueryFilters().FirstAsync(t => t.Slug == "platform");
+        var role = await _db.Set<AppRole>().IgnoreQueryFilters()
+            .FirstOrDefaultAsync(r => r.TenantId == platformTenant.Id && r.NormalizedName == "SUPERADMIN");
+        if (role is null) return NotFound();
+
+        var isSuperAdmin = await _db.Set<IdentityUserRole<Guid>>()
+            .AnyAsync(ur => ur.RoleId == role.Id && ur.UserId == userId);
+        if (!isSuperAdmin) return NotFound();
+
+        var target = await _userManager.Users.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(u => u.Id == userId && u.TenantId == platformTenant.Id);
         if (target is null) return NotFound();
 
         target.IsActive = false;
