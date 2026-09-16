@@ -64,42 +64,6 @@ export const clients: ClientRow[] = [
   { companyName: "Orbit Manufacturing", userCount: 62, plan: "Starter", status: "Inactive" },
 ];
 
-export interface Plan {
-  name: PlanName;
-  price: string; // pre-formatted so "Custom Pricing" fits the same field as "₹9,999 / month"
-  maxUsers: string;
-  modules: string[];
-  subscriberCount: number;
-  status: "Active" | "Deprecated";
-}
-
-export const plans: Plan[] = [
-  {
-    name: "Starter",
-    price: "₹9,999 / month",
-    maxUsers: "50",
-    modules: ["People", "Timecard", "Leave"],
-    subscriberCount: clients.filter((c) => c.plan === "Starter").length,
-    status: "Active",
-  },
-  {
-    name: "Professional",
-    price: "₹24,999 / month",
-    maxUsers: "250",
-    modules: ["People", "Timecard", "Leave", "Reimbursement", "Projects"],
-    subscriberCount: clients.filter((c) => c.plan === "Professional").length,
-    status: "Active",
-  },
-  {
-    name: "Enterprise",
-    price: "Custom Pricing",
-    maxUsers: "Unlimited",
-    modules: ["People", "Timecard", "Leave", "Reimbursement", "Projects", "Accounting", "Advanced Reports"],
-    subscriberCount: clients.filter((c) => c.plan === "Enterprise").length,
-    status: "Active",
-  },
-];
-
 export type SubscriptionStatus = "Active" | "Trial" | "Cancelled";
 
 export interface Subscription {

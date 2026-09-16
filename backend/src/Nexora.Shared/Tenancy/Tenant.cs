@@ -12,6 +12,10 @@ public class Tenant
     public TenantStatus Status { get; set; } = TenantStatus.Active;
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
 
+    // Null means "Custom" — modules are configured directly on this tenant (see TenantModule)
+    // rather than inherited from a named Plan's PlanModule set.
+    public Guid? PlanId { get; set; }
+
     // ISO 4217 code (e.g. "INR", "USD") — the currency every consolidated report (Trial
     // Balance, P&L, Balance Sheet, Cash Flow) is expressed in. An individual Account can be
     // denominated in a different currency (see Account.Currency); every JournalLine on it

@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Navigate, NavLink, Outlet, useLocation } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "../context/AuthContext";
+import { api } from "../lib/api";
 import ThemeToggle from "./ThemeToggle";
 import AnnouncementBanner from "./AnnouncementBanner";
 import NotificationsBell from "./NotificationsBell";
@@ -8,7 +10,11 @@ import CommandPalette from "./CommandPalette";
 import { iconForLabel } from "./icons";
 
 type Can = (permission: string) => boolean;
-type NavItem = { to: string; label: string; show: (can: Can) => boolean };
+// Which purchasable modules (see backend ModuleCatalog) the tenant's plan includes — a second,
+// independent gate alongside `can`: `can` is "does this role have the permission", `hasModule`
+// is "did this client even buy the feature at all" (see Security doc, Plan/Module gating).
+type HasModule = (moduleKey: string) => boolean;
+type NavItem = { to: string; label: string; show: (can: Can, hasModule: HasModule) => boolean };
 type NavSection = { section: string; items: NavItem[] };
 
 // A module is either a direct link (`to` set — Dashboard, Approvals, Accounting's own hub
@@ -49,30 +55,30 @@ const NAV_MODULES: NavModule[] = [
     sections: [
       {
         section: "Employees", items: [
-          { to: "/", label: "Employee Directory", show: (can) => can("people.view") },
+          { to: "/", label: "Employee Directory", show: (can, hasModule) => can("people.view") && hasModule("people") },
         ],
       },
       {
         section: "Attendance", items: [
-          { to: "/attendance", label: "Attendance", show: (can) => can("attendance.clock_in_out") },
-          { to: "/my-time", label: "My Time", show: () => true },
+          { to: "/attendance", label: "Attendance", show: (can, hasModule) => can("attendance.clock_in_out") && hasModule("timecard") },
+          { to: "/my-time", label: "My Time", show: (_can, hasModule) => hasModule("timecard") },
         ],
       },
       {
         section: "Leave", items: [
-          { to: "/timecard", label: "Leave", show: (can) => can("timesheet.view") },
-          { to: "/timesheets/approval", label: "Timesheet Approval", show: canApproveAnything },
+          { to: "/timecard", label: "Leave", show: (can, hasModule) => can("timesheet.view") && hasModule("timecard") },
+          { to: "/timesheets/approval", label: "Timesheet Approval", show: (can, hasModule) => canApproveAnything(can) && hasModule("timecard") },
         ],
       },
       {
         section: "Team", items: [
-          { to: "/my-team", label: "My Team", show: canApproveAnything },
+          { to: "/my-team", label: "My Team", show: (can) => canApproveAnything(can) },
         ],
       },
       {
         section: "Lifecycle", items: [
-          { to: "/onboarding", label: "Onboarding", show: (can) => can("onboarding.view") },
-          { to: "/documents", label: "Documents", show: (can) => can("employee_docs.view") },
+          { to: "/onboarding", label: "Onboarding", show: (can, hasModule) => can("onboarding.view") && hasModule("people") },
+          { to: "/documents", label: "Documents", show: (can, hasModule) => can("employee_docs.view") && hasModule("people") },
         ],
       },
       {
@@ -92,29 +98,29 @@ const NAV_MODULES: NavModule[] = [
     sections: [
       {
         section: "Expenses", items: [
-          { to: "/expenses/approvals", label: "Expense Approvals", show: canApproveAnyExpense },
-          { to: "/expenses/team", label: "Team Expenses", show: canApproveAnything },
-          { to: "/my-expenses", label: "My Expenses", show: () => true },
+          { to: "/expenses/approvals", label: "Expense Approvals", show: (can, hasModule) => canApproveAnyExpense(can) && hasModule("reimbursement") },
+          { to: "/expenses/team", label: "Team Expenses", show: (can, hasModule) => canApproveAnything(can) && hasModule("reimbursement") },
+          { to: "/my-expenses", label: "My Expenses", show: (_can, hasModule) => hasModule("reimbursement") },
         ],
       },
       {
         section: "Reimbursements", items: [
-          { to: "/reimbursement", label: "Reimbursement", show: (can) => can("expense.view") },
+          { to: "/reimbursement", label: "Reimbursement", show: (can, hasModule) => can("expense.view") && hasModule("reimbursement") },
         ],
       },
       {
         section: "Accounting", items: [
           // Chart of Accounts/Journal Entries/Ledger/Trial Balance/Bank & Cash/Vendor Bills
           // are all reached from this hub page, not separate nav entries.
-          { to: "/accounting", label: "Accounting", show: (can) => can("accounting.view") },
+          { to: "/accounting", label: "Accounting", show: (can, hasModule) => can("accounting.view") && hasModule("accounting") },
         ],
       },
       {
         section: "Overview", items: [
-          { to: "/finance/dashboard", label: "Finance Dashboard", show: (can) => can("accounting.view") },
+          { to: "/finance/dashboard", label: "Finance Dashboard", show: (can, hasModule) => can("accounting.view") && hasModule("accounting") },
           // One workspace: pick a project from the list, see budget, cost, and
           // profitability together, instead of re-selecting the same project per page.
-          { to: "/finance/projects", label: "Project Finance", show: (can) => can("accounting.view") },
+          { to: "/finance/projects", label: "Project Finance", show: (can, hasModule) => can("accounting.view") && hasModule("accounting") },
         ],
       },
     ],
@@ -124,21 +130,21 @@ const NAV_MODULES: NavModule[] = [
     sections: [
       {
         section: "Projects", items: [
-          { to: "/projects", label: "All Projects", show: (can) => can("project.view") },
-          { to: "/projects/create", label: "Create Project", show: (can) => can("project.manage_budget") },
-          { to: "/projects/planning", label: "Project Planning", show: (can) => can("project.manage_budget") },
-          { to: "/projects/team", label: "Project Team", show: (can) => can("project.view") },
-          { to: "/projects/tasks", label: "Project Tasks", show: (can) => can("project.view") },
-          { to: "/projects/progress", label: "Project Progress", show: (can) => can("project.view") },
-          { to: "/projects/budget", label: "Project Budget", show: (can) => can("project.view") },
-          { to: "/projects/profitability", label: "Profitability", show: (can) => can("project.view") },
-          { to: "/projects/expenses", label: "Project Expenses", show: (can) => can("project.view") },
-          { to: "/projects/mine", label: "My Projects", show: () => true },
+          { to: "/projects", label: "All Projects", show: (can, hasModule) => can("project.view") && hasModule("projects") },
+          { to: "/projects/create", label: "Create Project", show: (can, hasModule) => can("project.manage_budget") && hasModule("projects") },
+          { to: "/projects/planning", label: "Project Planning", show: (can, hasModule) => can("project.manage_budget") && hasModule("projects") },
+          { to: "/projects/team", label: "Project Team", show: (can, hasModule) => can("project.view") && hasModule("projects") },
+          { to: "/projects/tasks", label: "Project Tasks", show: (can, hasModule) => can("project.view") && hasModule("projects") },
+          { to: "/projects/progress", label: "Project Progress", show: (can, hasModule) => can("project.view") && hasModule("projects") },
+          { to: "/projects/budget", label: "Project Budget", show: (can, hasModule) => can("project.view") && hasModule("projects") },
+          { to: "/projects/profitability", label: "Profitability", show: (can, hasModule) => can("project.view") && hasModule("projects") },
+          { to: "/projects/expenses", label: "Project Expenses", show: (can, hasModule) => can("project.view") && hasModule("projects") },
+          { to: "/projects/mine", label: "My Projects", show: (_can, hasModule) => hasModule("projects") },
         ],
       },
       {
         section: "Time Cards", items: [
-          { to: "/timecard", label: "Time Cards", show: (can) => can("timesheet.view") },
+          { to: "/timecard", label: "Time Cards", show: (can, hasModule) => can("timesheet.view") && hasModule("timecard") },
         ],
       },
     ],
@@ -147,9 +153,9 @@ const NAV_MODULES: NavModule[] = [
     key: "payroll", label: "Payroll", landingTo: "/payroll/runs",
     sections: [{
       section: "", items: [
-        { to: "/payroll/runs", label: "Payroll Runs", show: (can) => can("payroll.manage") || can("payroll.approve") },
-        { to: "/my-payslips", label: "My Payslips", show: () => true },
-        { to: "/fnf", label: "Full & Final Settlement", show: (can) => can("fnf.view") },
+        { to: "/payroll/runs", label: "Payroll Runs", show: (can, hasModule) => (can("payroll.manage") || can("payroll.approve")) && hasModule("payroll") },
+        { to: "/my-payslips", label: "My Payslips", show: (_can, hasModule) => hasModule("payroll") },
+        { to: "/fnf", label: "Full & Final Settlement", show: (can, hasModule) => can("fnf.view") && hasModule("payroll") },
       ],
     }],
   },
@@ -157,13 +163,13 @@ const NAV_MODULES: NavModule[] = [
     key: "reports", label: "Reports", landingTo: "/reports",
     sections: [{
       section: "", items: [
-        { to: "/reports/team", label: "Team Reports", show: (can) => can("leave.approve_as_manager") },
-        { to: "/reports/projects", label: "Project Reports", show: (can) => can("project.view") },
-        { to: "/reports/expenses", label: "Expense Reports", show: (can) => can("expense.approve_as_manager") },
-        { to: "/reports/expenses-all", label: "All Expense Reports", show: canApproveAnyExpense },
-        { to: "/accounting/profit-and-loss", label: "P&L", show: (can) => can("accounting.view") },
-        { to: "/accounting/balance-sheet", label: "Balance Sheet", show: (can) => can("accounting.view") },
-        { to: "/accounting/cash-flow", label: "Cash Flow", show: (can) => can("accounting.view") },
+        { to: "/reports/team", label: "Team Reports", show: (can, hasModule) => can("leave.approve_as_manager") && hasModule("reports") },
+        { to: "/reports/projects", label: "Project Reports", show: (can, hasModule) => can("project.view") && hasModule("reports") },
+        { to: "/reports/expenses", label: "Expense Reports", show: (can, hasModule) => can("expense.approve_as_manager") && hasModule("reports") },
+        { to: "/reports/expenses-all", label: "All Expense Reports", show: (can, hasModule) => canApproveAnyExpense(can) && hasModule("reports") },
+        { to: "/accounting/profit-and-loss", label: "P&L", show: (can, hasModule) => can("accounting.view") && hasModule("reports") },
+        { to: "/accounting/balance-sheet", label: "Balance Sheet", show: (can, hasModule) => can("accounting.view") && hasModule("reports") },
+        { to: "/accounting/cash-flow", label: "Cash Flow", show: (can, hasModule) => can("accounting.view") && hasModule("reports") },
       ],
     }],
   },
@@ -246,6 +252,19 @@ function readStoredCollapsed(): boolean {
 export default function AppShell() {
   const { user, logout, can } = useAuth();
   const location = useLocation();
+
+  // Which modules this tenant's plan includes — a SuperAdmin has no tenant (redirected below
+  // before this ever renders anything), so the query only runs for a real tenant user.
+  // While it's still loading, every module is treated as enabled rather than none: the backend's
+  // own [RequireModule] guard is the real enforcement boundary, so a moment of full nav on first
+  // paint is better than a moment of an almost-empty sidebar.
+  const { data: enabledModules } = useQuery({
+    queryKey: ["tenantModules"],
+    queryFn: async () => (await api.get<string[]>("/tenants/current/modules")).data,
+    enabled: !!user,
+    staleTime: 60_000,
+  });
+  const hasModule: HasModule = (moduleKey) => !enabledModules || enabledModules.includes(moduleKey);
   const spotRef = useRef<HTMLDivElement>(null);
   const [spotVisible, setSpotVisible] = useState(false);
 
@@ -280,7 +299,7 @@ export default function AppShell() {
     .map((m) => ({
       ...m,
       sections: m.sections
-        .map((s) => ({ ...s, items: s.items.filter((i) => i.show(can)) }))
+        .map((s) => ({ ...s, items: s.items.filter((i) => i.show(can, hasModule)) }))
         .filter((s) => s.items.length > 0),
     }))
     .filter((m) => (m.to ? (m.show ? m.show(can) : true) : m.sections.length > 0));

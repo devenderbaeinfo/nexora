@@ -6,6 +6,7 @@ using Nexora.Modules.HR.Entities;
 using Nexora.Modules.Company.Entities;
 using Nexora.Shared.Tenancy;
 using Nexora.Modules.Identity.Services;
+using Nexora.Modules.Platform.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -23,11 +24,13 @@ public class PlatformController : ControllerBase
 {
     private readonly DbContext _db;
     private readonly UserManager<AppUser> _userManager;
+    private readonly ITenantModuleProvisioningService _moduleProvisioning;
 
-    public PlatformController(DbContext db, UserManager<AppUser> userManager)
+    public PlatformController(DbContext db, UserManager<AppUser> userManager, ITenantModuleProvisioningService moduleProvisioning)
     {
         _db = db;
         _userManager = userManager;
+        _moduleProvisioning = moduleProvisioning;
     }
 
     private Guid CurrentUserId => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub")!);
@@ -40,9 +43,25 @@ public class PlatformController : ControllerBase
             .IgnoreQueryFilters()
             .Where(t => t.Slug != "platform")
             .OrderBy(t => t.Name)
-            .Select(t => new TenantSummaryDto(t.Id, t.Name, t.Slug, t.Status.ToString(), t.BaseCurrencyCode, t.CreatedAtUtc))
             .ToListAsync();
-        return Ok(tenants);
+        var planNames = await _db.Set<Plan>().ToDictionaryAsync(p => p.Id, p => p.Name);
+
+        return Ok(tenants.Select(t => new TenantSummaryDto(
+            t.Id, t.Name, t.Slug, t.Status.ToString(), t.BaseCurrencyCode, t.CreatedAtUtc,
+            t.PlanId, t.PlanId is Guid pid && planNames.TryGetValue(pid, out var name) ? name : null
+        )).ToList());
+    }
+
+    [HttpGet("{id:guid}")]
+    [RequirePermission(Permission.Platform.ManageTenants)]
+    public async Task<ActionResult<TenantDetailDto>> GetDetail(Guid id)
+    {
+        var tenant = await _db.Set<Tenant>().IgnoreQueryFilters().FirstOrDefaultAsync(t => t.Id == id);
+        if (tenant is null) return NotFound();
+
+        var moduleKeys = await _db.Set<TenantModule>().Where(tm => tm.TenantId == id).Select(tm => tm.ModuleKey).ToArrayAsync();
+
+        return Ok(new TenantDetailDto(tenant.Id, tenant.Name, tenant.Slug, tenant.Status.ToString(), tenant.BaseCurrencyCode, tenant.CreatedAtUtc, tenant.PlanId, moduleKeys));
     }
 
     [HttpPost]
@@ -56,9 +75,11 @@ public class PlatformController : ControllerBase
         if (slugTaken) return Conflict("That workspace name is already taken.");
 
         var baseCurrency = string.IsNullOrWhiteSpace(request.BaseCurrencyCode) ? "INR" : request.BaseCurrencyCode.Trim().ToUpperInvariant();
-        var tenant = new Tenant { Name = request.TenantName.Trim(), Slug = slug, BaseCurrencyCode = baseCurrency };
+        var tenant = new Tenant { Name = request.TenantName.Trim(), Slug = slug, BaseCurrencyCode = baseCurrency, PlanId = request.PlanId };
         _db.Set<Tenant>().Add(tenant);
         await _db.SaveChangesAsync();
+
+        await _moduleProvisioning.ResolveAndApplyAsync(tenant.Id, request.PlanId, request.ModuleKeys);
 
         // Every system role is provisioned up front — Admin is the only one with a login today,
         // but HR/Manager/Employee rows must already exist for UsersController to assign people to them later.
@@ -108,7 +129,8 @@ public class PlatformController : ControllerBase
         }
         await TenantRoleStore.AssignRoleAsync(_db, tenant.Id, adminUser.Id, RoleTemplates.Admin);
 
-        return CreatedAtAction(nameof(List), new TenantSummaryDto(tenant.Id, tenant.Name, tenant.Slug, tenant.Status.ToString(), tenant.BaseCurrencyCode, tenant.CreatedAtUtc));
+        var planName = request.PlanId is Guid pid ? await _db.Set<Plan>().Where(p => p.Id == pid).Select(p => p.Name).FirstOrDefaultAsync() : null;
+        return CreatedAtAction(nameof(List), new TenantSummaryDto(tenant.Id, tenant.Name, tenant.Slug, tenant.Status.ToString(), tenant.BaseCurrencyCode, tenant.CreatedAtUtc, tenant.PlanId, planName));
     }
 
     // Suspending a tenant here is what actually blocks every one of its users at login
@@ -124,6 +146,25 @@ public class PlatformController : ControllerBase
 
         tenant.Status = request.Status;
         await _db.SaveChangesAsync();
+
+        return NoContent();
+    }
+
+    // Changes which modules a tenant's own users can see/use, either by moving them onto a
+    // different named Plan or (PlanId null) by hand-picking modules directly ("Custom").
+    // Takes effect immediately for already-logged-in users — see ModuleAuthorizationHandler.
+    [HttpPatch("{id:guid}/plan")]
+    [RequirePermission(Permission.Platform.ManageTenants)]
+    public async Task<IActionResult> UpdatePlan(Guid id, UpdateTenantPlanRequest request)
+    {
+        var tenant = await _db.Set<Tenant>().IgnoreQueryFilters().FirstOrDefaultAsync(t => t.Id == id);
+        if (tenant is null) return NotFound();
+        if (tenant.Slug == "platform") return BadRequest("The platform tenant itself has no plan.");
+
+        tenant.PlanId = request.PlanId;
+        await _db.SaveChangesAsync();
+
+        await _moduleProvisioning.ResolveAndApplyAsync(tenant.Id, request.PlanId, request.ModuleKeys);
 
         return NoContent();
     }

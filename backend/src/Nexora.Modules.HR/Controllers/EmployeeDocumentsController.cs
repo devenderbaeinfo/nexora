@@ -5,6 +5,7 @@ using Nexora.Modules.HR.Services;
 using Nexora.Shared.Common;
 using Nexora.Modules.Identity.Entities;
 using Nexora.Modules.HR.Entities;
+using Nexora.Shared.Tenancy;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -15,6 +16,7 @@ namespace Nexora.Modules.HR.Controllers;
 [ApiController]
 [Authorize]
 [Route("api/employee-documents")]
+[RequireModule(ModuleCatalog.People)]
 public class EmployeeDocumentsController : ControllerBase
 {
     private const long MaxFileSizeBytes = 10 * 1024 * 1024; // 10 MB

@@ -26,7 +26,7 @@ public static class RoleTemplates
 
     public static string[] PermissionsFor(string role) => role switch
     {
-        SuperAdmin => [Permission.Platform.ManageTenants],
+        SuperAdmin => [Permission.Platform.ManageTenants, Permission.Platform.ManagePlans],
 
         Admin =>
         [

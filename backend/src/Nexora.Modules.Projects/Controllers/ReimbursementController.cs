@@ -9,6 +9,7 @@ using Nexora.Modules.Projects.Entities;
 using Nexora.Modules.Workflow.Entities;
 using Nexora.Modules.Finance.Services;
 using Nexora.Modules.Workflow.Services;
+using Nexora.Shared.Tenancy;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -21,6 +22,7 @@ namespace Nexora.Modules.Projects.Controllers;
 [ApiController]
 [Authorize]
 [Route("api/reimbursements")]
+[RequireModule(ModuleCatalog.Reimbursement)]
 public class ReimbursementController : ControllerBase
 {
     private readonly DbContext _db;

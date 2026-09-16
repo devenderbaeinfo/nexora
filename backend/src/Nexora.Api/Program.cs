@@ -47,6 +47,7 @@ builder.Services.AddScoped<IRoleUsageChecker, JobTitleRoleUsageChecker>();
 builder.Services.AddScoped<IEmployeeDirectory, EmployeeDirectory>();
 builder.Services.AddScoped<IProjectDirectory, Nexora.Modules.Projects.Services.ProjectDirectory>();
 builder.Services.AddScoped<IBillingProviderGateway, ManualBillingProviderGateway>();
+builder.Services.AddScoped<Nexora.Modules.Platform.Services.ITenantModuleProvisioningService, Nexora.Modules.Platform.Services.TenantModuleProvisioningService>();
 builder.Services.AddDbContext<NexoraDbContext>(opt =>
     opt.UseSqlServer(builder.Configuration.GetConnectionString("Default")));
 // Modules depend only on the base EF Core DbContext type (never NexoraDbContext directly),
@@ -122,6 +123,9 @@ builder.Services.AddAuthentication(options =>
 
 builder.Services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
 builder.Services.AddSingleton<IAuthorizationHandler, PermissionAuthorizationHandler>();
+// Scoped, not singleton, like PermissionAuthorizationHandler above — it needs a fresh
+// DbContext/ITenantContext per request (see ModuleAuthorizationHandler's DB-backed check).
+builder.Services.AddScoped<IAuthorizationHandler, ModuleAuthorizationHandler>();
 builder.Services.AddAuthorization();
 
 // Login is rate-limited per client IP, independent of Identity's own per-account lockout,

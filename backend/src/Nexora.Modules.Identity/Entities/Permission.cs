@@ -141,6 +141,7 @@ public static class Permission
     public static class Platform
     {
         public const string ManageTenants = "platform.manage_tenants";
+        public const string ManagePlans = "platform.manage_plans";
     }
 
     // Every permission key that a tenant's own roles can be granted, grouped by module —

@@ -4,6 +4,7 @@ using Nexora.Modules.HR.Contracts;
 using Nexora.Shared.Common;
 using Nexora.Modules.Identity.Entities;
 using Nexora.Modules.HR.Entities;
+using Nexora.Shared.Tenancy;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -17,6 +18,7 @@ namespace Nexora.Modules.HR.Controllers;
 [ApiController]
 [Authorize]
 [Route("api/timesheets")]
+[RequireModule(ModuleCatalog.Timecard)]
 public class TimesheetsController : ControllerBase
 {
     private readonly DbContext _db;

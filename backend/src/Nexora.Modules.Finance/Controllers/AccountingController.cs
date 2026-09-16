@@ -26,6 +26,7 @@ namespace Nexora.Modules.Finance.Controllers;
 [ApiController]
 [Authorize]
 [Route("api/accounting")]
+[RequireModule(ModuleCatalog.Accounting)]
 public class AccountingController : ControllerBase
 {
     private readonly DbContext _db;
