@@ -22,6 +22,7 @@ namespace Nexora.Modules.Payroll.Controllers;
 [ApiController]
 [Authorize]
 [Route("api/payroll")]
+[RequireModule(ModuleCatalog.Payroll)]
 public class PayrollController : ControllerBase
 {
     private readonly DbContext _db;

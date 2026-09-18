@@ -6,6 +6,7 @@ using Nexora.Modules.Identity.Entities;
 using Nexora.Modules.HR.Entities;
 using Nexora.Modules.HR.Services;
 using Nexora.Modules.Company.Entities;
+using Nexora.Shared.Tenancy;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -15,6 +16,7 @@ namespace Nexora.Modules.HR.Controllers;
 [ApiController]
 [Authorize]
 [Route("api/employees")]
+[RequireModule(ModuleCatalog.People)]
 public class EmployeesController : ControllerBase
 {
     private readonly DbContext _db;

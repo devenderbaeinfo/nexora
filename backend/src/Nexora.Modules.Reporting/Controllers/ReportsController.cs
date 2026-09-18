@@ -6,6 +6,7 @@ using Nexora.Modules.Identity.Entities;
 using Nexora.Modules.Projects.Entities;
 using Nexora.Modules.Projects.Entities;
 using Nexora.Modules.HR.Entities;
+using Nexora.Shared.Tenancy;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -22,6 +23,7 @@ namespace Nexora.Modules.Reporting.Controllers;
 [ApiController]
 [Authorize]
 [Route("api/reports")]
+[RequireModule(ModuleCatalog.Reports)]
 public class ReportsController : ControllerBase
 {
     private readonly DbContext _db;

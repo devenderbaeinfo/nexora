@@ -13,7 +13,11 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Nexora.Modules.Workflow")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
+<<<<<<< HEAD
 [assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+9e6de8ecc10b91d4df156723c145c80015799d5a")]
+=======
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+efb0a875586bd8ca4324fa12da73fefa4bbec620")]
+>>>>>>> modular-monolith-split
 [assembly: System.Reflection.AssemblyProductAttribute("Nexora.Modules.Workflow")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Nexora.Modules.Workflow")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

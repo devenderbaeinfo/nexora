@@ -8,6 +8,7 @@ using Nexora.Modules.Company.Entities;
 using Nexora.Modules.Workflow.Entities;
 using Nexora.Modules.Workflow.Services;
 using Nexora.Modules.HR.Services;
+using Nexora.Shared.Tenancy;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -17,6 +18,7 @@ namespace Nexora.Modules.HR.Controllers;
 [ApiController]
 [Authorize]
 [Route("api/leave-requests")]
+[RequireModule(ModuleCatalog.Leave)]
 public class LeaveRequestsController : ControllerBase
 {
     private readonly DbContext _db;

@@ -21,6 +21,14 @@ public class PermissionPolicyProvider : IAuthorizationPolicyProvider
         var existing = await _fallback.GetPolicyAsync(policyName);
         if (existing != null) return existing;
 
+        if (policyName.StartsWith("module:", StringComparison.Ordinal))
+        {
+            var moduleKey = policyName["module:".Length..];
+            return new AuthorizationPolicyBuilder()
+                .AddRequirements(new ModuleRequirement(moduleKey))
+                .Build();
+        }
+
         return new AuthorizationPolicyBuilder()
             .AddRequirements(new PermissionRequirement(policyName))
             .Build();

@@ -5,6 +5,7 @@ using Nexora.Modules.Identity.Authorization;
 using Nexora.Modules.Identity.Entities;
 using Nexora.Modules.HR.Entities;
 using Nexora.Modules.Projects.Entities;
+using Nexora.Shared.Tenancy;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -14,6 +15,7 @@ namespace Nexora.Modules.Projects.Controllers;
 [ApiController]
 [Authorize]
 [Route("api/projects")]
+[RequireModule(ModuleCatalog.Projects)]
 public class ProjectsController : ControllerBase
 {
     private readonly DbContext _db;

@@ -5,6 +5,7 @@ using Nexora.Modules.Finance.Entities;
 using Nexora.Shared.Common;
 using Nexora.Modules.Identity.Entities;
 using Nexora.Modules.Finance.Services;
+using Nexora.Shared.Tenancy;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -20,6 +21,7 @@ namespace Nexora.Modules.Finance.Controllers;
 [ApiController]
 [Authorize]
 [Route("api/vendor-bills")]
+[RequireModule(ModuleCatalog.Accounting)]
 public class VendorBillsController : ControllerBase
 {
     private readonly DbContext _db;

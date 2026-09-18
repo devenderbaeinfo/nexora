@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../lib/api";
 import Drawer from "../../components/Drawer";
 import NewClientForm from "./NewClientForm";
+import ChangePlanForm from "./ChangePlanForm";
 import StatusBadge from "../../components/admin/StatusBadge";
 import { adminStyles as s } from "../../components/admin/adminStyles";
 import Spinner from "../../components/Spinner";
@@ -13,13 +14,16 @@ interface TenantRow {
   slug: string;
   status: string;
   createdAtUtc: string;
+  planId: string | null;
+  planName: string | null;
 }
 
 // Real data, not mock — this is the one Super Admin page backed by the actual tenant-
 // provisioning API (PlatformController), since "who are my clients" has to be true, not
-// a placeholder. User counts and plan assignment stay mock until billing/usage tracking exists.
+// a placeholder. User counts stay mock until usage tracking exists.
 export default function AdminClients() {
   const [addOpen, setAddOpen] = useState(false);
+  const [changePlanFor, setChangePlanFor] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const { data, isLoading, error } = useQuery({
     queryKey: ["platformTenants"],
@@ -46,6 +50,10 @@ export default function AdminClients() {
         <NewClientForm onDone={() => setAddOpen(false)} />
       </Drawer>
 
+      <Drawer open={changePlanFor !== null} title="Change plan" onClose={() => setChangePlanFor(null)}>
+        {changePlanFor !== null && <ChangePlanForm tenantId={changePlanFor} onDone={() => setChangePlanFor(null)} />}
+      </Drawer>
+
       {isLoading && <Spinner />}
       {error && <p style={{ color: "var(--danger)" }}>Couldn't load clients. Try refreshing.</p>}
 
@@ -56,6 +64,7 @@ export default function AdminClients() {
               <tr>
                 <th style={s.th}>Company</th>
                 <th style={s.th}>Workspace</th>
+                <th style={s.th}>Plan</th>
                 <th style={s.th}>Status</th>
                 <th style={s.th}>Created</th>
                 <th style={s.th}></th>
@@ -63,12 +72,17 @@ export default function AdminClients() {
             </thead>
             <tbody>
               {data.length === 0 && (
-                <tr><td style={s.td} colSpan={5}>No clients yet — add your first one.</td></tr>
+                <tr><td style={s.td} colSpan={6}>No clients yet — add your first one.</td></tr>
               )}
               {data.map((t) => (
                 <tr key={t.id}>
                   <td style={s.td}><div style={{ fontWeight: 600, color: "var(--ink)" }}>{t.name}</div></td>
                   <td style={{ ...s.td, fontFamily: "var(--font-mono)", fontSize: 12.5 }}>{t.slug}</td>
+                  <td style={s.td}>
+                    <button type="button" style={styles.planButton} onClick={() => setChangePlanFor(t.id)}>
+                      {t.planName ?? "Custom"}
+                    </button>
+                  </td>
                   <td style={s.td}><StatusBadge status={t.status} /></td>
                   <td style={s.td}>{new Date(t.createdAtUtc).toLocaleDateString()}</td>
                   <td style={s.td}>
@@ -112,6 +126,10 @@ const styles: Record<string, React.CSSProperties> = {
   },
   activateButton: {
     background: "var(--good-soft)", color: "var(--good)", border: "none",
+    fontSize: 12.5, fontWeight: 700, padding: "6px 12px", borderRadius: "var(--radius)", cursor: "pointer",
+  },
+  planButton: {
+    background: "var(--accent-soft)", color: "var(--accent)", border: "none",
     fontSize: 12.5, fontWeight: 700, padding: "6px 12px", borderRadius: "var(--radius)", cursor: "pointer",
   },
 };

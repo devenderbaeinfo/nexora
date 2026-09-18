@@ -31,6 +31,9 @@ public class NexoraDbContext : IdentityDbContext<AppUser, AppRole, Guid>
     }
 
     public DbSet<Tenant> Tenants => Set<Tenant>();
+    public DbSet<Plan> Plans => Set<Plan>();
+    public DbSet<PlanModule> PlanModules => Set<PlanModule>();
+    public DbSet<TenantModule> TenantModules => Set<TenantModule>();
     public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
     public DbSet<PermissionScope> PermissionScopes => Set<PermissionScope>();
     public DbSet<PermissionScopeRecord> PermissionScopeRecords => Set<PermissionScopeRecord>();
@@ -119,6 +122,8 @@ public class NexoraDbContext : IdentityDbContext<AppUser, AppRole, Guid>
         builder.Entity<Employee>().HasIndex(e => new { e.TenantId, e.EmployeeCode }).IsUnique();
         builder.Entity<StockItem>().HasIndex(i => new { i.TenantId, i.Sku }).IsUnique();
         builder.Entity<Tenant>().HasIndex(t => t.Slug).IsUnique();
+        builder.Entity<PlanModule>().HasIndex(pm => new { pm.PlanId, pm.ModuleKey }).IsUnique();
+        builder.Entity<TenantModule>().HasIndex(tm => new { tm.TenantId, tm.ModuleKey }).IsUnique();
         builder.Entity<LeaveBalance>().HasIndex(b => new { b.TenantId, b.EmployeeId, b.LeaveTypeId, b.Year }).IsUnique();
         builder.Entity<ProjectMember>().HasIndex(m => new { m.TenantId, m.ProjectId, m.EmployeeId }).IsUnique();
         builder.Entity<PayrollRun>().HasIndex(r => new { r.TenantId, r.PeriodYear, r.PeriodMonth }).IsUnique();

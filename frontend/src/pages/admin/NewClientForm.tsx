@@ -1,13 +1,17 @@
 import { useState, type FormEvent } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../lib/api";
 import { formStyles as s } from "../../components/formStyles";
+import ModulePicker from "../../components/admin/ModulePicker";
 
 function slugify(name: string) {
   return name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 }
 
 interface CreatedClient { slug: string; adminEmail: string; adminPassword: string; }
+interface PlanOption { id: string; name: string; moduleKeys: string[]; }
+
+const CUSTOM_PLAN = "custom";
 
 export default function NewClientForm({ onDone }: { onDone: () => void }) {
   const queryClient = useQueryClient();
@@ -19,11 +23,23 @@ export default function NewClientForm({ onDone }: { onDone: () => void }) {
   const [adminEmail, setAdminEmail] = useState("");
   const [adminPassword, setAdminPassword] = useState("");
   const [baseCurrencyCode, setBaseCurrencyCode] = useState("INR");
+  const [planId, setPlanId] = useState<string>(CUSTOM_PLAN);
+  const [customModuleKeys, setCustomModuleKeys] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [created, setCreated] = useState<CreatedClient | null>(null);
 
+  const { data: plans } = useQuery({
+    queryKey: ["platformPlans"],
+    queryFn: async () => (await api.get<PlanOption[]>("/platform/plans")).data,
+  });
+  const selectedPlan = plans?.find((p) => p.id === planId);
+
   const mutation = useMutation({
-    mutationFn: () => api.post("/platform/tenants", { tenantName, tenantSlug, adminEmail, adminPassword, adminDisplayName, baseCurrencyCode }),
+    mutationFn: () => api.post("/platform/tenants", {
+      tenantName, tenantSlug, adminEmail, adminPassword, adminDisplayName, baseCurrencyCode,
+      planId: planId === CUSTOM_PLAN ? null : planId,
+      moduleKeys: planId === CUSTOM_PLAN ? customModuleKeys : null,
+    }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["platformTenants"] });
       setCreated({ slug: tenantSlug, adminEmail, adminPassword });
@@ -96,6 +112,23 @@ export default function NewClientForm({ onDone }: { onDone: () => void }) {
         onChange={(e) => setBaseCurrencyCode(e.target.value.toUpperCase())}
         placeholder="INR"
       />
+
+      <label style={s.label} htmlFor="plan">Plan</label>
+      <select id="plan" style={s.field} value={planId} onChange={(e) => setPlanId(e.target.value)}>
+        <option value={CUSTOM_PLAN}>Custom — pick modules directly</option>
+        {plans?.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+      </select>
+
+      <label style={s.label}>Modules</label>
+      <div style={{ marginBottom: 18 }}>
+        {planId === CUSTOM_PLAN ? (
+          <ModulePicker selected={customModuleKeys} onChange={setCustomModuleKeys} />
+        ) : (
+          <p style={{ fontSize: 12.5, color: "var(--muted)", margin: 0 }}>
+            Fixed by the "{selectedPlan?.name}" plan. Switch to Custom to pick modules directly.
+          </p>
+        )}
+      </div>
 
       {error && <div style={s.error} role="alert">{String(error)}</div>}
 
